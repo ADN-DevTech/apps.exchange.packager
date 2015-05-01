@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+# ** Uncomment the following line to use a certificate to sign the PKG installer
+# ** the certificate should be installed in your certificate chain
+
+szCertificate=""
