@@ -1,0 +1,118 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//  Creation Date:  11 July 2002
+//	Creator: CPAM
+//
+//  Procedure Name:
+//      bakeIKToClip
+//
+//  Description:
+//      This procedure creates a clip for a selected IK handle provided that
+//		the IK handle is affecting joints that belong to the active character
+//		set and there is an active clip for the active character set.
+//
+//		This is useful when editing clips. An existing clip can be modified
+//		with an IK handle; for example, extending a character's kick for more
+//		convincing motion.
+//
+//		After the clip has been created, it can be merged back into the main
+//		character set by merging character sets (select the character and 
+//		subcharacter and Character->Merge Character Sets) and then merging
+//		the clips (select the clips and Edit->Merge).
+//
+//		The bake range of the IK Handle is taken from the active time range.
+//
+//	Usage:
+//		Select the IK Handle and:
+//			bakeIKToClip 1;
+//
+//  Input Arguments:
+//      int $deleteIKHandle: 1 deletes the IK Handle, 0 keeps it
+//
+//  Return Value:
+//      None.
+
+global proc bgBakeIKToClip( int $deleteIKHandle ){
+	// find IK
+	string $ikHandle[] = `ls -selection`;
+	
+	// find joints in IK solver
+	string $jointList[] = `ikHandle -query -jointList $ikHandle[0]`;
+	
+	// make subcharacter from jointList
+	//
+	// use rotate only since that's all
+	// IK affects
+	string $subCharacter = $ikHandle[0] + "SubCharacter";
+	
+	select -replace $jointList;
+	doCreateSubcharacterArgList 2 { 
+		$subCharacter,
+		"1","0","1","1","1","0" };
+		
+	// find clip scheduler
+	string $clipScheduler[] = `listConnections -type clipScheduler 
+		$subCharacter`;
+	print "\n$clipScheduler ";
+	print $clipScheduler[0];
+	print "\n";
+	
+	// find clip
+	string $clip[] = `listConnections -type animClip $clipScheduler[0]`;
+	
+	// activate clip by finding sourceClip
+	// and then activating
+	string $sourceClip = `clip -q -scn $clip[0]`;
+	clip -e -active $sourceClip $subCharacter;
+	
+	// delete clip for baking
+	delete $clip[0];
+	
+	// bake IK
+	// first deactivate character
+	ClearCurrentCharacterList;
+	// find current time range
+	int $min = `playbackOptions -q -min`;
+	int $max = `playbackOptions -q -max`;
+	//and bake it
+	bakeResults -simulation true 
+		-t ($min + ":" + $max) 
+		-sampleBy 1 
+		-disableImplicitControl true 
+		-preserveOutsideKeys true 
+		-sparseAnimCurveBake false 
+		-at "rx" -at "ry" -at "rz" $jointList;
+	
+	// delete IK
+	if ($deleteIKHandle){
+		delete $ikHandle[0];
+		warning "Deleting IK Handle";
+	}
+	
+	// create clip for joints
+	string $newClip = $ikHandle[0] + "Clip";
+	setCurrentCharacters( { $subCharacter } );
+	clip -name $newClip 
+		-sc 1 -startTime $min 
+		-endTime $max $subCharacter;
+	
+}

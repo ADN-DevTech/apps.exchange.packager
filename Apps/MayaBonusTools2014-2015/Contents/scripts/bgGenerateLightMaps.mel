@@ -1,0 +1,420 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+//
+//
+// Procedure : generateLightMaps
+//
+// Description:
+//		Generate a set of light maps for a set of
+//		geometry.
+//
+// Arguments:
+//		useThisShader : use the shader passed in versus shader 
+//			associated with each object, if no SG is specified, a dummy SG
+//			will be created. The dummy SG will be white (RGB = 1,1,1).
+//			After processing, the dummy SG's will be deleted.
+//		postFix :		string to stick on to end of light map file texture name
+//		fileFormat:		file format
+//		allMeshes:		all poly geometry (1 all geometry, 0 all selected)
+//		blendMode:		blend mode for layered texture (4 is add, 6 is multiply)
+//		shadows :		compute shadows
+//		antiAlias :		anti-alias light map images
+//		rx, ry :		resolution of light map in x and y
+//		newUVSet :		create a new uvSet for the light map (1 yes, 0 no)	
+//		uvSetName :		name of the UVSet to use for the lightmap
+//		filePath:		location for maps to be written to
+//
+//
+// Created : 08/23/00
+// Last Updated: 01/26/11 - fixed minor bugs
+//
+//
+// Create a set of dummy shaders for light mapping only
+//
+global proc
+bgHandleDummyLightMapShaders(int $deleteIt)
+{
+	global string $fakeShaders[];
+	
+	int $numFake = size($fakeShaders);
+	//for ($i=0; $i<$numFake; $i++) {
+	//	catch ( `delete $fakeShaders[$i]` );
+	//}
+
+	//if ($numFake > 0)
+	//	delete $fakeShaders;
+	
+	if ($deleteIt) {
+		delete $fakeShaders;
+		return;
+	}
+
+	// Create a dummy lambert shader + shading group
+	string $newss = `shadingNode -name _fakeSS_lambert_ -asShader lambert`;
+	string $sgName = ($newss + "SG");
+	$sgName = `sets -renderable true -noSurfaceShader true -empty -name $sgName`;
+	eval ("connectAttr -f " + $newss+".outColor " + $sgName+".surfaceShader");
+	eval ("setAttr -type float3 " + $newss+".color 1.0 1.0 1.0");
+	$fakeShaders[0] = $newss;
+	$fakeShaders[1] = $sgName;
+	
+	// Create a dummy blinn shader + shading group
+	$newss = `shadingNode -name _fakeSS_blinn_ -asShader blinn`;
+	$sgName = ($newss + "SG");
+	$sgName = `sets -renderable true -noSurfaceShader true -empty -name $sgName`;
+	eval ("connectAttr -f " + $newss+".outColor " + $sgName+".surfaceShader");
+	eval ("setAttr -type float3 " + $newss+".color 1.0 1.0 1.0");
+	$fakeShaders[2] = $newss;
+	$fakeShaders[3] = $sgName;
+	
+	// Create a dummy phong shader + shading group
+	$newss = `shadingNode -name _fakeSS_phong_ -asShader phong`;
+	$sgName = ($newss + "SG");
+	$sgName = `sets -renderable true -noSurfaceShader true -empty -name $sgName`;
+	eval ("connectAttr -f " + $newss+".outColor " + $sgName+".surfaceShader");
+	eval ("setAttr -type float3 " + $newss+".color 1.0 1.0 1.0");
+	$fakeShaders[4] = $newss;
+	$fakeShaders[5] = $sgName;
+}
+
+global proc 
+bgGenerateLightMaps(string $useThisShader,
+				  string $postFix,
+				  string $fileFormat,
+				  int $allMeshes,
+				  int $blendMode,
+				  int $shadows,
+				  int $antiAlias,
+				  int $rx, int $ry,
+				  int $newUVSet,
+				  string $uvSetName,
+				  string $filePath)
+{
+	global string $fakeShaders[];
+	
+	// Get what to work on
+	string $selected[];
+	int $needsUVRange[]; // Only polys should use the 0 1 0 1 uv range ?
+	int $cnt = 0;
+	
+	// All untemplated meshes / subdivs / nurbs
+	if ($allMeshes) {
+		$selected = `ls -type "mesh" -type "subdiv" -type "nurbsSurface" -ut`;
+		select -r $selected;
+		$cnt = size($selected);
+		for ($i=0; $i<$cnt; $i++)
+		{
+			$needsUVRange[$i] = 1;
+		}
+	//print "\nCount if: ";
+	//print $cnt;
+	}
+	
+	// Check the selection list, and screen out meshes / subdivs / nurbs
+	else {
+		string $unselect[];
+		$cnt = 0;
+
+		string $unfiltered[] = `ls -dag -ap -sl`;
+		for ($i=0; $i<size($unfiltered); $i++) {
+			string $item = $unfiltered[$i];
+			string $ntype = `nodeType $item`;
+			//print ("Node check " + $item + " = " + $ntype + "\n");
+			if ($ntype == "mesh") {
+				$selected[$cnt] = $item;
+				$needsUVRange[$cnt] = 1;
+				$cnt++;
+			}
+			else if ($ntype == "nurbsSurface") {
+				$selected[$cnt] = $item;
+				$needsUVRange[$cnt] = 0;
+				$cnt++;
+			}
+			else if ($ntype == "subdiv") {
+				$selected[$cnt] = $item;
+				$needsUVRange[$cnt] = 0;
+				$cnt++;
+			}
+		}
+	//print "\nCount else: ";
+	//print $cnt;
+	}
+
+	if ($cnt == 0) {
+		error ("No poly meshes selected. Operation not performed.");
+		return;
+	}
+
+	// Default to IFF if no format was given
+	if ($fileFormat == "")
+		$fileFormat = "iff";
+	
+	// Remove any shader duplicates
+	print("// Removing any shader instances...\n");
+	removeObjectShaderInstances $selected;
+	
+	// Toggle off the material mappings
+	print("// Disabling shader textures...\n");
+	toggleMaterialMapping 0;
+	
+	// Create fake shaders
+	print("// Generating fake shaders...\n");
+	bgHandleDummyLightMapShaders( 0 );
+	
+	//print ("// **** Start working on objects: { **********\n");
+	//print $selected;
+	//print ("// }\n");
+	
+	// Get the shaders associated with each geometry,
+	// and run "light map" generation on it.
+	for ($i=0; $i<$cnt; $i++) {
+		
+	//print "\n $i = ";
+	//print $i;
+
+		string $object = $selected[$i];
+		string $shaders[] = `getConnectedShaders $object 0`;
+		int $numShaders = size($shaders);
+		
+		string $uvRangeStr = " -uvRange 0 1 0 1 ";
+ 		string $noUVRangeStr = " ";
+		if ($needsUVRange[$i] == 0)
+			$uvRangeStr = $noUVRangeStr;
+
+		print ("//  Start working on object: ");
+		print $object;
+		print "\n";
+
+		// new UVSet?
+		if ($newUVSet == 1){
+			//print "\nnew UVs";
+			//print "\n";
+
+			// get current UVset so it can be set back after the new
+			// one is created
+			string $currentUVSet[] = `polyUVSet -query -currentUVSet $object`;
+			// create new UVSet
+			string $uvSets[] = `polyUVSet -create -uvSet $uvSetName $object`;
+			$uvSetName = $uvSets[0];
+			polyUVSet -currentUVSet -uvSet $uvSetName $object;
+
+			select -r $object;
+
+			//print "\nconvert to faces";
+			//print "\n";
+
+			// make some decent UVs - note high ps (percentageSpacing) value
+			ConvertSelectionToFaces;
+			//print "\n";
+			//print `ls -sl`;
+			//print "\n";
+
+			//	percentage space should be based on smaller resolution
+			float $percentageSpace;
+			if ($rx > $ry){
+				$percentageSpace = 100 * (4.0/$ry);
+			} else {
+				$percentageSpace = 100 * (4.0/$rx);
+			}
+
+			polyAutoProjection -ibd 1 
+				-layout 2 
+				-scale 1 1 1
+				-optimize 1 
+				-planes 6  
+				-ps 1;
+
+			//print "\nconvert to UVs";
+			//print "\n";
+
+			// do a polyGridUV so that the results will be as good as possible
+			// UVs not on the pixel edge are bad
+			ConvertSelectionToUVs;
+			polyGridUV $rx $ry 0;
+
+			// set the UVSet back
+			polyUVSet -currentUVSet -uvSet $currentUVSet[0] $object;
+
+		} else {
+			string $uvSets[] = `polyUVSet -q -cuv $object`;
+			$uvSetName = $uvSets[0];
+		}
+
+		// Let's generate those light maps baby !
+		if ($numShaders) {
+			
+			// Remove any path seperators and replace them with "_" characters.
+			string $testName1 = `substitute "|" $object "_"`;
+			string $testName2 = `substitute "|" $testName1 "_"`;
+			// print ("// Testnames = " + $testName1 + " " + $testName2 + "\n");
+			while ($testName1 != $testName2) {
+				$testName1 = $testName2;
+				$testName2 = `substitute "|" $testName1 "_"`;		
+			}
+			string $fileName;
+			for ($j=0; $j<$numShaders; $j++) {
+				
+				string $shader = $shaders[$j];
+				
+				//print("** generating lmap for object " + $object + ", shader: " + $shader + "\n");
+				
+				$fileName = $testName1 + "_" + $shader + "_" + $postFix;
+				
+				print("// Generating lightmap: " + $fileName + " for object " + $object + "\n");
+				
+				// New texture name
+				string $txtName[];
+				int $makeFakeShader = 1;
+
+				
+				// Use the user passed in shader
+				//****
+				if (size($useThisShader) != 0) {
+					$txtName = `evalEcho ("convertSolidTx -aa " +
+										  $antiAlias + 
+										  " -rx " + $rx + " -ry " + $ry + 
+										  " -sh " + $shadows + 
+										  " -fin \"" + $filePath +
+										  $fileName + "." + $fileFormat + "\"" + 
+										  " -n " + $fileName +  
+										  " -fil " + $fileFormat + 
+										  " -ubi 1 -uv " + ($uvSetName) +
+										  $uvRangeStr + 
+										  $useThisShader + " " + $object)`;		  
+				}
+				else {
+					
+					// Generate the lightmap. Notice that we only want
+					// the 0,0 to 1 1 uvrange at all times.
+					//
+					if ($makeFakeShader == 1) {
+						// Creata a dummy shader of the correct type to eval lighting with
+						// since the object may be assigned to a shader which
+						// has been duplicated + hooked to a texture.
+						//
+						// Get the surface shader
+						//
+						string $stype[];
+						$stype = `ls -showType $shader`;
+						if ($stype[1] == "shadingEngine") {
+							string $sshader[] = eval ("listConnections -s 1 " + $shader + ".surfaceShader;");
+							if (size($sshader)) {
+								$stype = `ls -showType $sshader[0]`;
+								string $fakeName;
+								if ($stype[1] == "lambert") {
+									$fakeName = $fakeShaders[1];
+								}
+								else if ($stype[1] == "blinn") {
+									$fakeName = $fakeShaders[3];
+								}
+								if ($stype[1] == "phong") {
+									$fakeName = $fakeShaders[5];				
+								}
+
+								print "\nfakeName: ";
+								print $fakeName;
+								print "\n";
+
+
+								$txtName = `evalEcho ("convertSolidTx -aa " +
+											  $antiAlias + 
+											  " -rx " + $rx + " -ry " + $ry + 
+											  " -sh " + $shadows + 
+											  " -fin \"" + $filePath + 
+											  $fileName + "." + $fileFormat + "\"" +
+											  " -n " + $fileName + 
+											  " -fil " + $fileFormat + 
+											  " -ubi 1 -uv " + ($uvSetName) +
+											  $uvRangeStr + 
+											  $object + " " + $fakeName)`;		  
+							}
+						}
+					}
+					else {
+						$txtName = `evalEcho ("convertSolidTx -aa " +
+											  $antiAlias + 
+											  " -rx " + $rx + " -ry " + $ry + 
+											  " -sh " + $shadows + 
+											  " -fin " + $filePath +
+											  $fileName + "." + $fileFormat + "\"" +
+											  " -fil " + $fileFormat + 
+											  " -n " + $fileName + 
+											  " -ubi 1 -uv " + ($uvSetName) +
+											  $uvRangeStr + 
+											  $object + " " + $shader)`;		  
+					}
+				}
+				
+				// Now hook the thing up
+				if (size($txtName)) {
+					bt_addTextureToShaderLayered $shader $txtName[0] $blendMode 1 0;
+
+					//	now link uvset to texture
+					//	get all UVSets on mesh
+					string $uvSets[] = `polyUVSet -q -auv $object`;
+
+					//	loop to find index of lightMap UVset
+					int $map;
+					int $maps = `size($uvSets)`;
+					int $mapCount;
+					for ( $mapCount = 0; $mapCount < $maps; $mapCount++){
+						if ($uvSets[$mapCount] == $uvSetName) $map = $mapCount;
+					}
+
+					// link
+					//print "\n";
+					//print "\nobject = ";
+					//print $object;
+
+					//string $shape[] = `listRelatives -children -shapes $object`;
+					//print "\n";
+					//print "\nshape = ";
+					//print $shape[0];
+
+					string $uvLinkCmd = "uvLink -make -uvSet ";
+ 					//$uvLinkCmd = $uvLinkCmd + ($shape[0] + ".uvSet[" + $map + "].uvSetName");
+					$uvLinkCmd = $uvLinkCmd + ($object + ".uvSet[" + $map + "].uvSetName");
+					$uvLinkCmd = $uvLinkCmd + " -texture " + ($txtName[0]);
+					evalEcho ($uvLinkCmd);
+											
+				}
+			}
+		}
+		else {
+			warning ("There are no shaders for object: " + $object + ". Nothing done.");
+		}
+	}
+	
+	// Delete fake shaders
+	bgHandleDummyLightMapShaders( 1 );
+	
+	// Toggle on the material mappings
+	select -r $selected;
+	toggleMaterialMapping 1;
+	print ("// Light map generation finished.\n");
+}
+

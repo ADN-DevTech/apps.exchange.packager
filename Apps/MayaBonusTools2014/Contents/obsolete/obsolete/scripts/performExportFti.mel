@@ -1,0 +1,174 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+global proc DoFtiExport(string $wnd)
+{
+	string $dir = `textFieldGrp -q -text FtiDirectory`;
+	string $name = `textFieldGrp -q -text FtiFileName`;
+	if ($name == "")
+	{
+		warning (uiRes("m_performExportFti.kFileNameWarn"));
+		return;
+	}
+
+	$name = ($dir + "/" + $name);
+
+	float $space = `floatSliderGrp -q -v FtiExtraSpaceSlider`;
+
+	// Save the values in the optionVars
+	optionVar -floatValue "FtiExtraSpaceSlider" $space;
+
+	// Fix the extension if not the right one
+	string $ext = "fti";
+	if (`match ("\\."+$ext+"$") $name` == "")
+		$name = $name+"."+$ext;
+
+	// Finally do the job
+
+	if (`file -q -ex $name`)
+	{
+		// Warn if file already exists.
+		string $yes = (uiRes("m_performExportFti.kYes"));
+		string $cancel = (uiRes("m_performExportFti.kCancel"));
+		
+		$result = `confirmDialog -message (uiRes("m_performExportFti.kFileExists"))
+			-button $yes -button $cancel -defaultButton $cancel
+			-parent $wnd`;
+		if ($result != $yes)
+			return;
+	}
+
+	// Before executing the command, double all the \'s in case we
+	// have a NT like path
+	$name = substituteAllString($name, "\\", "\\\\");
+
+	string $cmd = "ftiExport -es "+$space+" -o \""+$name+"\"";
+
+	// Only delete the window is the command did not fail
+	if (! catch (`evalEcho $cmd`))
+		deleteUI $wnd;
+}
+
+global proc FtiResetDefaults()
+{
+	// Reset to factory settings
+	floatSliderGrp -e -v 5. FtiExtraSpaceSlider;
+}
+
+global proc int FtiBrowseCallBack(string $dirName, string $fileType)
+{
+	textFieldGrp -e -fileName $dirName FtiDirectory;
+	return true;
+}
+
+global proc FtiBrowse()
+{
+	string $dir = `textFieldGrp -q -tx FtiDirectory`;
+	$dir = `dirname $dir`;
+	workspace -dir $dir;
+	string $setFtiDirectory = (uiRes("m_performExportFti.kSetFtiDirectory"));
+	fileBrowser("FtiBrowseCallBack", $setFtiDirectory, "", 4);
+}
+
+global proc performExportFti()
+{
+	global float $UVSnapshotRatio;
+	
+	string $wnd = "FtiExportWindow";
+	string $title = (uiRes("m_performExportFti.kExportFti"));
+	window -title  $title -iconName $title $wnd;
+
+	int $spacing = 160;  // Matches option box spacing
+	setUITemplate -pushTemplate DefaultTemplate;
+
+	string $dir = (`workspace -q -fre OBJ`);
+	string $name = "test.fti";
+
+	$dir = `workspace -en $dir`;
+	if ( `about -nt` )
+		$dir = substituteAllString($dir, "/", "\\");
+
+	formLayout snapUVform;
+		columnLayout snapUVcol;
+
+			textFieldButtonGrp -label (uiRes("m_performExportFti.kOutputDirectory"))
+				-cw 1 $spacing 
+				-cw 3 65
+				-text $dir 
+				-buttonLabel (uiRes("m_performExportFti.kBrowse"))
+				-buttonCommand FtiBrowse 
+				FtiDirectory;
+
+			textFieldGrp -label (uiRes("m_performExportFti.kFileName"))
+				-cw 1 $spacing 
+				-tx $name 
+				FtiFileName;
+
+			floatSliderGrp -label (uiRes("m_performExportFti.kExtraSpace")) 
+				-cw 1 $spacing
+				-min 0 -max 100
+				-v 5.
+				FtiExtraSpaceSlider;
+
+		setParent ..;
+	
+		button  -label (uiRes("m_performExportFti.kCreateFti"))
+			-c ("DoFtiExport(\""+$wnd+"\")")
+			okButton;
+		button  -label (uiRes("m_performExportFti.kReset"))
+			-c "FtiResetDefaults"
+			resetButton;
+		button  -label (uiRes("m_performExportFti.kClose"))
+			-c ("{deleteUI "+$wnd+";}")
+			closeButton;
+
+	setParent ..;
+
+	formLayout -edit
+		-af snapUVcol "top" 5
+		-af snapUVcol "left" 0
+		-af snapUVcol "right" 15
+		-ac snapUVcol "bottom" 5 okButton
+
+		-an okButton "top"
+		-af okButton "left" 5
+		-ap okButton "right" 3 33
+		-af okButton "bottom" 5
+
+		-an resetButton "top" 
+		-ap resetButton "left" 2 33
+		-ap resetButton "right" 3 66
+		-af resetButton "bottom" 5
+
+		-an closeButton "top"
+		-ap closeButton "left" 2 66
+		-af closeButton "right" 5
+		-af closeButton "bottom" 5
+		snapUVform;
+
+	// Read the values from the optionVars
+	if (`optionVar -ex "FtiExtraSpace"`)
+		floatSliderGrp -e -v `optionVar -q "FtiExtraSpace"` FtiExtraSpaceSlider;
+
+	setUITemplate -popTemplate;
+
+	showWindow $wnd;
+}

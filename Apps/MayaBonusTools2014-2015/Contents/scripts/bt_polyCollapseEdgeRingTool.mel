@@ -1,0 +1,77 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// international treaties.
+//
+//
+// Created by Steven T. L. Roselle 
+// Based on original tool by cpam
+// Last updated:      ( 02/01/12 )
+
+proc bt_polyCollapseEdgeRingToolCtx(){
+
+		
+	scriptCtx
+		-title "Poly Delete Edge Ring"
+		-image1 "polyDelEdge.png"
+		-totalSelectionSets 1
+        -setSelectionCount	0
+		
+        -ts ("headsUpMessage -t 4 \"Select an edge and the associated edge ring will be Collapsed.\"")
+		
+		-expandSelectionList true
+		-finalCommandScript ("PolyConvertToRingAndCollapse; polyDelEdge -cv true; headsUpMessage -t 4 \"Select an edge and the associated edge ring will be Collapsed.\"")
+
+		-setNoSelectionPrompt "Select an edge and the associated edge ring will be Collapsed."
+		-setAutoComplete true
+		-polymeshEdge true
+		-toolCursorType "create"
+		-exitUponCompletion false
+
+		
+		bt_polyCollapseEdgeRingTool;
+	
+}
+
+
+global proc bt_polyCollapseEdgeRingTool(){
+	
+	if (!`contextInfo -exists bt_polyCollapseEdgeRingTool`)
+	{
+	    bt_polyCollapseEdgeRingToolCtx;
+	}
+    setSelectMode components Components; selectType -smp 0 -sme 1 -smf 0 -smu 0 -pv 0 -pe 1 -pf 0 -puv 0;
+    select -cl;
+	setToolTo bt_polyCollapseEdgeRingTool;
+    print ("Select edges to automatically delete\n");
+	
+}
+
+
+/*
+deleteUI bt_polyCollapseEdgeRingTool;
+*/
+

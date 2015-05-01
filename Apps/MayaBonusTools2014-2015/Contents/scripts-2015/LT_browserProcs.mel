@@ -1,0 +1,1211 @@
+
+// LT_browserProcs.mel
+//
+// Contains general procs used by LT_UI.mel for LayoutToolsUI
+//
+// Author:		Steven T. L. Roselle
+// email:		Steven.Roselle@autodesk.com
+//
+// Feel free to email with problems/issues that you may encounter.  
+// I may not be able to reply right away, but I will try to investigate  
+// the problem as soon as I can.
+//                     
+//
+// Creation Date:      ( 04/04/03 )
+// Last Update:        ( 04/01/14 )
+//
+// Version:		LayoutTools 2015  (formerly LevelTools)
+
+
+global proc LT_browserProcs()
+{
+	// Force loading of all LayoutTools Browser procs
+}
+
+
+
+//////////////////////////////////////////////
+//	Browser Procs
+//////////////////////////////////////////////
+
+
+
+global proc string LT_swFloatToNiceString(float $swFloat)
+{
+    //Convert long float value to shorter string
+    //
+
+    string $swReturn;
+    string $swPrintData[];
+
+    if (($swFloat < 0.000001) && ( $swFloat > -0.000001)) $swReturn = "0.000000";
+    else
+
+    		{
+        string $swTmp = $swFloat;
+        tokenize $swTmp "." $swPrintData;
+        if (size ($swPrintData) == 2)
+	{
+
+                $swPrintData[1] = $swPrintData[1] + "000";
+                $swReturn = $swPrintData[0] + "." + `substring $swPrintData[1] 1 3`;
+        }
+        else 
+		$swReturn = $swPrintData[0] + ".000";
+    }
+    return $swReturn;
+}
+
+
+
+
+//////////////////////////////////////////////
+//	File I/O Procs
+//////////////////////////////////////////////
+
+
+global proc LT_getFile(string $path, string $name, string $ext, string $fileHandling)
+{
+	//Import, reference, or assembly ref file into current scene or open as new scene 
+	//based on $fileHandling setting
+	
+	//used to track scriptJob for killing icon render HUDs
+	global int $LT_tmpScriptJobID;
+	global string $gSelect;
+	global string $gDirRetainingOptionVar;
+
+	//get related optionVars
+	string $shareShadingNetworks = `optionVar -q LT_shareShadingNetworks`;
+	string $shareLayers = `optionVar -q LT_shareLayers`;
+	string $createRefLocator = `optionVar -q LT_createRefLocator`;
+	
+	string $allXformsBefore[] = `ls -type transform`;
+	string $objName[];
+	
+	string $referenceFlags = " ";
+	
+	//get cut code and extract date
+	string $cutCode = `about -c`;
+	int $dateCheck = `substring $cutCode 1 8`;
+	
+
+	//Set filetype and add extension to name
+	string $type;
+	if ($ext == "mb")
+		$type = "mayaBinary";
+	else if ($ext == "ma")
+		$type = "mayaAscii";
+	else if ($ext == "fbx")
+		$type = "FBX"; //formerly FBX		
+   // else if ($ext == "obj")
+   //     $type = "OBJ"; //consider adding in 2016
+	else 
+		error ("File extension not recognized.");
+
+
+	int $mods = `getModifiers`;  //check for ctrl key
+	if (($mods / 4) % 2) 
+        error "CTRL no longer used for icon creation.  Use RMB menu instead.";		
+     	//LT_iconConfirmA $path  $name  $ext;
+					
+	string $file = $name+"."+$ext;
+	print ("Getting " + $path+ "/" + $file + "\n");
+	
+					
+	/////////////////
+	//
+	//   import  
+    //			
+	if  ($fileHandling == "import") //import file
+		{
+
+		if ($type == "FBX")
+			{
+			//file -import -type "FBX" -ra true -mergeNamespacesOnClash false -namespace $name -options "fbx" -pr -loadReferenceDepth "all" ($path+ "/" + $file);  
+			FBXImportMode -v add; 
+			FBXImport -f ($path+ "/" + $file);	
+			if ($shareShadingNetworks == 1)
+			    warning "Shared shading networks not supported for FBX import.";
+			}	
+		else // maya file
+		    {
+		    if ($shareShadingNetworks == 1)
+			    {
+				file -import -iv -type $type -rdn -rpr $name ($path+ "/" + $file);			
+			    print ("Using file option -rdn to cleanup redundant shader networks.\n");
+			    }
+			else
+			    file -import -iv -type $type -rpr $name ($path+ "/" + $file);
+			}
+											
+		//Select all dagNodes and then isolate last imported object
+		select -r -allDagObjects;
+		string $objName[] = `ls -selection -tail 1`;
+		select -r ("|"+$objName[0]);
+
+			
+	    //Move to user defined ground plane if not creating an icon
+	    setAttr ("|"+$objName[0]+".ty") `optionVar -q LT_groundValue`;
+
+ 		bt_clickDragObj; 				
+		}
+				
+                
+    	/////////////////
+    	//
+    	//   open  
+        //	
+        else if  ($fileHandling == "open") //open file
+            {
+            // file -f -options "v=0;"  -typ "mayaBinary" -o "C:/Users/sroselle/Desktop/ARCHIVE/Demos/Maya/Maya Demo Files/2014 Demos/GDC-2013_Maya2014_Demo_v4/scenes/05a Modeling_part1.mb";addRecentFile("C:/Users/sroselle/Desktop/ARCHIVE/Demos/Maya/Maya Demo Files/2014 Demos/GDC-2013_Maya2014_Demo_v4/scenes/05a Modeling_part1.mb", "mayaBinary");
+            print ("\nOpening file " + $file + "\n");
+            NewScene;
+            if ($type == "FBX")
+                {
+                //file -open -type "FBX" -options "fbx" -pr -loadReferenceDepth "all" ($path+ "/" + $file);
+                FBXImportMode -v add; 
+				FBXImport -f ($path+ "/" + $file);	
+				}
+            else
+                {
+                //make sure the location of file is tracked by Maya    
+                optionVar -sv $gDirRetainingOptionVar ($path+ "/");
+                setWorkingDirectory `workspace -q -fn` "Maya Scenes" "scene";    
+                file -open -iv -type $type ($path+ "/" + $file);  
+                }
+            addRecentFile(($path+ "/" + $file), $type);
+            }
+            
+        
+
+    	/////////////////
+    	//
+    	//   reference  
+        //	            
+        else if ($fileHandling == "reference") //reference file
+			{				
+			//check for ref options
+			if ($createRefLocator == 1)
+				$referenceFlags = " -gr -gl ";
+			if ($shareShadingNetworks == 1)
+				$referenceFlags = ($referenceFlags + " -sharedNodes \"shadingNetworks\" ");
+			if ($shareLayers == 1)
+				$referenceFlags = ($referenceFlags + " -sharedNodes \"displayLayers\" ");
+			
+			
+						    
+			if ($type == "FBX")
+				//error ($file + " : Referencing is not designed to work with FBX files.");
+				file -r -type "FBX" -gl -loadReferenceDepth "all" -mergeNamespacesOnClash false -namespace $name -options "fbx" ($path+ "/" + $file);
+            else //maya file
+				{
+    			//$command = ("file -r -type " + $type + $referenceFlags + " -namespace " + $name + " -options \"v=0\" ");
+    			$command = ("file -r -iv -type " + $type + $referenceFlags + " -namespace " + "\"" + $name + "\"");
+    			$pathfile = ("\"" + $path + "/" + $file + "\"");
+    			print "\n";
+    			print ($command + $pathfile);
+    			eval ($command + $pathfile);
+    			}
+			
+
+
+			//look for locator before moving
+			if ($createRefLocator == 1)
+				{
+				//Locator will automatically get selected
+				string $objName[] = `ls -sl`;
+				select -r ("|"+$objName[0]);
+				//Move to user defined ground plane
+				setAttr ("|"+$objName[0]+".ty") `optionVar -q LT_groundValue`;
+				//return ("|"+$objName[0]);
+                bt_clickDragObj;			}
+			else
+				{
+				//Select all dagNodes and then isolate last imported object
+				select -r -allDagObjects;
+				string $objName[] = `ls -selection -tail 1`;
+				select -r ("|"+$objName[0]);
+				//Move to user defined ground plane
+				setAttr ("|"+$objName[0]+".ty") `optionVar -q LT_groundValue`;
+				//return ("|"+$objName[0]);
+         		bt_clickDragObj; 
+				}
+
+			}
+			
+
+    	///////////////////////
+    	//
+    	//   Assembly Reference  
+        //	
+		else if  ($fileHandling == "assembly") //assembly reference file
+            {
+            //$cntr = `container -type assemblyReference -name $file`;  //OLD COMMAND
+            $cntr = `assembly -type assemblyReference -name $file`;
+            //$cntr = `ls -sl`;
+            //container -q -current;
+            //container -e -current true assemblyReference1;
+            setAttr  ($cntr+".definition") -type "string" ($path+ "/" + $file);
+            select -r $cntr;
+     		bt_clickDragObj; 
+
+            }
+            
+                   
+        /////////////////
+    	//
+    	//   Error  
+        //	    
+        else
+            error ($fileHandling + " : Wrong value for Browser Method\n");
+		
+}
+
+
+
+global proc LT_disableAllHUDs()
+{
+
+    setSelectDetailsVisibility 0;
+    setObjectDetailsVisibility 0;
+    setParticleCountVisibility 0;
+    setPolyCountVisibility 0;
+    setAnimationDetailsVisibility 0;
+    setHikDetailsVisibility 0;
+    setFrameRateVisibility 0;
+    setCurrentFrameVisibility 0;
+    setSceneTimecodeVisibility 0;
+    setCurrentContainerVisibility 0;
+    setCameraNamesVisibility 0;
+    setFocalLengthVisibility 0;
+}
+
+
+proc bt_enableAllPanelHUDs()
+
+{
+string $panelList[] = `getPanel -type modelPanel`;
+for ($currentPanel in $panelList)   
+	modelEditor -e -hud true  $currentPanel;	
+}
+
+
+global proc LT_iconConfirmA(string $path, string $name, string $ext)
+{
+    //Create icon from file
+    	
+	//used to track scriptJob for killing icon render HUDs
+	global int $LT_tmpScriptJobID;
+    global string $LT_makeIconResponse = "No";
+
+    string $camSetup = `optionVar -q LT_iconCameraSetup`;
+    string $lightSetup = `optionVar -q LT_iconLightingSetup`;
+    string $renderSetup = `optionVar -q LT_iconRendererSetup`;
+		
+	//Keep HUDs visible if recreating multiple icons	
+	//this is setup in LT_createIcon for removing HUDs
+	if (`scriptJob -exists $LT_tmpScriptJobID` && $LT_tmpScriptJobID != 0) 
+		{
+		scriptJob -k $LT_tmpScriptJobID; //kill if it exist
+		}
+	
+	//Get confirmation for icon creation
+	$LT_makeIconResponse = `confirmDialog -title "Confirm" -message "WARNING: Existing icon will be overwritten.  Do you want to continue?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;	
+
+	if ($LT_makeIconResponse == "Yes") 
+		{
+		// first open the file    
+        LT_getFile $path $name $ext "open";
+
+			
+		// create icon for file    
+		LT_createIcon $path $name $ext $camSetup $lightSetup $renderSetup; 
+		
+		//setup return of transform name
+		//$xform = `pickWalk -d up`;
+
+		}
+	else
+	    print "Cancelling icon creation.\n";
+
+}
+
+
+
+global proc LT_iconConfirmB(string $path, string $name, string $ext)
+{
+
+    //Create icon from current scene
+    
+	//used to track scriptJob for killing icon render HUDs
+	global int $LT_tmpScriptJobID;
+    global string $LT_makeIconResponse = "No";
+    
+	//Keep HUDs visible if recreating multiple icons	
+	//this is setup in LT_createIcon for removing HUDs
+	if (`scriptJob -exists $LT_tmpScriptJobID` && $LT_tmpScriptJobID != 0) 
+		{
+		scriptJob -k $LT_tmpScriptJobID; //kill if it exist
+		}
+	
+	//Get confirmation for icon creation
+	$LT_makeIconResponse = `confirmDialog -title "Confirm" -message "WARNING: Existing icon will be overwritten.  Do you want to continue?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;	
+
+	if ($LT_makeIconResponse == "Yes") 
+		{
+
+		// create icon for file    
+		LT_createIcon $path $name $ext  0 0 0; 
+
+		}
+	else
+	    print "Cancelling icon creation.\n";
+	        
+}
+
+
+
+global proc LT_createIcon (string $path, string $name, string $ext, string $camSetup, string $lightSetup, string $renderSetup)
+{	
+
+		global string $LT_importPath;
+		global string $LT_tab1;
+		global string $LT_tabName;
+
+		global int $LT_tmpScriptJobID;
+		
+		string $file = $name+"."+$ext;
+		string $cam;
+		string $camShape[];
+		
+		//Make sure UI gets rebuilt when icon is generated
+		optionVar -intValue LT_RebuildUI 1; 
+
+		//int	$iconSize = `optionVar -q LT_iconSize`;
+		int $iconSize = 256;  //changed from 128 in older versions
+        string $iconFormatName = `optionVar -q LT_iconFormat`;
+        int $iconFormatNumber = `optionVar -q LT_iconFormatNumber`;	 
+        string $iconRenderer = `optionVar -q LT_iconRenderer`;  
+        string $iconLocation;
+        
+        $primaryIconPath = ($path + "/icons/");
+        $secondaryIconPath = ($path + "/");
+        $projectRootIconPath = (`workspace -q -fn` +  "/icons/");
+        $userRootIconPath = `optionVar -q LT_userBrowserPath`;
+        
+        //set location for icon render
+        if (`optionVar -q LT_iconRenderLocation` == 3)	 //Search Root    
+        	if (`optionVar -q LT_relativeToProject`)     
+            	$iconLocation = $projectRootIconPath;
+            else       
+        	    $iconLocation = $userRootIconPath;
+        	    
+    	else if (`optionVar -q LT_iconRenderLocation` == 2)	//secondary       
+	        $iconLocation = $secondaryIconPath;
+	        
+	    else //primary       
+	        $iconLocation = $primaryIconPath;
+	        
+	    
+	    
+	    //Temporarily isolate on the current file in LT_UI with temporary search string
+	    
+	    if (`optionVar -q LT_fileSearchString` != $file)
+	        {
+    	    optionVar -stringValue LT_tempFileSearchString `optionVar -q LT_fileSearchString`;
+            optionVar -stringValue LT_fileSearchString $file;  
+            }  	
+
+	    
+	    //First remove any redundant icons at the various possible locations
+	    if (`file -q -ex ($primaryIconPath+$name+$iconFormatName)`) 
+	        {
+	        print ("Deleted existing icon: " + $primaryIconPath+$name+$iconFormatName + "\n");
+	        sysFile -delete  ($primaryIconPath+$name+$iconFormatName);
+	        }
+	    if (`file -q -ex ($secondaryIconPath+$name+$iconFormatName)`) 
+	        {
+	        print ("Deleted existing icon: " + $secondaryIconPath+$name+$iconFormatName + "\n");   
+	        sysFile -delete  ($secondaryIconPath+$name+$iconFormatName);
+	        }
+	    if (`file -q -ex ($userRootIconPath+$name+$iconFormatName)`) 
+	        {
+	        print ("Deleted existing icon: " + $userRootIconPath+$name+$iconFormatName + "\n");	    
+	        sysFile -delete  ($userRootIconPath+$name+$iconFormatName);
+	        }
+	    if (`file -q -ex ($projectRootIconPath+$name+$iconFormatName)`) 
+	        {
+	        print ("Deleted existing icon: " + $projectRootIconPath+$name+$iconFormatName + "\n");	    
+	        sysFile -delete  ($projectRootIconPath+$name+$iconFormatName);
+            }		        
+	    print ("Removed any existing/redundant icons files for - " + $name + "." + $ext + ".\n\n");		
+	    					
+    	
+    	// Check for renderable meshes
+    	string $meshList[] = `ls -typ mesh`;
+    	if (`size $meshList` == 0)
+    		warning "No meshes found in scene.";
+        		
+
+        /////////////////
+        //  Camera Setup
+        
+        // Make all cameras unrenderable to start - we only want one icon
+        $allCameras = `ls -type "camera"`;
+        for ($cam in $allCameras)
+            setAttr ($cam+".renderable") 0;
+
+        
+        // Check for custom or ortho camera or default to persp
+    	$currentPanel = `getPanel -withFocus`;
+    	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		    {
+		    $cam = `modelPanel -q -camera $currentPanel`;    
+		    $camShape = `listRelatives -shapes $cam`; 
+		    } 
+		else
+		    {
+		    $cam = "persp"; 
+		    $camShape[0] = "perspShape";
+		    }    
+        
+        // Set only 1 camera this camera to renderable
+        setAttr ($cam+".renderable") 1;
+
+        // Turn on gate mask
+		camera -e -filmFit "fill" -displayFilmGate off -displayGateMask off -displayResolution on -overscan 1.3 $cam;
+		
+		if ($camSetup == 1) //auto lighting and camera setup
+		{
+ 
+	    	setAttr ($camShape[0]+".focalLength") 55;        
+	        
+    		//select and frame meshes
+        	if (`size $meshList` != 0)
+        	    select $meshList;
+	    	viewFit $camShape[0];
+	    	
+			//Can be used to dolly camera closer
+			/*
+			if (`getAttr persp.tx` < 5)			
+				dolly -rel -d 0 persp;
+			if (`getAttr persp.tx` < 25)
+				dolly -rel -d (-`getAttr persp.tx` / 10) persp;
+			else if (`getAttr persp.tx` < 50)
+				dolly -rel -d (-`getAttr persp.tx` / 4) persp;
+			else if (`getAttr persp.tx` < 100)
+				dolly -rel -d (-`getAttr persp.tx` / 3) persp;
+			else
+				dolly -rel -d (-`getAttr persp.tx` / 2) persp;
+			*/
+		}	
+		    
+		        
+        /////////////////
+        //  Light Setup
+        				
+		if ($lightSetup == 1) //auto lighting and camera setup
+		{
+			//temporary lighting
+			directionalLight;
+			$lightName1 = `ls -sl`;
+			setAttr ($lightName1[0]+".rotateX") -27;
+			setAttr ($lightName1[0]+".rotateY") 15;
+			setAttr ($lightName1[0]+".rotateZ") 18;
+			$lightName1 = `pickWalk -d down`;
+			setAttr ($lightName1[0]+".intensity") 2;
+			setAttr ($lightName1[0]+".useDepthMapShadows") 1;
+			directionalLight;
+			$lightName2 = `ls -sl`;
+			setAttr ($lightName2[0]+".rotateX") -122;
+			setAttr ($lightName2[0]+".rotateY") -7;
+			setAttr ($lightName2[0]+".rotateZ") -66;
+			$lightName2 = `pickWalk -d down`;
+			setAttr ($lightName2[0]+".intensity") 1;
+			setAttr ($lightName2[0]+".useDepthMapShadows") 1;
+	
+			//set panel to show lights
+			string $panelList[] = `getPanel -type modelPanel`;
+			for ($currentPanel in $panelList)   
+					modelEditor -edit -displayLights "all" -displayAppearance "smoothShaded" -displayTextures 1 $currentPanel;						
+			
+		    //clear selection (need for new VP2 render)
+			select -cl;
+					
+		}
+
+
+        /////////////////
+        //  Render Setup		
+
+		setAttr "defaultResolution.width" $iconSize;
+		setAttr "defaultResolution.height" $iconSize;
+		setAttr "defaultResolution.deviceAspectRatio" 1;
+		setAttr "defaultResolution.pixelAspect" 1;
+    	setAttr "defaultRenderGlobals.imageFormat" $iconFormatNumber;
+        setAttr "defaultRenderGlobals.animation" 0;
+        setAttr "defaultRenderGlobals.outFormatControl" 0;
+        	
+    	//set location for icon file - if icons folder doesn't exist it will be created
+    	setAttr -type "string" defaultRenderGlobals.imageFilePrefix ($iconLocation+$name);
+            
+
+        if ($iconRenderer == "VP2")
+            {
+       		if ($renderSetup == 1) //set vp2 render options
+                {
+        		setAttr "hardwareRenderGlobals.enableHighQualityLighting" 1;
+        		setAttr "hardwareRenderGlobals.enableAcceleratedMultiSampling" 1;
+        		setAttr "hardwareRenderGlobals.numberOfSamples" 9;
+        		setAttr "hardwareRenderGlobals.colorTextureResolution" 512;
+        		setAttr "hardwareRenderGlobals.bumpTextureResolution" 1024;
+                setAttr "hardwareRenderingGlobals.multiSampleCount" 8;
+                setAttr "hardwareRenderingGlobals.multiSampleEnable" 1;
+                }
+            ogsRender -cv -w $iconSize -h $iconSize -enableMultisample 1 -camera $cam; 
+            }
+		
+		else if ($iconRenderer == "MRay")
+		    {
+    		//or MentalRay renderer - but first setup some quick quality settings
+    		if (!`pluginInfo -q -l "Mayatomr.mll"`)
+    		    error "Mental Ray is not loaded.  Cannot render icon.  Either load Mayatomr.mll in the Plugin Manager or use a different renderer";
+
+                    miCreateDefaultNodes;
+            		if ($renderSetup == 1) //set mental ray render options
+    		        {
+                        setAttr "miDefaultOptions.miSamplesQualityR" 0.4; 
+                		setAttr "miDefaultOptions.maxSamples" 1;
+                		setAttr "miDefaultOptions.filter" 1;
+                        setAttr "miDefaultOptions.filterWidth" 1;
+                        setAttr "miDefaultOptions.filterHeight" 1;
+                        setAttr "miDefaultOptions.maxReflectionRays" 2;
+                        setAttr "miDefaultOptions.maxRefractionRays" 2;
+                        setAttr "miDefaultOptions.maxRayDepth" 4;
+        		    }		                
+        		    setCurrentRenderer mentalRay;
+        	    	Mayatomr -preview  -x $iconSize -y $iconSize -camera $cam;
+
+            }
+		else
+            {
+       		if ($renderSetup == 1) //set Maya render options
+        		setAttr "defaultRenderQuality.edgeAntiAliasing" 1;
+            //default to the Maya software render
+	    	render -x $iconSize -y $iconSize $cam;
+		    }
+		
+
+        //Rename icon file to match source
+	    sysFile -rename  ($iconLocation+$name+$iconFormatName) ($iconLocation+$name+"_tmp"+$iconFormatName);
+	    
+	    print ("\nRendered new icon : " +$iconLocation + $name + $iconFormatName + " with " + $iconRenderer + " renderer \n");
+
+  		
+		//refreshIcon - must run this through a scriptJob indirectly to prevent crash from UI killing itself
+		scriptJob -ro true -ie "LT_UI";
+
+        /////////////////
+        //  HUD Setup	
+
+        bt_enableAllPanelHUDs;        
+        
+        // first diable all standard HUDs
+        print "Disabling all standard HUDs so that render icon HUDs will display\n";
+        LT_disableAllHUDs;
+        
+		if (`headsUpDisplay -exists HUDIconInfo`) headsUpDisplay -remove HUDIconInfo;
+
+		headsUpDisplay -rp 2 2;
+		headsUpDisplay -s    2
+               -b        2
+               -ba       "center"
+               -dw       50
+               -label      ("Render icon to:  " +$iconLocation + $name + $iconFormatName)
+               HUDIconInfo;		
+			
+		headsUpDisplay -rp 7 3;
+		headsUpDisplay -s    7
+               -b        3
+               -ba       "center"
+               -dw       50
+               -label      "(Adjust camera or lighting if necessary and click -Render Icon- button to create icon)."
+               HUDIconInfo2;		
+               
+		if (`headsUpDisplay -exists HUDIconRenButton`) headsUpDisplay -remove HUDIconRenButton;
+
+
+		
+     	string $HUDCommand;
+     	string $tmpValue = "0";
+     	//$HUDCommand = "LT_createIcon \"" + $path + "\" \"" + $name + "\" \"" + $ext + "\" \"" + $tmpValue + "\" \"" + $tmpValue + "\" \"" + $tmpValue + "\";  LT_UI";   
+     	$HUDCommand = "LT_createIcon \"" + $path + "\" \"" + $name + "\" \"" + $ext + "\" \"" + $tmpValue + "\" \"" + $tmpValue + "\" \"" + $tmpValue + "\"; ";   
+
+		
+		headsUpDisplay -rp 7 4;
+		hudButton -s 7
+			  -b 4
+			  -vis 1
+			  -l "- Render Icon -"
+			  -ba "center"
+			  -bs "medium"
+			  -bw 140
+			  -lfs "large"
+			  -bsh "roundRectangle"
+  			  -rc $HUDCommand
+  			  HUDIconRenButton;
+			  
+			  
+		if (`headsUpDisplay -exists HUDKillIconRenButton`)	headsUpDisplay -remove HUDKillIconRenButton;
+
+		headsUpDisplay -rp 7 1;
+		hudButton -s 7
+			  -b 1
+			  -vis 1
+			  -l "Exit"
+			  -ba       "center"
+			  -bw 90
+			  -lfs "large"
+			  -bs "medium"
+			  -bsh "rectangle"
+			  -rc ("optionVar -stringValue LT_fileSearchString `optionVar -q LT_tempFileSearchString`;   headsUpDisplay -remove HUDIconRenButton; headsUpDisplay -remove HUDKillIconRenButton; headsUpDisplay -remove HUDIconInfo; headsUpDisplay -remove HUDIconInfo2; camera -e -displayFilmGate off -displayResolution off " + $cam + "; LT_UI;")
+			  HUDKillIconRenButton;
+			
+		
+		//Create scriptJob for killing HUD with file new or file open
+		//first check for existing scriptJob
+		int $exists = 0;
+		string $lastJob;
+		// get list of script jobs
+		$jobList = `scriptJob -lj`;
+		for ($lastJob in $jobList)
+		{
+			// check for HUDIconRenButton
+			string $match = match("HUDIconRenButton",$lastJob);
+			if ($match == "HUDIconRenButton")
+				{
+				$exists = 1;
+				break;
+				}
+		}
+		
+		//create scriptJob to kill with new scene or open scene
+		if ($exists == 0) $LT_tmpScriptJobID = `scriptJob -runOnce true -ct "flushingScene" "optionVar -stringValue LT_fileSearchString `optionVar -q LT_tempFileSearchString`;  LT_UI;   if (`headsUpDisplay -exists HUDIconRenButton`) headsUpDisplay -remove HUDIconRenButton; if (`headsUpDisplay -exists HUDKillIconRenButton`) headsUpDisplay -remove HUDKillIconRenButton; if (`headsUpDisplay -exists HUDIconInfo`) headsUpDisplay -remove HUDIconInfo ; if (`headsUpDisplay -exists HUDIconInfo2`) headsUpDisplay -remove HUDIconInfo2 ;$LT_tmpScriptJobID = 0; "`;
+
+}
+
+
+global proc LT_batchCreateIcons (string $path)
+{	
+
+		global string $LT_importPath;
+		global string $LT_tab1;
+		global string $LT_tabName;
+
+        string $camSetup = `optionVar -q LT_iconCameraSetup`;
+        string $lightSetup = `optionVar -q LT_iconLightingSetup`;
+        string $renderSetup = `optionVar -q LT_iconRendererSetup`;
+    
+		string $iconsSecondary = ($LT_importPath + "icons/");
+		string $iconsPrimary = ($path + "/icons/");
+					
+		string $file;
+	    string $nameParts[];
+		string $name;
+		string $ext;
+		
+		//int	$iconSize = `optionVar -q LT_iconSize`;
+		int $iconSize = 256;  //changed from 128 in older versions
+        string $iconFormatName = `optionVar -q LT_iconFormat`;
+        int $iconFormatNumber = `optionVar -q LT_iconFormatNumber`;
+        string $iconRenderer = `optionVar -q LT_iconRenderer`;  
+	    
+				
+			
+		string $LT_makeIconResponse = `confirmDialog -title "Batch Create Icons" -message "Icons will be batch rendered for all files in this folder.\n\nThis is only recommended for files containing relatively small/few objects and not for larger scenes.  The Maya UI will not be usable while batch rendering.  Render times will vary depending on the complexity and number of scenes. \n\nWARNING: You will lose any unsaved changes.  Do you want to continue?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;	
+
+		if ($LT_makeIconResponse == "Yes") 
+			{	
+			
+			//filter LayoutTools UI to show only this folder
+            string $tmpList[];
+    	    int $numTokens = `tokenize $path "/" $tmpList`;
+    		string $folderName = $tmpList[$numTokens - 1];			
+			optionVar -stringValue LT_folderSearchString $folderName;
+			
+			//Step through files in folder
+			$iconCount = 0;
+			for ($file in `LT_listFilesAtPath $path`)
+				{
+				print ("Rendering: " + $file + "\n");
+				//Separate name from extension
+				//$nameParts[0] = file  :  $nameParts[1] = extension
+				tokenize ($file, ".", $nameParts);
+						
+				$name = $nameParts[0];
+				$ext = $nameParts[1];
+				
+				//Set filetype and add extension to name
+				/*
+				string $type;
+				if ($ext == "mb")
+					$type = "mayaBinary";
+				else if ($ext == "ma")
+					$type = "mayaAscii";
+				*/	
+					
+					//Set filetype and add extension to name
+				string $type;
+				if ($ext == "mb")
+					$type = "mayaBinary";
+				else if ($ext == "ma")
+					$type = "mayaAscii";
+				else if ($ext == "fbx")
+					$type = "FBX";
+				//else 
+				//	error ("File extension not recognized FBX.");
+				//string $file = $name+"."+$ext;
+				//print $file;	
+				
+				
+				if (($ext == "mb") || ($ext == "ma"))
+					{		
+					file -f -new;
+					file -import -type $type -rdn -rpr $name ($path+ "/" + $file);	
+					}		
+				
+				else if ($ext == "fbx")
+					{
+					file -f -new;
+					FBXImportMode -v add;
+					FBXImport -f ($path+ "/" + $file);	
+					}
+					
+				else
+				    {
+				    print "Unrecognized file type\n";
+					continue;
+					}
+					
+					
+				
+		        if ($lightSetup)
+                    {
+    				//setup temporary lighting
+    				directionalLight;
+    				$lightName1 = `ls -sl`;
+    				setAttr ($lightName1[0]+".rotateX") -27;
+    				setAttr ($lightName1[0]+".rotateY") 15;
+    				setAttr ($lightName1[0]+".rotateZ") 18;
+    				$lightName1 = `pickWalk -d down`;
+    				setAttr ($lightName1[0]+".intensity") 2;
+    				setAttr ($lightName1[0]+".useDepthMapShadows") 1;
+    				directionalLight;
+    				$lightName2 = `ls -sl`;
+    				setAttr ($lightName2[0]+".rotateX") -122;
+    				setAttr ($lightName2[0]+".rotateY") -7;
+    				setAttr ($lightName2[0]+".rotateZ") -66;
+    				$lightName2 = `pickWalk -d down`;
+    				setAttr ($lightName2[0]+".intensity") 1;
+    				setAttr ($lightName2[0]+".useDepthMapShadows") 1;
+    				}
+			
+				
+				//set panel
+				string $panelList[] = `getPanel -type modelPanel`;
+				for ($currentPanel in $panelList)   
+						modelEditor -edit -displayLights "all" -displayAppearance "smoothShaded" -displayTextures 1 -rendererName "base_OpenGL_Renderer" $currentPanel;						
+		
+		        if ($camSetup)
+		            {
+    				//setup camera
+    				//setAttr "perspShape.mask" 0;
+    			   	setAttr "perspShape.focalLength" 55;
+    		     	setAttr "perspShape.backgroundColor" -type double3 0.75 0.75 0.75 ;
+    				camera -e -filmFit "fill" -displayFilmGate off  -displayGateMask off -displayResolution on -overscan 1.3 persp;
+    		
+    				//select and frame meshes
+    			   	string $meshList[] = `ls -typ mesh`;
+    			   	//select $meshList[0];
+    			   	select $meshList;
+    			   	//FrameSelected;
+    				viewFit perspShape ;
+    				//clear selection (need for new VP2 render)
+    				select -cl;
+    
+    				//can be used to dolly camera closer
+    				/*
+    				if (`getAttr persp.tx` < 5)			
+    					dolly -rel -d 0 persp;
+    				if (`getAttr persp.tx` < 10)
+    					dolly -rel -d (-`getAttr persp.tx` / 10) persp;
+    				else if (`getAttr persp.tx` < 20)
+    					dolly -rel -d (-`getAttr persp.tx` / 4) persp;
+    				else if (`getAttr persp.tx` < 40)
+    					dolly -rel -d (-`getAttr persp.tx` / 3) persp;
+    				else
+    					dolly -rel -d (-`getAttr persp.tx` / 2) persp;			
+    				*/		
+				    }
+				
+				//setup image
+				setAttr "defaultResolution.width" $iconSize;
+				setAttr "defaultResolution.height" $iconSize;
+				setAttr "defaultResolution.deviceAspectRatio" 1;
+				setAttr "defaultResolution.pixelAspect" 1;
+		    	setAttr "defaultRenderGlobals.imageFormat" $iconFormatNumber;
+
+																
+				//put iff icon image in icons folder in same location as maya file
+				//if icons folder doesn't exist it will be created
+		        setAttr -type "string" defaultRenderGlobals.imageFilePrefix ($iconsPrimary+$name);
+
+        
+                if ($iconRenderer == "VP2")
+                    {
+    		        if ($renderSetup)
+    		            {
+        		        //vp2 render quality
+                        setAttr "hardwareRenderingGlobals.multiSampleCount" 8;
+                        setAttr "hardwareRenderingGlobals.multiSampleEnable" 1;
+                        print "Icon rendered with VP2 renderer\n";
+                        }
+                    ogsRender -w $iconSize -h $iconSize -enableMultisample 1 -camera persp; 
+                    }
+                    		
+                else if ($iconRenderer == "MRay")
+        		    {
+            		//or MentalRay renderer - but first setup some quick quality settings
+            		setCurrentRenderer mentalRay;
+                    miCreateDefaultNodes;
+    		        if ($renderSetup)
+    		            {
+        		        //mental ray render quality
+                        setAttr "miDefaultOptions.miSamplesQualityR" 0.4; 
+                        setAttr "miDefaultOptions.maxSamples" 1;
+                		setAttr miDefaultOptions.filter 1;
+                        setAttr miDefaultOptions.filterWidth 1;
+                        setAttr miDefaultOptions.filterHeight 1;
+                        setAttr "miDefaultOptions.maxReflectionRays" 2;
+                        setAttr "miDefaultOptions.maxRefractionRays" 2;
+                        setAttr "miDefaultOptions.maxRayDepth" 4;
+                        }
+                    Mayatomr -preview  -x $iconSize -y $iconSize -camera persp;
+                    print "Icon rendered with MentalRay renderer\n";
+        		    }
+        		else
+                    {
+                    //default to the Maya software render
+    		        if ($renderSetup)
+    		            {
+        		        //software render quality
+        				setAttr "defaultRenderQuality.edgeAntiAliasing" 1;
+        				}
+          	    	render -x $iconSize -y $iconSize persp;
+                    print "Icon rendered with Maya renderer\n";
+        		    }
+
+        		sysFile -rename  ($iconsPrimary+$name+$iconFormatName) ($iconsPrimary+$name+"_tmp"+$iconFormatName);
+
+				//print ("Renaming : "+$iconsPrimary+$name+"_tmp.iff  \n");
+				//print ("\nRendered icon : " +$iconsPrimary + $name + $iconFormatName + "\n");
+				print ("\nRendered icon : " +$iconsPrimary + $name + $iconFormatName + " with " + $iconRenderer + " renderer \n");
+				
+				
+				$iconCount ++;
+				}
+			file -f -new;
+	
+			//refreshIcons
+			LT_UI_refresh ; tabLayout -edit -st $LT_tab1 $LT_tabName;
+	
+		}
+		
+		else
+			warning "Cancelled icon batch render";
+			
+			
+}
+
+
+global proc string[] LT_listFilesAtPath(string $currentPath)
+{
+
+	//Get list of files in a given folder
+	//
+	string $currentPath;
+	string $fileList[] =`getFileList -folder $currentPath`;
+	return $fileList;
+}
+
+
+global proc LT_getFolderList(string $startingPoint, int $recursive)
+
+{
+    //get list of all folders with search string and subfolders if specified
+    //the following proc will set the $LT_folderList global variable
+    //probably a more elegant way of doing this, but it is what it is :)
+    			
+   	global string $LT_folderList[];		
+
+	string $folderSearchString = `optionVar -q LT_folderSearchString`;
+	string $subFolders[] = `getFileList -fld $startingPoint`;
+	int $maxFolderCount = size($subFolders);
+	int $pathListSize;
+
+	//step through list of files
+	//for($folderCount=0 ; $folderCount<$maxFolderCount ; $folderCount++)
+	for($folderCount=0 ; $folderCount<$maxFolderCount ; $folderCount++)
+	{
+		int $folder = `filetest -d ($startingPoint + $subFolders[$folderCount])`;
+		//if file is a folder
+		if($folder)
+			{
+    		//print ($startingPoint + $subFolders[$folderCount] + ":  is a folder \n");
+			//check for folder search string match
+			//if ((`gmatch $subFolders[$folderCount] ("*" + $folderSearchString + "*")`)  &&  (!(`gmatch $subFolders[$folderCount] ".*"`))  &&  (!(`gmatch $subFolders[$folderCount] "icons"`)) )
+			if ((!`gmatch $subFolders[$folderCount] (".mayaSwatches")`)  &&  (!`gmatch $subFolders[$folderCount] ("icons")`)) //ignore any swatch and icon folders
+    			if (`gmatch $subFolders[$folderCount] ("*" + $folderSearchString + "*")`) 
+    				{
+    				//add matching folder to the list
+    				//print ("Adding folder: " + $startingPoint + $subFolders[$folderCount] + " to import tab.\n");
+    				$pathListSize = (`size $LT_folderList`);
+    				$LT_folderList[$pathListSize] = ($startingPoint + $subFolders[$folderCount]);
+    				}
+			//recursively check subfolders also
+			if ($recursive == 1)
+				LT_getFolderList ($startingPoint + $subFolders[$folderCount] + "/", 1);
+			}
+
+	}
+}
+
+
+
+global proc LT_openFileInNewMayaSession(string $file)
+{
+	//Get confirmation for icon creation
+	string $response = `confirmDialog -ma "center" -title "One File in New Maya Session" -message ("Spawning new Maya session.\n\n Opening " + $file + "\n\nThe current Maya session / file will not be affected.") -button "Continue" -button "Cancel" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;	
+
+	if ($response == "Continue")  
+	    {
+        //open a native OS file browser to given folder/path
+    	if (`filetest -e $file`)
+    	{
+    		if (`about -linux`)
+		    	{
+			    warning "This feature is currently only supported on Windows\n"; 
+			    confirmDialog -ma "center" -title "Sorry :(" -message "This feature is currently only supported on Windows.     " -button "Continue";
+		    	}
+    		else if (`about -win`)			
+    			{
+    			string $converted = `substituteAllString $file "/" "\\"`;
+    			//system("explorer " + $converted);
+    			system ("start maya.exe  -file \"" + $converted);	
+    			}
+    					
+    		else if (`about -mac`)
+    			{
+    			warning "This feature is currently only supported on Windows\n"; 
+			    confirmDialog -ma "center" -title "Sorry :(" -message "This feature is currently only supported on Windows.     " -button "Continue";
+        		}
+    		else
+    		  	{
+    			warning ("Cannot open file: " + $file);
+			    confirmDialog -ma "center" -title "Error" -message ("Cannot open this file     ") -button "Continue";
+    		 	}
+    	}
+    	else
+    	    {
+    	    error ("File - " + $file + " - does not exist.\n");
+    	    confirmDialog -ma "center" -title "Error" -message ("File does not exist     ") -button "Continue";
+    	    }
+    	}
+    else
+        print "Open file in New Maya Session:  Cancelled.\n";
+}
+
+
+
+global proc LT_showFolderInNativeBrowser(string $folder)
+{
+    //open a native OS file browser to given folder/path
+	if (`filetest -d $folder`)
+	{
+		if (`about -linux`)
+		    {
+			system("nautilus " + $folder);
+			print ("\nOpening Nautilus file browser to:  " + $folder);
+			warning("Linux:  Nautilus file manager is required for this feature.");
+		    }
+		else if (`about -win`)			
+			{
+			string $converted = `substituteAllString $folder "/" "\\"`;
+			system("start explorer " + $converted);
+			print ("\nOpening Windows Explorer to:  " + $folder);
+			}
+					
+		else if (`about -mac`)
+			{
+			system("open " + $folder);
+			print ("\nOpening Finder to:  " + $folder);
+    		}
+		else
+		  	{
+			warning ("Cannot open folder: " + $folder);
+		 	}
+	}
+	else
+	    error ("Path - " + $folder + " - does not exist\n");
+}
+
+
+global proc LT_storeToShelf()
+{
+    global string $gShelfTopLevel;
+	
+	string $folderString = `optionVar -q LT_folderSearchString`;		
+	string $fileString = `optionVar -q LT_fileSearchString`;		
+	string $path = `optionVar -q LT_userImportPath`;
+	
+     //make shelf button containing location and path
+	if (`tabLayout -exists $gShelfTopLevel`)	
+	{
+		shelfButton
+			-parent ($gShelfTopLevel + "|" + `tabLayout -q -st $gShelfTopLevel`)
+			-command ("optionVar -sv LT_fileSearchString \"" + $fileString + "\"; optionVar -sv LT_folderSearchString \"" + $folderString + "\"; optionVar -sv LT_userImportPath \"" + $path + "\"; optionVar -intValue LT_RebuildUI 1; LT_UI;")
+			-image1 commandButton.png
+			-iol ("LT : " + $folderString)
+			-label ("LT : " + $folderString)
+			-annotation ("LT: Folder Search = " + $folderString + " : File Search = " + $fileString +  " : Location = " + $path);
+	}
+	else
+		error ("Must have active shelf to create shelf button");
+}
+
+
+global proc  LT_setUserBrowserPathName ()  // fomerly LT_setUserImportPathName
+{
+
+    global string $LT_browserPath;
+    global string $LT_projectPath;
+    string $startPath;
+    
+    if ($LT_browserPath == "undefined")
+        $startPath = (`workspace -q -fn` +  "/");
+    else
+        $startPath = $LT_browserPath;
+        
+    
+    string $path[] = `fileDialog2 -fm 3 -ds 1 -startingDirectory $startPath -okc "Set Path"`; 
+    if (`size $path[0]` > 0)
+    	//optionVar -sv LT_userBrowserPath ($path[0] + "/");
+    	//reloved Mac vs Windows issue
+    	//fromNativePath will set the path in maya style not OS format
+    	optionVar -sv LT_userBrowserPath (fromNativePath ($path[0] + "/"));
+    else
+    	print "No change to path.\n";
+}
+
+
+global proc  LT_setAssemblySuffix()  
+{    	
+    	
+    string $text;
+    string $result = `promptDialog
+        -title "Assembly Definition Suffix"
+        -message "Enter Assembly Definition Suffix:\n\n          Examples:  AD  _ad  .AD  -ADef  _Assembly  etc...\n\nNote:  You can leave this blank but it is not recommended.  LayoutTools\nneeds a way to identify files that contain Assembly Definitions and \na simple suffix added to the filename is the easiest way to do this."
+        -button "OK" -button "Clear" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+    
+    if ($result == "OK") {
+        $text = `promptDialog -query -text`;
+        optionVar -sv LT_assDefSuffix $text;
+        optionVar -stringValue LT_fileHandling "assembly";  // import; open; reference; assembly;
+        LT_UI;
+        }   	
+
+    else if ($result == "Clear") {
+        optionVar -sv LT_assDefSuffix "";
+        optionVar -stringValue LT_fileHandling "assembly";  // import; open; reference; assembly;
+        LT_UI;
+        }   
+        
+    else
+        print "Cancelled.  Assembly suffix not set.\n";
+}
+
+
+
+global proc  LT_setFolderSearchString()  
+{    	
+    	
+    string $text;
+    string $result = `promptDialog
+        -title "Folder Search String"
+        -message "Enter String (Case Sensitive):"
+        -button "OK" -button "Clear" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+    
+    if ($result == "OK") {
+        $text = `promptDialog -query -text`;
+        optionVar -sv LT_folderSearchString $text;
+        LT_UI;
+        }   	
+
+    else if ($result == "Clear") {
+        optionVar -sv LT_folderSearchString "";
+        LT_UI;
+        }   
+        
+    else
+        print "Cancelled.  Folder search string not set.\n";
+}
+
+
+global proc  LT_setFileSearchString()  
+{    	
+    	
+    string $text;
+    string $result = `promptDialog
+        -title "File Search String"
+        -message "Enter String  (Case Sensitive):"
+        -button "OK" -button "Clear" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+    
+    if ($result == "OK") {
+        $text = `promptDialog -query -text`;
+        optionVar -sv LT_fileSearchString $text;
+        LT_UI;
+        }   	
+
+    else if ($result == "Clear") {
+        optionVar -sv LT_fileSearchString "";
+        LT_UI;
+        }   
+        
+    else
+        print "Cancelled.  File search string not set.\n";
+}
+
+
+//old version
+/*
+global proc string LT_setfolderSearchString (string $id)
+{
+	string $text = `textField -q -tx $id`;
+	optionVar -sv LT_folderSearchString $text;
+	return $text;
+}
+
+
+global proc string LT_setfileSearchString (string $id)
+{
+	string $text = `textField -q -tx $id`;
+	optionVar -sv LT_fileSearchString $text;
+	return $text;
+}
+*/

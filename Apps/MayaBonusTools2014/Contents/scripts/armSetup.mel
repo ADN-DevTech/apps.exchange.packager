@@ -1,0 +1,146 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//
+//
+// Update 01/28/11 Fixed bug - ikRPsolver required
+
+// armSetup.mel
+
+
+global proc armSetup(string $handControl,
+			 string $elbowControl,
+			 int $twistJoint){
+	//get joints
+	string $joints[] = `ls -sl -type "joint"`;
+
+	//create ik handle
+	string $ik[];
+	if ($twistJoint){
+		string $endJoint[] = `listRelatives -parent -type "joint" $joints[1]`;
+		$ik = `ikHandle -sol ikRPsolver -sj $joints[0] -ee $endJoint[0]`; //Fixed - ikRPsolver required
+		float $position[] = `xform -q -ws -translation $joints[1]`;
+		move -a -ws $position[0] $position[1] $position[2] ($ik[1]+".scalePivot") ($ik[1] + ".rotatePivot") ;
+		move -a -ws $position[0] $position[1] $position[2] $ik[0];
+		
+		//print "\npos ";print $position;
+	} else {
+		$ik = `ikHandle -sol ikRPsolver -sj $joints[0] -ee $joints[1]`;  //Fixed - ikRPsolver required
+		
+	}
+	float $position[] = `xform -q -worldSpace -translation $joints[1]`;
+
+	//connect handControl
+	if ($handControl == ""){
+		//create handControl
+		$handControl = `createNode "transform" -n "Hand"`;
+
+		//freeze transforms
+		makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $handControl;
+
+		parent $ik[0] $handControl;
+		setAttr ($handControl + ".displayHandle") 1;
+		setAttr ($handControl + ".selectHandleX") $position[0] ;
+		setAttr ($handControl + ".selectHandleY") ($position[1]-1) ;
+		setAttr ($handControl + ".selectHandleZ") $position[2] ;
+
+		//center pivot
+		//xform -cp $handControl;
+		move -a -ws $position[0] $position[1] $position[2] ($handControl+".scalePivot") ($handControl + ".rotatePivot");
+		
+
+	} else {
+
+		//freeze transforms
+		makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $handControl;
+
+		//parent ik to handControl
+		parent $ik[0] $handControl;
+
+		//move handControl pivots to wrist
+		//float $position[] = `xform -q -worldSpace -translation $joints[1]`;
+		move -a $position[0] $position[1] $position[2] 
+			($handControl + ".rotatePivot") ($handControl + ".scalePivot");
+	}
+	
+	//NOTE: this caused a problem when used with StretchyIK.
+	//Freezing here also freezes IK handle which breaks StretchyIK
+	//end locator.  I've moved to above conditional
+	//
+	//freeze transforms
+	//makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $handControl;
+
+	//set handControl attrs
+	setAttr -keyable false ($handControl + ".sx");
+	setAttr -keyable false ($handControl + ".sy");
+	setAttr -keyable false ($handControl + ".sz");
+	setAttr -keyable false ($handControl + ".v");
+
+	//add ik fk blending
+	addAttr -ln ikBlend -at double  -min 0 -max 1 -dv 1 $handControl;
+	setAttr -e -keyable true ($handControl+".ikBlend");
+	connectAttr -f ($handControl+".ikBlend") ($ik[0]+".ikBlend");
+
+	//parent constrain wrist to handControl
+	parentConstraint -mo 
+		-skipTranslate x 
+		-skipTranslate y 
+		-skipTranslate z 
+		-weight 1
+		$handControl $joints[1] ;
+
+	//find elbow joint
+	string $elbowJoint[] = `listRelatives -p -type "joint" $joints[1]`;
+	if ($twistJoint){
+		string $tempElbow[] = $elbowJoint;
+		clear $elbowJoint;
+		$elbowJoint = `listRelatives -p -type "joint" $tempElbow[0]`;
+	}
+
+	//set up pole vector constraint
+	if ($elbowControl == ""){
+
+		//get elbow position
+		float $position[] = `xform -q -worldSpace -translation $elbowJoint`;
+
+		//create elbowControl
+		string $locator[] = `spaceLocator -p $position[0] $position[1] ($position[2]-5) -n "Elbow"`;
+		$elbowControl = $locator[0];
+		
+		//center pivot
+		xform -cp $elbowControl;
+		
+	}
+
+	//freeze transforms on elbowControl
+	makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 $elbowControl;
+
+	
+	//add poleVector constraint
+	poleVectorConstraint -weight 1 $elbowControl $ik[0];
+
+	//prefix controls
+	select -clear;
+	select -replace $handControl $elbowControl;
+	prefixHierarchy;
+
+}

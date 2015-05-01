@@ -1,0 +1,291 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// POLYNURBSPROJECTION Plugin for Maya 4.5
+// 
+// By: Quoc Tran (quoctran@alias.com)
+// 
+// 
+// DESCRIPTION
+// 
+// This plugin is a NURBS to mesh UV projection. Transfers the UVs and shader
+// from a NURBS surface to a poly mesh based on closest point. Then allows the
+// user to manipulate the NURBS surface by translation, rotation, scale and
+// moving CVs and the UVs of the mesh will be updated in real time.
+// 
+// The idea is based on the fact that NURBS are easier to texture than meshes.
+// The intended workflow is for a user to model a mesh and then a NURBS surface
+// that will wrap around the mesh like a sock. After the NURBS surface is textured,
+// the plugin is applied which will assign the UVs of the mesh to be the UV of
+// the point on the NURBS surface that is closest.
+// 
+// 
+// USAGE
+// 
+// 1) Copy the plugin .mll and the MEL script to your plugin and script directories.
+// 2) Load the plugin using the plugin manager and source the script.
+// 3) Create a poly mesh with a fully textured NURBS surface.
+// 4) Select the mesh (or faces on the mesh) and shift select the NURBS surface.
+// 5) Run the command 'polyNurbsProjection' in the script editor.
+//    The shader and UVs should be transferred to the mesh.
+// 6) Now you can translate/rotate/scale the transform and CVs of the NURBS surface
+//    and the UVs of the mesh should be updated in real time.
+// 
+// You can set the normalize attribute on the polyNurbsProjection node to normalize
+// the projected UV values.
+// 
+// IMPORTANT: This plugin works best only if both the poly mesh had a low poly count
+// and the nurbs surface has a low patch count. This plugin is more suited towards
+// games models. I advice you play around with the mesh and nurbs density to see
+// what you can get away with :)
+
+
+// gets the shape node of a given transform
+proc string getShapeNode(string $transformNode)
+{
+	string $shapeNode;
+	
+	if (`nodeType $transformNode` == "transform")
+	{
+		string $shapeNodes[] = `listRelatives -shapes $transformNode`;
+		$shapeNode = $shapeNodes[0];
+	
+		if (`nodeType $shapeNode` != "mesh" && `nodeType $shapeNode` != "nurbsSurface")
+			error "Shape must be mesh or nurbsSurface\n";
+	}
+	else if (`nodeType $transformNode` == "mesh" || `nodeType $transformNode` == "nurbsSurface")
+	{
+		string $buffer[];
+		int $numTokens = `tokenize $transformNode "|" $buffer`;
+		$shapeNode = $buffer[$numTokens - 1];
+	}
+	else
+	{
+		error "Error: invalid node type\n";
+	}
+	
+	return $shapeNode;
+}
+
+// gets the transform node of a given shape
+proc string getTransformNode(string $shapeNode)
+{
+	string $transformList[] = `listRelatives -parent $shapeNode`;
+	string $transform = $transformList[0];
+	
+	return $transform;
+}
+
+// returns a string array with two elements containing the selected shapes
+proc string[] getShapeNodes()
+{
+	string $meshShape;
+	string $surfaceShape;
+	string $sList[] = `selectedNodes`;
+	
+	// must select 2 shapes
+	if (size($sList) != 2)
+		error "Must select exactly 2 items\n";
+	
+	string $shape1 = `getShapeNode $sList[0]`;
+	string $shape2 = `getShapeNode $sList[1]`;
+		
+	// must select a mesh and a surface. can select them in either order.
+	if (`nodeType $shape1` == "mesh" && `nodeType $shape2` == "nurbsSurface")
+	{
+		$meshShape = $shape1;
+		$surfaceShape = $shape2;
+	}
+	else if (`nodeType $shape1` == "nurbsSurface" && `nodeType $shape2` == "mesh")
+	{
+		$meshShape = $shape2;
+		$surfaceShape = $shape1;
+	}
+	else
+	{
+		error "Must select a mesh and a nurbs surface\n";
+	}
+		
+	string $shapeNodes[2];
+	$shapeNodes[0] = $meshShape;
+	$shapeNodes[1] = $surfaceShape;
+		
+	return $shapeNodes;
+}
+
+proc bugWorkaround(string $mesh)
+{
+	string $groupPartsList1[] = `listConnections ($mesh + ".inMesh")`;
+	string $groupParts1 = $groupPartsList1[0];
+	
+	if (`nodeType $groupParts1` != "groupParts") return;
+	
+	string $groupPartsList2[] = `listConnections ($groupParts1 + ".inputGeometry")`;
+	string $groupParts2 = $groupPartsList2[0];
+	
+	if (`nodeType $groupParts2` != "groupParts") return;
+	
+	string $groupIdList[] = `listConnections ($groupParts2 + ".groupId")`;
+	string $groupIdNode = $groupIdList[0];
+	
+	if (`nodeType $groupIdNode` != "groupId") return;
+	
+	string $groupPartsNodes[] = `listConnections -type "groupParts" $groupIdNode`;
+	
+	if (size($groupPartsNodes) < 2) return;
+	
+	int $i;
+	for ($i=0; $i<size($groupPartsNodes); $i++)
+	{
+		if ($groupPartsNodes[$i] != $groupParts2)
+		{
+			disconnectAttr ($groupIdNode + ".groupId") ($groupPartsNodes[$i] + ".groupId");
+			connectAttr ($groupIdNode + ".groupId") ($groupPartsNodes[$i] + ".groupId");
+		}
+	}
+}
+
+// assign the nurbs' shader to the mesh and assign an invisible lambert to the nurbs surface
+proc string assignShaders(string $meshOrig, string $meshNew, string $surface, string $faces[])
+{
+	string $connections[] = `listConnections ($surface + ".instObjGroups[0]")`;
+	string $surfaceShader = $connections[0];
+	
+	// get all shape to shader connections
+	string $surfacePlugs[] = `listConnections -source false -plugs true -connections true $surface`;
+	
+	// get all the shape to shader plugs
+	string $surfaceToShaderOut = $surfacePlugs[0];
+	string $surfaceToShaderIn = $surfacePlugs[1];
+	
+	// create an invisible lambert shader to be assigned to the surface so it will always be displayed in wireframe
+	string $lambertShader = `shadingNode -asShader lambert`;
+	string $lambertSG = `sets -renderable true -noSurfaceShader true -empty -name invisibleSG`;
+	connectAttr -f ($lambertShader + ".outColor") ($lambertSG + ".surfaceShader");
+	setAttr ($lambertShader + ".transparency") 1 1 1;
+	string $lambertPlug = $lambertSG + ".dagSetMembers[0]";
+
+	// disconnect shapes from their shaders and assign the surface's shader to the mesh
+	// and the invisible shader to the surface
+	disconnectAttr $surfaceToShaderOut $surfaceToShaderIn;
+	connectAttr $surfaceToShaderOut $lambertPlug;
+	
+	// add the mesh or its faces to the surfaceShader	
+	if (size($faces) == 0)
+	{
+		sets -e -forceElement $surfaceShader $meshOrig;
+	}
+	else
+	{
+		int $i;
+		string $cmd = "sets -e -forceElement " + $surfaceShader;
+		for ($i=0; $i<size($faces); $i++) $cmd += " " + $faces[$i];
+		eval $cmd;
+	}
+	
+	return $surfaceShader;
+}
+
+// hookup the polyNurbsProjectionNode
+proc connectPolyNurbsProjectionNode(string $meshOrig, string $meshNew, string $surface, string $pluginNode, string $shadingGroup)
+{
+	string $connections[] = `listConnections -plugs true ($meshOrig + ".inMesh")`;
+
+	string $groupIdNode;
+	string $groups[] = `listConnections -type "groupId" $shadingGroup`;
+	$groupIdNode = $groups[0];
+		
+	if (size($groupIdNode) > 0)
+		connectAttr ($groupIdNode + ".groupId") ($pluginNode + ".groupId");
+	
+	if (size($connections) > 0)
+	{
+		// case: meshOrig has construction history		
+		
+		string $toMeshOrigPlug = $connections[0];
+		disconnectAttr $toMeshOrigPlug ($meshOrig + ".inMesh");	
+		connectAttr $toMeshOrigPlug ($meshNew + ".inMesh");
+		
+		connectAttr ($meshNew + ".worldMesh") ($pluginNode + ".inMesh");
+		connectAttr ($surface + ".worldSpace") ($pluginNode + ".inSurface");
+		connectAttr ($pluginNode + ".outMesh") ($meshOrig + ".inMesh");
+	}
+	else
+	{
+		// case: meshOrig has NO construction history
+		
+		connectAttr ($meshOrig + ".outMesh") ($meshNew + ".inMesh");
+		connectAttr ($meshNew + ".worldMesh") ($pluginNode + ".inMesh");
+		connectAttr ($surface + ".worldSpace") ($pluginNode + ".inSurface");
+	
+		cycleCheck -e off;
+		connectAttr ($pluginNode + ".outMesh") ($meshOrig + ".inMesh");
+		disconnectAttr ($meshOrig + ".outMesh") ($meshNew + ".inMesh");
+		cycleCheck -e on;
+	}	
+}
+
+// main command that will create the plugin node and hook it up.
+global proc polyNurbsProjection()
+{
+	// make sure the plugin is loaded
+	if ( !(`pluginInfo -query -loaded "polyNurbsProjection"`) )
+	{
+		error "Plugin polyNurbsProjection not loaded. Please load it and try again.\n";
+	}
+	
+	// get the shape nodes
+	string $shapeNodes[] = `getShapeNodes`;
+	string $meshOrig = $shapeNodes[0];
+	string $surface = $shapeNodes[1];
+
+	string $faces[] = `ls -selection -flatten -type float3`;
+
+	// get the transform nodes
+	string $meshTransform = `getTransformNode $meshOrig`;
+	string $surfaceTransform = `getTransformNode $surface`;
+	
+	// delete the construction history for the mesh
+	delete -constructionHistory $meshOrig;
+	
+	// split the UVs along the border of the selected faces of the mesh
+	polyMapCutFacesBorder;
+	
+	// create a mesh node for construction history
+	string $meshNew = `createNode mesh -parent $meshTransform -name ($meshOrig + "Orig")`;
+	
+	// make the new mesh an intermediate node so it won't be displayed
+	setAttr ($meshNew + ".intermediateObject") 1;
+	
+	// assign shaders to the new mesh and nurbs surface
+	string $shadingGroup = `assignShaders $meshOrig $meshNew $surface $faces`;
+	
+	// create the plugin node
+	string $pluginNode = `createNode polyNurbsProjectionNode`;
+	
+	// hookup the plugin node
+	connectPolyNurbsProjectionNode $meshOrig $meshNew $surface $pluginNode $shadingGroup;
+	
+	//bugWorkaround $meshNew;
+		
+	// select the nurbs surface
+	select -r $surfaceTransform;
+}

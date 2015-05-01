@@ -1,0 +1,497 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Script Polygon Connect Borders, Maya 4.0, unofficial
+//
+//  Procedure Name:
+//      polyConnectBorders
+//
+//  Description:
+//			Creates polygons between the two selected (distinct) border regions
+//			Regions may belong to different objects
+//         
+//  Input Arguments:
+//      int		Auto Reverse:	Tries to reverse the numbering of one border based on closest end points
+//		int		Reverse:		Forces the Reverse
+//		float	Map Edge Count:	Uses the Edge Count of the border parts to determine which edges belong together
+//								instead of just the closest distance
+//		int		Quads:			Convert the resulting triangle to quads
+//		float	Quad Angle:		The angle for the conversion
+//
+//  Return Value:
+//        none
+//
+
+//
+// 
+
+proc setOptionVars (
+	int			$forceFactorySettings
+)
+{
+	if ($forceFactorySettings || !`optionVar -exists "polyConnectBordersAutoReverse"`)
+		optionVar -intValue "polyConnectBordersAutoReverse" 1;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyConnectBordersReverse"`)
+		optionVar -intValue "polyConnectBordersReverse" 0;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyConnectBordersMapEdgeCount"`)
+		optionVar -floatValue "polyConnectBordersMapEdgeCount" 0;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyConnectBordersQuads"`)
+		optionVar -intValue "polyConnectBordersQuads" 1;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyConnectBordersQuadAngle"`)
+		optionVar -floatValue "polyConnectBordersQuadAngle" 30;
+}
+
+global proc performPolyConnectBordersSetup (string $parent, int $forceFactorySettings)
+{
+	string $prefix = "polyConnectBorders";
+	float $fval;
+	int $ival;
+	
+	setOptionVars($forceFactorySettings);
+	setParent $parent;
+
+	$ival = `optionVar -query "polyConnectBordersAutoReverse"`;
+	checkBoxGrp -edit -v1 $ival polyConnectBordersAutoReverse;
+
+	$ival = `optionVar -query "polyConnectBordersReverse"`;
+	checkBoxGrp -edit -v1 $ival polyConnectBordersReverse;
+
+	$fval = `optionVar -query "polyConnectBordersMapEdgeCount"`;
+	floatSliderGrp -edit -value $fval polyConnectBordersMapEdgeCount;
+
+	$ival = `optionVar -query "polyConnectBordersQuads"`;
+	checkBoxGrp -edit -v1 $ival polyConnectBordersQuads;
+
+	$fval = `optionVar -query "polyConnectBordersQuadAngle"`;
+	floatSliderGrp -edit -value $fval polyConnectBordersQuadAngle;
+}
+
+global proc performPolyConnectBordersCallback (string $parent, int $doIt)
+{
+	string $prefix = "polyConnectBorders";
+	
+	setParent $parent;
+	
+	optionVar -intValue "polyConnectBordersAutoReverse" 
+		(`checkBoxGrp -query -v1 polyConnectBordersAutoReverse`);
+
+	optionVar -intValue "polyConnectBordersReverse" 
+		(`checkBoxGrp -query -v1 polyConnectBordersReverse`);
+
+	optionVar -floatValue "polyConnectBordersMapEdgeCount"
+		`floatSliderGrp -query -value polyConnectBordersMapEdgeCount`;
+
+	optionVar -intValue "polyConnectBordersQuads" 
+		(`checkBoxGrp -query -v1 polyConnectBordersQuads`);
+
+	optionVar -floatValue "polyConnectBordersQuadAngle"
+		`floatSliderGrp -query -value polyConnectBordersQuadAngle`;
+
+
+	if ($doIt) 
+	{
+		performPolyConnectBorders 0;
+		addToRecentCommandQueue "performPolyConnectBorders 0" "PolyConnectBorders";
+	}
+}
+
+proc polyConnectBordersOptions (string $prefix)
+{
+	string $layout = getOptionBox();
+	setParent $layout;
+	setUITemplate -pushTemplate DefaultTemplate;
+	waitCursor -state 1;
+	//tabLayout -scr true -tv false;
+
+	string $commandName = "performPolyConnectBorders";
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	checkBoxGrp -label "Auto Reverse" -v1 1 polyConnectBordersAutoReverse;
+
+	checkBoxGrp -label "Reverse" -v1 0 polyConnectBordersReverse;
+	separator -h 10;
+
+	floatSliderGrp -f true -label "Map Edge Count" -value 0 -min 0 -max 1 polyConnectBordersMapEdgeCount;
+	separator -h 10;
+
+	checkBoxGrp -label "Quads" -v1 1 polyConnectBordersQuads;
+
+	floatSliderGrp -f true -label "Quad Angle" -value 30 -min 0 -max 180 polyConnectBordersQuadAngle;
+
+//---------------------------------------------------------------
+	separator -style "none" -h 40;
+	rowLayout -numberOfColumns 2 -columnAlign2 "center" "center";
+	button -label "Undo" -c "undo" polyConnectBordersUndo;
+	button -label "Apply" -c ($callback + " " + $parent + " " + 1);
+	setParent ..;
+
+	waitCursor -state 0;
+	setUITemplate -popTemplate;
+
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit -label "Connect Borders"
+	       -command ($callback + " " + $parent + " " + 1) $applyBtn;
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + "; hideOptionBox")
+		$saveBtn;
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1) $resetBtn;
+
+	setOptionBoxTitle("Polygon Connect Borders Options");
+
+	setOptionBoxHelpTag( "" );
+
+	eval (($setup + " " + $parent + " " + 0));
+
+	showOptionBox();
+}
+
+
+proc string assembleCmd()
+{
+	setOptionVars (false);
+
+	int $doHistory = `constructionHistory -q -toggle`;
+
+	string $cmd = "polyConnectBorders";
+	
+	int $ar = `optionVar -query "polyConnectBordersAutoReverse"`;
+	int $rev =  `optionVar -query "polyConnectBordersReverse"`;
+	float $mbc =  `optionVar -query "polyConnectBordersMapEdgeCount"`;
+	int $q =  `optionVar -query "polyConnectBordersQuads"`;
+	float $qa =  `optionVar -query "polyConnectBordersQuadAngle"`;
+
+	$cmd += " " + $ar + " " + $rev + " " + $mbc + " " + $q + " " + $qa;
+	return $cmd;
+}
+
+
+global proc string performPolyConnectBorders (int $option)
+{
+	string $prefix = "polyConnectBorders";
+	string $cmd="";
+
+	switch ($option) 
+	{
+		case 0:
+		string $varName;
+		int $ival;
+		setOptionVars(false);
+		string $cmd=`assembleCmd`;
+		
+//print("$cmd = >" + $cmd + "<\n");
+		eval $cmd;
+		break;
+
+		case 1:
+			polyConnectBordersOptions($prefix);
+			break;
+		case 2:
+			$cmd="performPolyConnectBorders 0";
+			break;
+	}
+	return $cmd;
+}
+
+
+//--------------------------------------------------------------------
+//--------------------------------------------------------------------
+
+
+global proc string[] stringRevertArray( string $array[])
+{
+	string $out[];
+	for ( $i=size($array)-1 ; $i>=0 ; $i-- ) $out[size($out)] = $array[$i];
+	return $out;
+}
+
+global proc string[] stringArrayRemoveElement( string $array[], int $remove)
+{
+	string $out[];
+	for ( $i=0 ; $i<$remove ; $i++ ) $out[$i] = $array[$i];
+	for ( $i=$remove+1 ; $i<size($array) ; $i++ ) $out[$i-1] = $array[$i];
+	return $out;
+}
+
+global proc string[] convertEdgeList()
+{
+// die edges sind selektiert
+// am ende werden alle edges selektiert sein, deren verts als zusammenhaengend erkannt wurden
+// return is die sortierte Liste der Verts
+
+	string $edges[] = `ls -sl`; $edges = `ls -flatten $edges`;
+	string $sortedVerts[];
+	string $tmp[];
+	string $allVerts[] = `polyListComponentConversion -fromEdge -toVertex`;
+	$allVerts = `ls -flatten $allVerts`;
+
+	string $firstVert[];
+	string $secondVert[];
+	for ($e in $edges) {
+		$tmp = `polyListComponentConversion -fromEdge -toVertex $e`;
+		$tmp = `ls -flatten $tmp`;
+		$firstVert[size($firstVert)] = $tmp[0];
+		$secondVert[size($secondVert)] = $tmp[1];
+	}
+
+	string $firstPiece[];
+	$sortedVerts[0] = $firstVert[0];
+	int $sortedIndex = 0;
+
+	while (stringArrayCount( $sortedVerts[$sortedIndex], $firstVert)
+			|| stringArrayCount( $sortedVerts[$sortedIndex], $secondVert)) {
+		while (stringArrayCount( $sortedVerts[$sortedIndex], $firstVert)
+				|| stringArrayCount( $sortedVerts[$sortedIndex], $secondVert)) {
+			for ( $i=0 ; $i<size($edges) ; $i++ ) {
+				string $last = $sortedVerts[$sortedIndex];
+				if ($firstVert[$i] == $last) {
+					$sortedVerts[++$sortedIndex] = $secondVert[$i];
+					$firstVert = stringArrayRemoveElement( $firstVert, $i);
+					$secondVert = stringArrayRemoveElement( $secondVert, $i);
+					$edges = stringArrayRemoveElement( $edges, $i);
+				} else if ($secondVert[$i] == $last) {
+					$sortedVerts[++$sortedIndex] = $firstVert[$i];
+					$firstVert = stringArrayRemoveElement( $firstVert, $i);
+					$secondVert = stringArrayRemoveElement( $secondVert, $i);
+					$edges = stringArrayRemoveElement( $edges, $i);
+				}
+			}
+		}
+		if (!size($firstPiece)) {
+			$firstPiece = $sortedVerts;
+			clear $sortedVerts;
+			$sortedVerts[0] = $firstPiece[0];
+			$sortedIndex = 0;
+		}
+	}
+	if (size($sortedVerts) > 1) {
+		$firstPiece = stringRevertArray( $firstPiece);
+		$sortedVerts = stringArrayRemoveElement( $sortedVerts, 0);
+		$firstPiece = stringArrayCatenate( $firstPiece, $sortedVerts);
+	}
+
+
+	select -r $edges;
+	return $firstPiece;
+}
+//--------------------------------------------------------------------------------
+
+
+global proc string[] findObjects( string $edges[])
+{
+	string $tmp[];
+	tokenize $edges[0] "." $tmp;
+	string $objects[];
+	$objects[0] = $tmp[0];
+	for ( $e in $edges ) {
+		tokenize $e "." $tmp;
+		if ($tmp[0] != $objects[size($objects)-1]) $objects[size($objects)] = $tmp[0];
+	}
+	return $objects;
+}
+
+global proc string[] isolateEdges( string $edges[], string $object)
+{
+	string $tmp[];
+	string $objectEdges[];
+	for ( $e in $edges ) {
+		tokenize $e "." $tmp;
+		if ($tmp[0] != $object) $objectEdges[size($objectEdges)] = $e;
+	}
+	return $objectEdges;
+}
+
+global proc string[] reverseStringArray( string $array[])
+{
+	string $out[];
+	for ( $i=size($array)-1 ; $i>=0 ; $i-- ) {
+		$out[size($out)] = $array[$i];
+	}
+	return $out;
+}
+
+global proc vector vertexPosition( string $vertex)
+{
+	float $f[];
+	$f = `xform -q -ws -t $vertex`;
+	return <<$f[0], $f[1], $f[2]>>;
+}
+
+global proc string[] stringShiftArray( string $array[], int $pos)
+{
+	string $out[];
+	while ($pos < 0) $pos += size($array);
+	while ($pos >= size($array)) $pos -= size($array);
+	for ( $i=$pos ; $i<size($array) ; $i++ ) $out[size($out)] = $array[$i];
+	for ( $i=1 ; $i<$pos ; $i++ )  $out[size($out)] = $array[$i];
+	$out[size($out)] = $out[0];
+	return $out;
+}
+
+global proc int stringArrayGetIndex( string $array[], string $find)
+{
+	for ( $i=0 ; $i<size($array) ; $i++ ) if ($array[$i] == $find) return $i;
+	return -1;
+}
+
+//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
+
+global proc polyConnectBorders( int $autoReverse, int $revert, float $diffuse, int $quads, float $quadAngle)
+{
+// wieviele Objecte sind beteiligt (nur 1 oder zwei moeglich)
+// Anzahl der zusammenhaengenden Stuecke (genau 2)
+// sind das Loops (wenn ja, dann naechste Punkte suchen)
+
+	string $newMesh;
+	string $selection[] = `ls -sl`;
+
+	polySelectConstraint -mode 2 -type 0x8000 -where 1;
+	polySelectConstraint -mode 0 -type 0x8000 -where 1;
+	string $edges[] = `ls -sl -flatten`;
+	string $objects[] = findObjects( $edges);
+
+	if (size($objects) == 1 || size($objects) == 2) {
+		
+		string $verts1[] = convertEdgeList();
+		string $verts2[] = convertEdgeList();
+		if (size($verts1) && size($verts2) && !size(`ls -sl`)) {
+
+
+
+// check for loops
+		int $loop1 = ($verts1[0] == $verts1[size($verts1)-1]);
+		int $loop2 = ($verts2[0] == $verts2[size($verts2)-1]);
+
+		vector $v1, $v2, $v3, $v4;
+		$v1 = vertexPosition( $verts1[0]);
+		$v2 = vertexPosition( $verts1[size($verts1)-1]);
+		$v3 = vertexPosition( $verts2[0]);
+		$v4 = vertexPosition( $verts2[size($verts2)-1]);
+
+		if ($revert) {
+			$verts1 = reverseStringArray( $verts1);
+		} else if ((mag($v1-$v3) > mag($v1-$v4) && $autoReverse) && !($loop1*$loop2)) $verts2 = reverseStringArray( $verts2);
+
+
+		int $s1 = 0, $s2 = 0;
+		float $dold = 0, $d2 = 0;
+	
+		for ( $i=0 ; $i<size($verts1) ; $i++ ) {
+			for ( $j=0 ; $j<size($verts2) ; $j++ ) {
+				if (mag(vertexPosition($verts1[$i]) - vertexPosition($verts2[$j])) < mag((vector) vertexPosition($verts1[$s1]) - (vector)vertexPosition($verts2[$s2]))) {
+					$s1 = $i;
+					$s2 = $j;
+				}
+			}
+		}
+
+		if ($loop1) {
+			if ($loop2) $verts1 = stringShiftArray( $verts1, $s1);
+			else $verts1 = stringShiftArray( $verts1, $s1 - $s2);
+		}
+		if ($loop2) {
+			if ($loop1) $verts2 = stringShiftArray( $verts2, $s2);
+			else $verts2 = stringShiftArray( $verts2, $s2 - $s1);
+		}
+
+
+
+		//----------------------------------------------------
+			string $tmp[];
+
+			int $face = 0;
+
+			int $i = 0;
+			int $j = 0;
+		
+			int $a = 0;
+			int $b = 1;
+
+			while ($face < size($edges)) {
+				$v1 = vertexPosition( $verts1[$i]);
+				$v2 = vertexPosition( $verts2[$j]);
+				$v3 = vertexPosition( $verts1[(int)min($i+1, size($verts1)-1)]);
+				$v4 = vertexPosition( $verts2[(int)min($j+1, size($verts2)-1)]);
+
+				float $f1 = ((float)($i+1) / size($verts1)) * $diffuse;
+				float $f2 = ((float)($j+1) / size($verts2)) * $diffuse;
+
+				float $d1 = mag($v1-$v4);
+				float $d2 = mag($v2-$v3);
+				$q = $d1; $w = $d2;
+				$d1 = (($d1 / max($q, $w)) * (1 - $diffuse)) + $f2;
+				$d2 = (($d2 / max($q, $w)) * (1 - $diffuse)) + $f1;
+
+				$face++;
+				if (($d1 < $d2 || $i == size($verts1)-1) && $j < size($verts2)-1) {
+					if (!$i && !$j) {
+						$tmp = `polyCreateFacet -ch false
+							-p ($v1.x) ($v1.y) ($v1.z)
+							-p ($v2.x) ($v2.y) ($v2.z)
+							-p ($v4.x) ($v4.y) ($v4.z) -n "connectBorders#"`;
+						$newMesh = $tmp[0];
+					} else
+						polyAppendVertex -ch false
+							-v $a
+							-v $b
+							-p ($v4.x) ($v4.y) ($v4.z);
+					$j++; $b = max($a, $b) + 1;
+				} else {
+					if (!$i && !$j) {
+						$tmp = `polyCreateFacet -ch false
+							-p ($v1.x) ($v1.y) ($v1.z)
+							-p ($v2.x) ($v2.y) ($v2.z)
+							-p ($v3.x) ($v3.y) ($v3.z) -n "connectBorders#"`;
+						$newMesh = $tmp[0];
+					} else
+						polyAppendVertex -ch false
+							-v $a
+							-v $b
+							-p ($v3.x) ($v3.y) ($v3.z);
+					$i++; $a = max($a, $b) +1;
+				}
+
+			}		// while
+			if ($quads) polyQuad  -a $quadAngle -kgb 1 -ktb 0 -khe 0 -ws 1 -ch 0 ($newMesh + ".f[*]");
+
+		} else error "Please select only TWO distinct border regions!";
+
+	} else error "Please select border edges of not more than two objects!";
+
+//	changeSelectMode -object;
+	select -r $newMesh;
+	select -add $edges;
+
+}
+	

@@ -1,0 +1,209 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// Description:
+//	Perforce Maya UI
+
+//
+// Last Updated: 11/04/2002
+//
+
+global proc setPerforceMayaStatusText( string $inString)
+{
+	scrollField -edit -text $inString perforceMayaWindow_Status;
+}
+
+global proc setPerforceStatus()
+{
+	int $choice = `optionMenuGrp -query -sl perforceMayaWindowMenu`;
+	string $commandString;
+	if ($choice == 1)
+	{
+		// Lock when checking out file
+		int $val = `checkBoxGrp -query -value1 perforceMayaWindow_LockOnCheckout`;
+		if ($val)
+			$commandString = "p4cout 1";		// Check out and lock file. 
+		else
+			$commandString = "p4cout 0";		// Check out file, no lock
+	}
+	else if ($choice == 2)
+		$commandString = "p4cin";		// Check in file
+	else if ($choice == 3)
+		$commandString = "p4lock";		// Lock
+	else if ($choice == 4)
+		$commandString = "p4unlock";	// Unlock
+	else if ($choice == 5)
+	{
+		// Submit changes on file add
+		int $val = `checkBoxGrp -query -value1 perforceMayaWindow_SubmitOnAdd`;
+		if ($val)
+			$commandString = "p4add 1";		// Add with submit. 
+		else
+			$commandString = "p4add 0";		// Add w/o submit
+	}
+	else if ($choice == 6)
+		$commandString = "p4diff";		// Diff file against repo
+	else if ($choice == 7)
+		$commandString = "p4revert";	// Revert file
+	else if ($choice == 8)
+	{
+		// Submit changes on file delete
+		int $val = `checkBoxGrp -query -value1 perforceMayaWindow_SubmitOnDel`;
+		if ($val)
+			$commandString = "p4delete 1"; // Delete with subbmit. 
+		else
+			$commandString = "p4delete 0"; // Delete w/o subbmit. 
+	}
+	else if ($choice == 9)
+		$commandString = "";
+	else if ($choice == 10)
+		$commandString = "p4history";
+	else if ($choice == 11)
+		$commandString = "p4FileStatus";
+	else if ($choice == 12)
+		$commandString = "p4Status";
+	else if ($choice == 13)
+		$commandString = "p4EditStatus";
+	else if ($choice == 14)
+		$commandString = "p4info";		// Perforce client information
+
+	if ($commandString != "")
+	{
+		string $result = `eval $commandString`;
+		setPerforceMayaStatusText $result;
+	}
+}
+
+global proc perforceMayaWindow()
+{
+  int $exists = `window -q -exists perforceMayaWindow`;  
+  if ($exists)
+		deleteUI perforceMayaWindow;
+
+    window 
+      -rtf 1
+      -s 1
+      -t "Perforce Source Control Window"
+      -w 500
+      -h 800
+      perforceMayaWindow;
+
+    scrollLayout -hst 0 perforceMayaWindow_ScrollLayout;
+	columnLayout -adjustableColumn true perforceMayaWindow_Column1;
+
+    // Add controls...
+
+	// 1. Perforce commands UI
+	frameLayout 
+		-label "Source Control Commands" 
+		-borderStyle "etchedIn" 
+		-cl false 
+		-cll false
+		-mw 8
+		-mh 8
+		perforceMayaWindow_CommandTab;
+
+	columnLayout perforceMayaWindow_Commands;
+
+	optionMenuGrp -label "Action:" 
+		perforceMayaWindowMenu;
+	menuItem -label "Check Out File";
+	menuItem -label "Check In File";
+	menuItem -label "Lock";
+	menuItem -label "Unlock";
+	menuItem -label "Add";
+	menuItem -label "Differences";
+	menuItem -label "Revert";
+	menuItem -label "Delete";
+	menuItem -d on -enable 0;
+	menuItem -label "Revision History";
+	menuItem -label "File Status";
+	menuItem -label "Changelist Status";
+	menuItem -label "Edit Changelist Status";
+	menuItem -label "Perforce Client Information";
+	setParent -menu ..;
+
+	// Lock when checking out file
+	checkBoxGrp -label "Lock file on file checkout." 
+		-v1 1
+		perforceMayaWindow_LockOnCheckout;
+
+	// Submit changes on file add
+	checkBoxGrp -label "Submit changes on add." 
+			-v1 0
+			perforceMayaWindow_SubmitOnAdd;
+
+	// Submit changes on file delete
+	checkBoxGrp -label "Submit changes on delete." 
+			-v1 0
+			perforceMayaWindow_SubmitOnDel;
+
+	setParent perforceMayaWindow_Column1;
+
+    // 2. Perforce command status window
+	frameLayout 
+		-label "Source Control Status" 
+		-borderStyle "etchedIn" 
+		-cl false 
+		-cll true
+		-mw 8
+		-mh 8
+		perforceMayaWindow_StatusTab;
+
+	scrollField -visible true
+		-w 500
+		-h 400
+		-ed 0
+		-wordWrap 1
+		perforceMayaWindow_Status;
+
+	// Initially show the perforce status information
+	string $startupString = `p4info`;
+
+	string $currentFileName = `file -q -a`;
+	$startupString = ("Maya Scene File: " + $currentFileName + "\n-------------------------------------\n" + $startupString
+		+ "-------------------------------------\n");
+
+	setPerforceMayaStatusText $startupString;
+
+	setParent perforceMayaWindow_Column1;
+
+	frameLayout 
+		-label ""
+		-borderStyle "etchedIn" 
+		-cl false 
+		-cll false
+		-mw 8
+		-mh 8
+		perforceMayaWindow_ActionTab;
+
+	rowLayout -numberOfColumns 2;
+	button -label "Apply" 
+		-command setPerforceStatus
+		perforceMayaWindow_applyBtn;
+	button -label "Perforce Window (Windows Only)" 
+		-command p4window
+		perforceMayaWindow_P4Win;
+	setParent ..;
+
+  // Show the window
+  showWindow perforceMayaWindow;
+}

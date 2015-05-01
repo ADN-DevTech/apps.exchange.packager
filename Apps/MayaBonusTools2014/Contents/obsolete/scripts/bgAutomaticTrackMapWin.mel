@@ -1,0 +1,171 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//      bgAutomaticTrackMapWin 
+//
+//
+// Input Arguments: NONE
+//
+// works with Maya Versions: 4.0
+
+
+global proc bgAutomaticTrackMap(int $method, int $fit){
+	// Method: Uniform=0 Chord=1
+	// Fit: U=1 V=2 UV=3 None=0
+	
+	string $originalSelection[] = `ls -selection -flatten`;
+	if (size($originalSelection) == 0){
+		error "Nothing selected - select mesh or components to map.";
+	}
+	
+	ConvertSelectionToFaces;
+	string $orignalFaces[] = `ls -selection -flatten`;
+	
+	if ($method == 0)
+		polyForceUV -unitize;
+	
+	else if ($method == 1)
+		for ($face in $orignalFaces)
+		{
+			select -r $face;
+			$projName = `polyProjection -ch 1 -type Planar -ibd on -icx 0.5 -icy 0.5 -ra 0 -isu 1 -isv 1 -md b`;
+			setAttr ($projName[0]+".projectionWidth") 1;
+			setAttr ($projName[0]+".projectionHeight") 1;
+		}
+		else
+			error("Unrecognized value for method.");
+		
+		select -r $orignalFaces;
+		
+		//If not set to fit, normalize faces
+		//if (! $fit)
+		//	for ($face in $orignalFaces)
+		//		{
+		//		select -r $face;
+		//		polyNormalizeUV -normalizeType 1 -preserveAspectRatio on ;
+		//		}
+		
+		select -r $orignalFaces;
+		InvertSelection;
+		$otherFaces = `ls -sl -flatten`;
+		ConvertSelectionToEdges;
+		$otherEdges = `ls -sl -flatten`;
+		
+		//Move and sew pieces
+		select -r $orignalFaces;
+		ConvertSelectionToEdges;
+		select -d $otherEdges;
+		polyMapSewMove -lps 0;
+		select -r $orignalFaces;
+		
+		//If set to fit, fit to texture space
+		if (($fit == 1) || ($fit == 2) || ($fit == 3))
+		{
+			polyLayoutUV -l 2 -sc 1 -se 2 -rbf 0 -fr 1 -ps 0.2 -ch 1;
+			
+			//In a few cases layout will separate so repeat move and sew and layout again
+			ConvertSelectionToEdges;
+			select -d $otherEdges;
+			
+			polyMapSewMove -lps 0;
+			
+			select -r $orignalFaces;
+			
+			if ($fit == 1 || $fit == 2)	
+				polyLayoutUV -l 2 -sc 1 -se 2 -rbf 0 -fr 1 -ps 0.2 -ch 1;
+			
+			else if ($fit == 3)		
+				polyLayoutUV -l 2 -sc 2 -se 2 -rbf 0 -fr 1 -ps 0.2 -ch 1;
+			
+			
+			if ($fit == 2)			
+			{			
+				textureWindowSelectConvert 4;			
+				polyEditUV -pu 0.5 -pv 0.5 -a -90 ;			
+			}
+			
+		}
+		
+		select -r $originalSelection;
+		
+}
+
+
+
+//////////////////////////////////////////////
+//		Main UI Procs
+//////////////////////////////////////////////
+
+
+global proc bgAutomaticTrackMapWin()
+{
+	
+	global int $uniformChordState = 1;
+	global int $fitState = 1;
+	
+	//Delete window if it exists already
+	if( (`window -exists autoMapUI`) == true )
+	{	
+		deleteUI autoMapUI;	
+		windowPref -remove autoMapUI;	
+	}
+	
+	//Define Window
+	//
+	window -w 130 -h 180 -tb 1 -s 1 -t "" autoMapUI;
+	
+	rowColumnLayout -numberOfColumns 1 -columnWidth 1 122;
+	
+	separator -style none;
+	
+	text -label "Auto Map" -align center -fn boldLabelFont;		
+	
+	separator -style single;	
+	separator -style none;
+	
+	radioCollection;	
+	radioButton -label "Chord" -sl -onc "$uniformChordState = 1";	
+	radioButton -label "Uniform" -onc "$uniformChordState = 0";
+	
+	//separator -style single;
+	separator -style none;
+	separator -style single;
+	separator -style none;
+	
+	radioCollection;
+	radioButton -label "Fit Length" -sl -onc "$fitState = 1";	
+	radioButton -label "Rotate Fit" -onc "$fitState = 2";
+	radioButton -label "Stretch Fit" -onc "$fitState = 3";
+	radioButton -label "No Fit" -onc "$fitState = 0";
+	
+	//separator -style single;
+	
+	button -label "Apply" -ann "Apply auto map to selected" -command "bgAutomaticTrackMap $uniformChordState $fitState";
+	
+	showWindow; 
+	
+}
+
+
+
+
+

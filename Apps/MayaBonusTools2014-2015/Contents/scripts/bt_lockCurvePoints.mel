@@ -1,0 +1,103 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+global proc bt_lockCurvePoints()
+//
+//	Description :
+//		Select two or more curve param point or edit points
+//		and lock these points together to ensure an intersection.
+//		NOTE: Works of the selection list.
+//
+{
+	string $curveNames[] ;
+	string $locators[] ;
+	string $lsqNodes[] ;
+	int $len ;
+	int $i ;
+
+	int $ok = 1 ;
+	int $sc = 0 ;
+
+	$curveNames = `ls -sl` ;
+	$len = size($curveNames) ;
+	if( $len == 0 )         error "You must select 1 or more curve points or curve edit points (not CVs)";
+
+
+	// run filter to get only items of interest.
+	//
+	global int $gSelectEditPointsBit ;
+	global int $gSelectCurveParmPointsBit ;
+	string $curveNames[] = `filterExpand -ex true -sm $gSelectEditPointsBit -sm $gSelectCurveParmPointsBit $curveNames`;	
+
+	$len = size($curveNames) ;
+	if( $len == 0 ) {
+        error "You must select 1 or more curve points or curve edit points (not CVs)";
+    	//return 0 ;
+    	}
+	if( $ok ) {
+
+		for( $i = 0 ; $i < $len ; $i++ ) {
+			string $name = $curveNames[$i] ;
+			string $tmpResults[] ;
+			if( catch( $tmpResults = `pointCurveConstraint -ch 1 -rpo 1 $name` ) ) {
+				$ok = 0 ;
+				$sc = 1 ;
+			} else {
+				$locators[$i] = $tmpResults[0] ;
+				$lsqNodes[$i] = $tmpResults[1] ;	
+			}
+		}
+	}	
+
+	// 
+	// Disconnect all locators but locator [0].
+	// locator[0].wp[0] now fans out to all other nodes.
+	// That way we have one locator controlling the position
+	// of the intersection point.
+	//
+	string $inAttr  ;
+	if( $ok ) {
+		$len = size($locators) ;
+
+		string $newSrc = $locators[0] + ".wp[0]" ;
+		for( $i = 1 ; $i < $len ; $i++ ) {
+			string $dests[] ;	
+			string $locName = $locators[$i] ;
+			$inAttr = $locName + ".wp[0]" ;
+			$dests = `listConnections -p true $inAttr` ;
+			if( size($dests) > 0 ) {
+				disconnectAttr $inAttr $dests[0] ;
+				connectAttr $newSrc $dests[0] ;
+			}
+			delete $locName ;
+		}
+		select -r $locators[0] ;
+		CenterPivot;
+
+	}
+	//if( $ok != 1 ) $sc = $ok ;
+	//return $sc ;
+	print "Snap and lock locator was created\n";
+} 

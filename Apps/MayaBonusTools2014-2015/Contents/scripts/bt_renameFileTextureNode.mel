@@ -1,0 +1,83 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// international treaties.
+//
+
+// for selected file texture nodes
+// get the file texture name and
+// make this the name of the node
+// bt_renameFileTextureNode.mel
+//
+// Updated 01-26-12 
+// User can now apply to either selected textures or all textures based on selection
+
+global proc bt_renameFileTextureNode(){
+
+	string $nodes[] = `ls -sl -type "file"`;
+	int $count = 0;
+	
+	if (`size $nodes` > 0)
+        {
+        	for ($node in $nodes){
+        		string $textureName = `getAttr ($node + ".fileTextureName")`;
+        		string $buffer[];
+        		int $numTokens;
+        		$numTokens = `tokenize $textureName "/." $buffer`;
+        		rename $node $buffer[($numTokens - 2)];
+        		print ("Renamed " + $node + " to " + $buffer[($numTokens - 2)] + "\n");
+          		$count++;
+    		}
+          	print ("Renamed " + $count + " textures to match their associated source files.\n");
+        }	
+        
+	else
+	{
+	
+    	$response = `confirmDialog -title "Rename Textures To Match Source" 
+    	    -message "No specific textures selected.  Do you want to rename -all- textures to match their associated source files?" 
+    	    -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+    	
+    
+        if ($response == "Yes")
+            {
+        	string $nodes[] = `ls -type "file"`;
+        	
+        	for ($node in $nodes){
+        		string $textureName = `getAttr ($node + ".fileTextureName")`;
+        		string $buffer[];
+        		int $numTokens;
+        		$numTokens = `tokenize $textureName "/." $buffer`;
+        		rename $node $buffer[($numTokens - 2)];
+        		print ("Renamed " + $node + " to " + $buffer[($numTokens - 2)] + "\n");
+              	$count++;
+        		}
+        	print ("Renamed " + $count + " textures to match their associated source files.\n");
+        	}
+        else
+            print "Cancelled texture renaming";
+    }
+}

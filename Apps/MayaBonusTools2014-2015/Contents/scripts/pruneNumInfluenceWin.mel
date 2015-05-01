@@ -1,0 +1,177 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// pruneNumInfluencesWin.mel
+// cpam aug 2001
+//
+// window to set smooth skin weighting to 0
+// based on number of influences instead of
+// pruning small weights
+//
+// prune below is included as a convenience 
+// and to get around a precision problem
+//
+// note that this script is not undoable -
+// undo is turned off to improve performance
+
+global proc pruneInfluences(){
+
+	//get undo state and turn off
+	//proc is way too slow with it on
+	int $undoState;
+	if (`undoInfo -q -st` == 1){
+		$undoState = 1;
+		undoInfo -st 0;
+	}
+
+	int $numInfluences = `textFieldGrp -q -text numInfluenceTF`;
+	string $pruneBelow = `textFieldGrp -q -text pruneBelowTF`;
+	doPruneSkinClusterWeightsArgList 1 { $pruneBelow };
+
+	string $object[] = `ls -sl`;
+
+	//find shape node
+	pickWalk -d down;
+	string $skin[] = `listConnections -type "skinCluster"`;
+	ConvertSelectionToVertices;
+	string $comps[] = `ls -sl -flatten`;
+
+//	print "\n";
+//	print $object[0];
+//	print "\n";
+//	print $skin[0];
+//	print "\n";
+//	print $comps;
+
+	for ($comp in $comps){
+
+	print "\nProcessing ";
+	print $comp;
+
+		float $vals[] = `skinPercent -q -v $skin[0] $comp`;
+		string $infs[] = `skinPercent -q -t $skin[0] $comp`;
+//		string $wvals[];
+//		string $winfs[];
+	
+
+//	print "\n vals and infs\n";
+//	print $vals;
+//	print $infs;
+
+
+		int $sizeVals = size($vals);
+		int $wt[]; //array of weighted positions in $vals and $infs
+		int $pos = 0; //position in $wt 
+
+		//find weighted $vals and $infs positions
+		for ($i=0; $i<($sizeVals); $i++)
+			{
+//	print "\n $i=";
+//	print $i;
+
+			if ($vals[$i] != 0){
+			
+//	print "\n $vals[$i] != 0  ";
+//	print $vals[$i];
+
+				$wt[$pos] = $i;
+				$pos++;
+			}
+		}
+
+		if (size($wt) > $numInfluences){
+
+//	print "\n wt array\n";
+//	print $wt;
+
+		//reorder from lo to hi weights
+		int $sizeWt = size($wt);
+		for ($i=0; $i<($sizeWt -1); $i++){
+	
+			for ($j = 0 ; $j<($sizeWt-1); $j++){
+				int $wtpos = $wt[$j];
+				int $wtnxt = $wt[$j+1];
+				if ($vals[$wtpos] > $vals[$wtnxt]){
+
+//	print ("\n" + $vals[$wtpos] + ">" + $vals[$wtnxt]);
+
+					$wt[$j] = $wtnxt;
+					$wt[$j+1] = $wtpos;
+
+//	print "\n wt array reordered\n";
+//	print $wt;
+	
+				}	
+			}
+		}
+
+//	print "\n wt array reordered\n";
+//	print $wt;
+
+		//set weights to 0
+		for ($i=0; $i < ($sizeWt - $numInfluences); $i++){
+			int $j = $wt[$i];
+			//skinPercent -tv joint2  0.000000 skinCluster1 pSphere1.vtx[185];
+			skinPercent -tv $infs[$j] 0.000000 $skin[0] $comp;
+		}
+	}
+
+	clear $wt;
+
+	}
+
+	select -r $object[0];
+	print "\n Done!";
+	if ($undoState == 1)
+		{undoInfo -st 1;}
+}
+
+global proc pruneNumInfluenceWin(){
+
+	if (`window -exists pruneNumInfluenceWin`)
+		{deleteUI -wnd pruneNumInfluenceWin;}
+
+	window -t "Prune Number of Influences"
+		-w 260
+		-h 240
+		pruneNumInfluenceWin;
+
+	columnLayout -adjustableColumn true;
+
+	textFieldGrp
+		-label "Maximum Influences"
+		-text  "3"
+		numInfluenceTF;
+
+	textFieldGrp
+		-label "Prune Below"
+		-text  "0.001"
+		pruneBelowTF;
+
+	button -l "Prune Influences"
+		-c "pruneInfluences"
+		pruneInfluenceButton;
+
+	text "Note: This is not undoable";
+
+	showWindow;
+
+}

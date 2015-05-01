@@ -1,0 +1,68 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+
+global proc clothThicken(){
+
+	//get the selection
+	string $selection[] = `ls -sl`;
+	//find the shape nodes that are meshes
+	string $meshes[] = `listRelatives -shapes -type "mesh" $selection`;
+
+	//test meshes to make sure they are connected to a cloth solver
+	string $clothMeshes[];
+	int $i = 0;
+	for ($mesh in $meshes){
+		string $connections[] = `listConnections -type "cpClothSolver" $mesh`;
+		if (`size($connections)`>0){
+			$clothMeshes[$i] = $mesh;
+		}
+		$i++;
+	}
+
+	//thicken cloth meshes
+	for ($cloth in $clothMeshes){
+		string $extrude[] = `polyExtrudeFacet -ch 1 -kft 1 -divisions 1 -ws 0 -ltx 0 -lty 0 -ltz -0.5 $cloth`;
+		string $smooth[] = `polySmooth  -mth 1 -dpe 2 -ps 0.1 -ch 1 $cloth`;
+
+		//add thickness attr to xform
+		//add thickness on/off control
+		addAttr -ln thickness 
+			-at double $cloth;
+		setAttr -e -keyable true ($cloth + ".thickness");
+		setAttr ($cloth + ".thickness") 0.5;
+		//addAttr -ln displayThickness -at bool $cloth;
+		addAttr -ln thicknessState 
+			-at "enum" 
+			-en "Normal:HasNoEffect:Blocking:Waiting-Normal:Waiting-HasNoEffect:Waiting-Blocking:"
+			$cloth;
+		setAttr -e -keyable true ($cloth + ".thicknessState");
+
+		connectAttr ($cloth + ".thickness") ($extrude[0] + ".localTranslateZ");
+		connectAttr ($cloth + ".thicknessState") ($extrude[0] + ".nodeState");
+		connectAttr ($cloth + ".thicknessState") ($smooth[0] + ".nodeState");
+
+
+	}
+
+
+}

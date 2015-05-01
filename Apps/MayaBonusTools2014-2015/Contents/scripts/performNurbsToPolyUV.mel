@@ -1,0 +1,269 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//  Creation Date:  Oct 17, 2002
+//
+//  Procedure Name:
+//      performNurbsToPolyUV
+//
+//  Description:
+//        
+//         
+//  Input Arguments:
+//        $option : Whether to set the options to default values.
+//  Return Value:
+//        None
+//
+
+proc setOptionVars (int	$forceFactorySettings)
+{
+	if ($forceFactorySettings || !`optionVar -exists "nurbsToPolyUVOperator"`)
+		optionVar -stringValue "nurbsToPolyUVOperator" "projectCenterToPoly";
+
+	if ($forceFactorySettings || !`optionVar -exists "nurbsToPolyUVReverseNormals"`)
+		optionVar -intValue "nurbsToPolyUVReverseNormals" 0;
+
+	if ($forceFactorySettings || !`optionVar -exists "nurbsToPolyUVDoubleSided"`)
+		optionVar -intValue "nurbsToPolyUVDoubleSided" 0;
+
+	if ($forceFactorySettings || !`optionVar -exists "nurbsToPolyUVGeometryNormals"`)
+		optionVar -intValue "nurbsToPolyUVGeometryNormals" 1;
+
+	//if ($forceFactorySettings || !`optionVar -exists "nurbsToPolyUVWholeFaces"`)
+	//	optionVar -intValue "nurbsToPolyUVWholeFaces" 0;
+
+}
+
+global proc nurbsToPolyUVSetup (string $parent, int $forceFactorySettings)
+{
+	setOptionVars($forceFactorySettings);
+	setParent $parent;
+
+    optionMenuGrp 
+		-edit 
+		-value `optionVar -query nurbsToPolyUVOperator`
+		nurbsToPolyUVOperator;
+
+	checkBoxGrp 
+		-edit
+		-value1 `optionVar -query nurbsToPolyUVReverseNormals`
+		nurbsToPolyUVReverseNormals;
+
+	checkBoxGrp
+		-edit
+		-value1 `optionVar -query nurbsToPolyUVDoubleSided`
+		nurbsToPolyUVDoubleSided;
+
+	checkBoxGrp
+		-edit
+		-value1 `optionVar -query nurbsToPolyUVGeometryNormals`
+		nurbsToPolyUVGeometryNormals;
+
+	//checkBoxGrp
+	//	-edit
+	//	-value1 `optionVar -query nurbsToPolyUVWholeFaces`
+	//	nurbsToPolyUVWholeFaces;
+
+}
+
+global proc nurbsToPolyUVCallback (string $parent, int $doIt)
+{
+	//string $prefix = "nurbsToPolyUV";
+	
+	setParent $parent;
+
+	optionVar -stringValue "nurbsToPolyUVOperator"
+		`optionMenuGrp -query -value nurbsToPolyUVOperator`;
+	
+	optionVar -intValue "nurbsToPolyUVReverseNormals"
+		`checkBoxGrp -query -value1 nurbsToPolyUVReverseNormals`;
+
+	optionVar -intValue "nurbsToPolyUVDoubleSided"
+		`checkBoxGrp -query -value1 nurbsToPolyUVDoubleSided`;
+
+	optionVar -intValue "nurbsToPolyUVGeometryNormals"
+		`checkBoxGrp -query -value1 nurbsToPolyUVGeometryNormals`;
+
+	//optionVar -intValue "nurbsToPolyUVWholeFaces"
+	//	`checkBoxGrp -query -value1 nurbsToPolyUVWholeFaces`;
+
+	if ($doIt) 
+	{
+		performNurbsToPolyUV 0;
+		string $tmpCmd = "performNurbsToPolyUV 0 ";
+		addToRecentCommandQueue $tmpCmd "NURBS to Poly UV";
+	}
+}
+
+proc nurbsToPolyUVOptions ()
+{
+	string $commandName = "nurbsToPolyUV";
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	setOptionBoxCommandName($commandName);
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//
+	waitCursor -state 1;
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	optionMenuGrp 
+		-label "Operation"
+		nurbsToPolyUVOperator;
+
+		menuItem -l "projectWorldToPoly";
+		menuItem -l "projectObjectToPoly";
+		menuItem -l "projectCenterToPoly";
+		menuItem -l "projectWorldToNURBS";
+		menuItem -l "projectObjectToNURBS";
+		menuItem -l "projectCenterToNURBS";
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "Reverse Normals"
+		-label1 "On"
+		nurbsToPolyUVReverseNormals;
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "Double Sided"
+		-label1 "On"
+		nurbsToPolyUVDoubleSided;
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "Geometry Normals"
+		-label1 "On"
+		nurbsToPolyUVGeometryNormals;
+
+	//checkBoxGrp
+	//	-numberOfCheckBoxes 1
+	//	-label "Whole Faces"
+	//	-label1 "On"
+	//	nurbsToPolyUVWholeFaces;
+	
+	setParent -menu ..;
+
+	waitCursor -state 0;
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit 
+		-label "Apply"
+		-command ($callback + " " + $parent + " " + 1) 
+		$applyBtn;
+	
+	string $applyAndCloseBtn = getOptionBoxApplyAndCloseBtn();
+	button -edit 
+		-label "Map UVs"
+		$applyAndCloseBtn;
+
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + " " +"; hideOptionBox")
+		$saveBtn;
+
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Step 7: Set the option box title.
+	//	=================================
+	//
+	setOptionBoxTitle("NURBS to Poly UV Options");
+	//	Step 8: Customize the 'Help' menu item text.
+	//	============================================
+	//
+	//setOptionBoxHelpTag("AdaptivePrelight");
+	//	Step 9: Set the current values of the option box.
+	//	=================================================
+	//
+	eval (($setup + " " + $parent + " " + 0));
+	//	Step 10: Show the option box.
+	//	=============================
+	//
+	showOptionBox();
+}
+
+
+proc string assembleCmd()
+{
+	setOptionVars (false);
+
+	int $doHistory = `constructionHistory -q -toggle`;
+
+	string $cmd = "nurbsToPolyUV -operator ";
+	$cmd += `optionVar -query "nurbsToPolyUVOperator"`;
+
+	if (`optionVar -query "nurbsToPolyUVReverseNormals"`)
+		$cmd += " -reverseNormals";
+	if (`optionVar -query "nurbsToPolyUVDoubleSided"`)
+		$cmd += " -doubleSided";
+	if (`optionVar -query "nurbsToPolyUVGeometryNormals"`)
+		$cmd += " -geometryNormals";
+	//if (`optionVar -query "nurbsToPolyUVWholeFaces"`)
+	//	$cmd += " -wholeFaces";
+
+	print $cmd;
+	return $cmd;	
+}
+
+
+global proc string performNurbsToPolyUV (int $option)
+{
+	string $cmd="";
+
+	switch ($option) 
+	{
+		case 0:
+			$cmd = `assembleCmd`;
+			eval($cmd);
+			break;
+		case 1:
+			nurbsToPolyUVOptions;
+			break;
+		case 2:
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}

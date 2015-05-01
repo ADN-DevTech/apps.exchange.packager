@@ -1,0 +1,392 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//
+// bt_slideComponentsUI.mel
+//
+//
+// Created by Steven T. L. Roselle
+//
+// Last update: 02/01/12
+//
+
+global proc bt_slideComponentsUI()
+{
+
+	//Delete window if it exists already
+	if( (`window -exists bt_slideComponentsUI`) == true )
+			{
+			deleteUI bt_slideComponentsUI;
+ 			windowPref -remove bt_slideComponentsUI;
+			}
+
+	//Define Window
+	//
+ 	window -w 160 -h 120 
+		-tb 1 
+		-s 1 -t "Slide Components" 
+		bt_slideComponentsUI;
+
+		rowColumnLayout -numberOfColumns 1 
+			-columnWidth 1 150;
+
+		separator -style none;
+		separator -style none;
+
+		button -label "Slide Components" 
+			-ann "Slide components on selected mesh in their current state" 
+			-command "bt_slideComponents";
+
+		button -label "Enable Slide Components HUD" 
+			-ann "Turn on the Slide Components Heads Up Display button" 
+			-command "bt_slideComponentsHUD; deleteUI bt_slideComponentsUI; windowPref -remove bt_slideComponentsUI";
+		
+		separator -style none;
+
+		separator -style single;
+
+		separator -style none;
+		
+		button -label "Close" 
+			-ann "Close window" 
+			-command "deleteUI bt_slideComponentsUI; windowPref -remove bt_slideComponentsUI";
+
+	showWindow; 	
+	
+}
+
+global proc bt_slideComponentsHUD()
+	
+{
+		
+    if (`headsUpDisplay -exists HUDKillIconRenButton`)	headsUpDisplay -remove HUDKillIconRenButton;
+
+	if (`headsUpDisplay -exists HUDenableSlideComponentsButton`) headsUpDisplay -remove HUDenableSlideComponentsButton;
+
+	headsUpDisplay -rp 2 1;
+	hudButton -s 2
+		  -b 1
+		  -vis 1
+		  -l "Enable Slide Components"
+		  -ba       "center"
+		  -bw 160
+		  -bsh "roundRectangle"
+		  -rc ("bt_slideComponents;")
+		  HUDenableSlideComponentsButton;
+	
+	
+	if (`headsUpDisplay -exists HUDdisableSlideComponentsButton`) headsUpDisplay -remove HUDdisableSlideComponentsButton;
+		
+	headsUpDisplay -rp 2 2;
+	hudButton -s 2
+		  -b 2
+		  -vis 1
+		  -l "Disable Slide Components"
+		  -ba       "center"
+		  -bw 160
+		  -bsh "roundRectangle"
+		  -rc ("bt_disableSlideComponents;")
+		  HUDdisableSlideComponentsButton;
+
+	if (`headsUpDisplay -exists HUDkillSlideComponentsButton`) headsUpDisplay -remove HUDkillSlideComponentsButton;
+
+	headsUpDisplay -rp 2 3;
+	hudButton -s 2
+		  -b 3
+		  -vis 1
+		  -l "Close"
+		  -ba       "center"
+		  -bw 40
+		  -bsh "rectangle"
+		  -rc "headsUpDisplay -remove HUDenableSlideComponentsButton; headsUpDisplay -remove HUDdisableSlideComponentsButton; headsUpDisplay -remove HUDkillSlideComponentsButton"
+		  HUDkillSlideComponentsButton;
+    
+}
+
+
+global proc bt_disableSlideComponents()
+{
+	string $histNode;
+	string $scNode;
+	string $matchTest;
+	string $selectedObject[];
+	string $polyObject[];
+	int $found = 0;
+
+
+	//keep track of what is selected
+	$selected = `ls -sl`;
+	
+	//convert to object if components selected
+	$selectedObject = `selectedNodes -dagObjects`;
+	
+	if (`size $selectedObject` == 0)
+	    error "No object to disable slide components for.  Select object or components and try again.";
+	    
+	select -r $selectedObject[0];
+	
+	//Check selected for poly
+	$selectedObject = `filterExpand -sm 12`;
+
+	if (`size $selectedObject` != 1)
+		error "You must select mesh you wish to disable slide components for.";
+
+	
+	tokenize $selectedObject[0] "|" $polyObject;
+		
+	//Get list of history nodes
+	$historyList = `listHistory $polyObject[0]`;
+	for ($histNode in $historyList)
+		{
+		//If a previous slideComponents node is found confirm to delete		
+		if (`gmatch $histNode "slideComponents*"`)
+			{
+			$found = 1;
+			$scNode = $histNode;
+			print ("Found existing slideComponents node " + $histNode + "\n");
+			}
+
+		}    
+	
+	if ($found == 1)		
+	    {	
+	    //MovePolygonComponent;
+		print ("Found existing slideComponents node " + $histNode);
+		string $checkResponse = `confirmDialog -title "Confirm" -message "WARNING: A slideComponents node was found on this object.  History will be collapsed up to this node in order to disable it and bake in it's effect.  Do you want to continue?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+		if ($checkResponse == "No") 
+			{
+			error "Operation  Cancelled";
+			}
+		else
+		    {
+    	    rename  `polyConnectComponents -ch 1 ($polyObject[0] + ".vtx[0]")` "disableSlideComponents#";
+		    collapseUpstreamHistory($scNode);
+		    delete ($polyObject[0]+"_slideComponentsObject*");
+		    }
+	    select -r $selected;
+	    }
+	else
+	    print ("No slideComponents node found on " + $polyObject[0]);
+	
+	
+	
+}
+
+global proc bt_slideComponents()
+
+{
+	string $histNode;
+	string $matchTest;
+	string $selectedObject[];
+	string $polyObject[];
+
+
+    //start by creating HUD
+    bt_slideComponentsHUD;
+    
+  	//keep track of what is selected
+	$selected = `ls -sl`;
+	if (`size $selected` == 0)
+	    error "No poly objects selected to apply slide compoents to.";
+	
+	//convert to object if components selected
+	$selectedObject = `selectedNodes -dagObjects`;
+	select -r $selectedObject[0];
+	
+	//Check selected for poly
+	$selectedObject = `filterExpand -sm 12`;
+
+	if (`size $selectedObject` != 1)
+		error "Slide components requires that a single mesh or mesh component be selected.";
+
+	
+	tokenize $selectedObject[0] "|" $polyObject;
+		
+	//Get list of history nodes
+	$historyList = `listHistory $polyObject[0]`;
+	for ($histNode in $historyList)
+		{
+		//If a previous slideComponents node is found confirm to delete		
+		if (`gmatch $histNode "slideComponents*"`)
+			{
+			print ("Found existing slideComponents node " + $histNode);
+			string $checkResponse = `confirmDialog -title "Confirm" -message "WARNING: A slideComponents node is already connected to this object.  History will be collapsed up to the old slideComponents node and a new one will be added.  Do you want to continue?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+			if ($checkResponse == "No") 
+				{
+				select -r $selected;
+				error "Operation  Cancelled";
+				}
+			else
+				{
+				//Delete history and remove any remaining UVPreserve meshes
+				//DeleteHistory;
+				collapseUpstreamHistory($histNode);
+				delete ($polyObject[0]+"_slideComponentsObject*");
+				}
+			}
+		}
+
+	//Create duplicate of selected mesh as slide components reference object
+	$dup = `duplicate -name ($polyObject[0]+"_slideComponentsObject")`;
+	//polySmooth  -mth 0 -dv 0 -bnr 1 -c 1 -kb 1 -ksb 1 -khe 0 -kt 1 -kmb 1 -suv 1 -peh 0 -sl 1 -dpe 1 -ps 0.1 -ro 1 -ch 1 $dup;
+	hide;
+
+
+	//Transfer mesh shape from dup object to original
+	//transferAttributes -transferUVs 2 -sampleSpace 1 $dup $polyObject[0];
+	transferAttributes -transferPositions 1 -sampleSpace 1 -searchMethod 0 $dup $polyObject[0] ;
+
+
+	//Rename and modify attrs on transferAttributes node to act as slideComponents node
+	$historyList = `listHistory $polyObject[0]` ;
+	$matchTest = $historyList[1];
+	
+	
+	if (`gmatch $matchTest "transferAttributes*"`)
+		{
+		$lockNode = `rename $historyList[1] "slideComponents#"`;
+		
+		//setAttr -cb true ($lockNode+".transferPositions");
+		setAttr -cb true ($lockNode+".searchMethod");
+
+		setAttr -keyable false -channelBox false ($lockNode+".en");
+		setAttr -keyable false -channelBox false ($lockNode+".ssx");
+		setAttr -keyable false -channelBox false ($lockNode+".ssy");
+		setAttr -keyable false -channelBox false ($lockNode+".ssz");
+		
+		
+		setAttr -lock true ($lockNode+".cch");
+		setAttr -lock true ($lockNode+".nds");
+		setAttr -lock true ($lockNode+".en");
+		setAttr -lock true ($lockNode+".pos");
+		setAttr -lock true ($lockNode+".col");
+		setAttr -lock true ($lockNode+".mtd");
+		setAttr -lock true ($lockNode+".dis");
+		setAttr -lock true ($lockNode+".tol");
+		setAttr -lock true ($lockNode+".ssx");
+		setAttr -lock true ($lockNode+".ssy");
+		setAttr -lock true ($lockNode+".ssz");
+		setAttr -lock true ($lockNode+".fuv");
+		setAttr -lock true ($lockNode+".clb");
+		setAttr -lock true ($lockNode+".sampleSpace");
+		
+		setAttr -lock false ($lockNode+".searchMethod");
+		}
+	else
+		{
+		select -r $selected;	
+		error "transferAttributes node not found";
+		}
+		
+	warning "Shape will be preserved in their current state.  If any edits are made to the topology of the mesh then slideComponents will need to be re-applied";
+
+	select -r $selected;
+	
+	//bt_slideComponentsHUD;
+
+}
+
+
+global proc collapseUpstreamHistory(string $historyNode)
+{	
+	// Works on a dependency node with a single output that produces
+	// a polygon shape.  All of the nodes upstream of $historyNode
+	// including the node itself will be deleted and their operations
+	// "collapsed".  The nodes following the selected one are not affected.
+	
+	string $toPlug[] = `listConnections -p on -d on -s off $historyNode`;
+	if( size($toPlug) < 1 ) {
+		error( "The node must be connected to another one" );
+		return;
+	}
+
+	string $fromPlug[] = `listConnections -p on -d off -s on $toPlug[0]`;
+	if( size($fromPlug) < 1 ) {
+		error( "Impossible: there is a previous node." );
+		return;
+	}
+
+	// So, we have to break a connection from fromPlug to toPlug.
+	// First, make a shape, and put it under the transform.
+
+	string $inTheFuture[] = `listHistory -f on $historyNode`;
+	if( size($fromPlug) < 1 ) {
+		error( "Impossible: there is future." );
+		return;
+	}
+
+	string $shape;
+	int $foundIt = false;
+	for ($shape in $inTheFuture) {
+		if( "mesh" == `nodeType $shape` ) {
+			$foundIt = true;
+			break;
+		}
+	}
+
+	if( !$foundIt ) {
+		error( "Cannot find the polygon shape in the future of this node.");
+		return;
+	}
+
+	string $trans[0] = `listRelatives -p $shape`;
+	if( size($trans) < 1 ) {
+		error( "Impossible: there must be a parent transform" );
+		return;
+	}
+
+	string $newShapeName = $shape + "Collapse#";
+	string $newShape = `createNode mesh -n $newShapeName -p $trans[0]`;
+
+	disconnectAttr $fromPlug[0] $toPlug[0];
+	connectAttr $fromPlug[0] ($newShape + ".i");
+	connectAttr ($newShape + ".o") $toPlug[0];
+
+	// Kick the evaluate, just in case:
+	getAttr ($shape + ".boundingBoxMinZ");
+	delete -ch $newShape;
+
+	// Kick the evaluate again:
+	getAttr ($shape + ".boundingBoxMinZ");
+
+	// Make the shape intermediate, and select the transform.
+	setAttr ($newShape + ".io") yes;
+	select -r $trans[0];
+
+	print "Upstream History collapsed\n";
+}
+
+//bt_slideComponentsUI;
+//bt_slideComponentsHUD; 
+
+//bt_slideComponents;
+
+
+
+
+
+

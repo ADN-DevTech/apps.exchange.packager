@@ -1,0 +1,61 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+// createCircleUnderTransform.mel
+// 
+// select transform(s) to add a nurbsCurve underneath
+// curve will be a circle and share the transform as
+// opposed to creating a new transform under the selected
+// transform
+
+global proc createCircleUnderTransform(){
+
+	string $transforms[] = `ls -sl -type "transform"`;
+
+	for ($transform in $transforms){
+
+	//the rest of this script may be replaced with a custom node type or shape.
+	//to do so, create a .ma file containing the desired shape. Replace
+	//these lines with the new shape definition 
+	//***start replacement
+	createNode nurbsCurve -n "nurbsCircleShape#" -p $transform;
+	setAttr -k off ".v";
+	setAttr ".cc" -type "nurbsCurve" 
+		3 8 2 no 3
+		13 -2 -1 0 1 2 3 4 5 6 7 8 9 10
+		11
+		0.78361162489122504 4.7980788738543501e-017 -0.78361162489122382
+		-1.2643394714199586e-016 6.7855082167406535e-017 -1.1081941875543879
+		-0.78361162489122427 4.7980788738543526e-017 -0.78361162489122427
+		-1.1081941875543879 2.1149615364515582e-032 -3.4541083832369569e-016
+		-0.78361162489122449 -4.798078873854352e-017 0.78361162489122416
+		-3.7316641393932461e-016 -6.7855082167406547e-017 1.1081941875543881
+		0.78361162489122393 -4.7980788738543532e-017 0.78361162489122438
+		1.1081941875543879 -3.6444959778319055e-032 5.9521101886435592e-016
+		0.78361162489122504 4.7980788738543501e-017 -0.78361162489122382
+		-1.2643394714199586e-016 6.7855082167406535e-017 -1.1081941875543879
+		-0.78361162489122427 4.7980788738543526e-017 -0.78361162489122427
+		;
+	//***end replacement
+	}
+
+}

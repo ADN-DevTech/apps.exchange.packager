@@ -1,0 +1,207 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Date: February 25, 2004
+//
+// Name:
+//		fixMissingReferences
+//
+// Description:
+//		This script will fix all missing references in a scene. Starting with 
+//		the specified file, it will recursively descend through the reference
+//		hierarchy opening all files and prompting the user for missing 
+//		references. When a missing reference is found, it will
+// 		be replaced in the parent file, and the parent file will be saved.
+//
+// 		For the best results, the project should be set correctly before 
+//		calling fixMissingReferences.
+//
+//		In order to minimize the number of files that need to be opened or 
+//		loaded, this script may not update all preload settings. Fixing of
+//		preload settings should be done by the user after running this script.
+//
+// WARNING:
+//		This script will modify and overwrite the passed in file as well as any
+//		reference files!
+//
+
+proc findFilesToFix( string $filename, string $filesToFix[] )
+//
+// Description:
+//		This proc tries to be smart about which reference files might need to
+//		be fixed. If a reference is loaded, and the raw paths to all
+//		of its child references can be resolved, then it can be safely skipped.
+//		However it is still possible that the children of the skipped reference
+//		will need to be fixed. This proc will recurse and correctly find those
+//		cases.
+//		
+{
+	print("findFilesToFix " + $filename + "\n");
+	string $refFiles[] = `file -q -reference $filename`;
+
+	string $refFile;
+	// Find any descendant references that need to be fixed. Stop
+	// recursing as soon as a reference is found that needs to be
+	// fixed. 
+	//
+	for ( $refFile in $refFiles ) {
+		int $fixMe = false;
+		if ( `file -q -deferReference $refFile` ) {
+			// If $refFile is unloaded, then we don't know whether or not
+			// it has any child references that can't be resolved. So,
+			// unfortunately, we have to assume $refFile needs to be fixed.
+			//
+			$fixMe = true;
+		} else {
+			// Check all child references. If all of them can be resolved
+			// without user intervention, then we don't need to fix $refFile.
+			//
+			string $nestedRefs[] = `file -q -reference -unresolvedName $refFile`;
+			string $nestedRef;
+			for ( $nestedRef in $nestedRefs ) {
+				if ( !`file -q -exists $nestedRef` ) {
+					$fixMe = true;
+					break;
+				}
+			}
+		}
+		if ( $fixMe ) {
+			// If we're going to fix $refFile, add it to the list and continue.
+			// No need to do anymore processing as that will be handled in 
+			// fixFile
+			//
+			int $last = `size($filesToFix)`;
+			$filesToFix[$last] = $refFile;
+		} else {
+			// If we're not going to fix $refFile, then we need to recursively
+			// check of its child references to see if any of them need to
+			// be fixed.
+			print("skipping " + $refFile + "\n");
+			string $nestedRefs[] = `file -q -reference $refFile`;
+			string $nestedRef;
+			for ( $nestedRef in $nestedRefs ) {
+				findFilesToFix( $nestedRef, $filesToFix );
+			}
+		}
+	}
+}
+
+proc fixFile( string $filename )
+//
+// Description:
+//		Fix $filename by prompting the user to locate any missing references.
+//		Replace the missing references with the located ones and save 
+//		$filename. fixFile tries to minimize how many references need to be
+//		loaded, and, recursively, how many child references also need to
+//		be fixed. As a result, this procedure will not necessarily fix all
+//		preload settings. Those will have to be manually reset by the user
+//		later.
+//
+{
+	// Opening filename will prompt the user for any missing references. These
+	// manually resolved paths will accessible through the 'file -q -reference'
+	// command.
+	//
+	file -f -o -loadNoReferences $filename;
+	// The passed in filename may not exist as specified. If the file open
+	// succeeded, make sure the correct filename is used going forward.
+	//
+	$filename = `file -q -expandName`;
+	print("fixing file " + $filename + "\n");
+
+	// list of unresolved paths.
+	//
+	string $rawFiles[] = `file -q -reference -unresolvedName`;
+	// List of resolved paths, both manually and automatically.
+	//
+	string $refFiles[] = `file -q -reference`;
+	string $refNodes[];
+	int $i = 0;
+	int $numRefs = size($refFiles);
+	int $saveNeeded = false;
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		if ( !`file -q -exists $rawFiles[$i]` ) {
+			// If the raw file path doesn't exist, use the manually resolved
+			// one.
+			//
+			print("  " + $rawFiles[$i] + " --> " + $refFiles[$i] + "\n");
+			string $refNode = `file -q -referenceNode $refFiles[$i]`;
+			
+			// Attempt to replace the missing refernece with the manually 
+			// resolved one.
+			//
+			if ( catch(`file -loadReference $refNode $refFiles[$i]`) ) {
+				error("fixMissingReferences cannot unload " + $refNode + ". Aborting.");
+			}
+			$saveNeeded = true;
+		} else {
+			// This reference is not missing.
+			//
+			print("  " + $rawFiles[$i] + " unchanged\n");
+		}
+	}
+
+	if ( $saveNeeded ) {
+		file -f -save;
+	}
+
+	string $filesToFix[];
+	// Recursively determine which child references also need to be fixed.
+	//
+	findFilesToFix( $filename, $filesToFix );
+
+	string $refFile;
+	for ( $refFile in $filesToFix ) {
+		// Recursively fix all child references that need it.
+		//
+		fixFile($refFile);
+	}
+}
+
+
+global proc fixMissingReferences( string $filename ) 
+{
+	string $message = ( "This operation may modify\n" +
+						$filename + "\n" +
+						"and any of its references!" );
+	string $choice = `confirmDialog -title "Warning!" -message $message -messageAlign "center"
+ 									-button "Continue" -button "Cancel" -defaultButton "Cancel"
+ 									-cancelButton "Cancel" -dismissString "Cancel"`;
+	if ( "Cancel" == $choice ) {
+		return;
+	}
+	
+	int $suppressWarnings = `scriptEditorInfo -q -suppressWarnings`;
+	int $suppressResults = `scriptEditorInfo -q -suppressResults`;
+	int $suppressInfo = `scriptEditorInfo -q -suppressInfo`;
+	scriptEditorInfo -e -suppressWarnings true;
+	scriptEditorInfo -e -suppressResults true;
+	scriptEditorInfo -e -suppressInfo true;
+
+	if ( catch(`fixFile( $filename )`) ) {
+		print("fixMissingReferences FAILED.\n");
+	}
+	
+	scriptEditorInfo -e -suppressWarnings $suppressWarnings;
+	scriptEditorInfo -e -suppressResults $suppressResults;
+	scriptEditorInfo -e -suppressInfo $suppressInfo;
+}

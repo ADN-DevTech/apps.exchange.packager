@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+MYHOME="`dirname \"$0\"`" # Relative
+export MYHOME="`( cd \"$MYHOME\" && pwd )`" # Absolutized and normalized
+#cd $MYHOME
+
+export PYTHON_EXE=python
+export FLIP=./tools/ConvertNewlines.app/Contents/Resources/flip
+export PACKAGER=/Applications/Xcode-4.6.3.app/Contents/Applications/PackageMaker.app/Contents/MacOS/PackageMaker
+
+source ./DigitalSignature/AppStore-osx
+
+if [ ! -d temp ]; then
+	mkdir temp
+fi
+rm -Rf temp/*

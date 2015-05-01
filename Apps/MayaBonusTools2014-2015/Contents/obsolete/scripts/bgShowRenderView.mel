@@ -1,0 +1,108 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// these procs ripped out of renderWindowPanel.mel
+// and renamed just to make sure there are no conflicts in the future
+
+//
+// Description:
+//	Raise the render view window if exists, then return 1.
+//	Return 0 otherwise.
+//
+proc int bgRaiseRenderViewWindow()
+{
+	//
+	//	Look for the renderViewWindow and pop it up if it exists.
+	//
+	for( $i in `lsUI -windows` )
+	{
+		if( $i == "renderViewWindow" )
+		{
+			showWindow $i;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+proc string bgGetRenderWindowPanel()
+{
+	string $renderPanel;
+	string $renderPanels[] = `getPanel -scriptType "renderWindowPanel"`;
+
+	if( size($renderPanels) == 0 )
+	{
+		$renderPanel = `scriptedPanel -type "renderWindowPanel" -unParent`;
+		scriptedPanel -e -label `interToUI $renderPanel` $renderPanel;
+	}
+	else
+	{
+		$renderPanel = $renderPanels[0];
+	}
+
+	return $renderPanel;
+}
+
+global proc string bgShowRenderView()
+{
+	// Ensures that the Render View is displayed.
+	// If the Render View is currently torn-off in a window, the window is
+	// brought forward. If the Render View does not exist in a torn-off window
+	// nor in a panel, it is created in a torn-off window.
+	//
+	// Returns the name of the render view.
+	//
+
+	string $editor;
+
+	$editor = `bgGetRenderWindowPanel`;
+
+	if( `bgRaiseRenderViewWindow` == 1 )
+	{
+		// The Render View exists and is in a torn-off window. It has been
+		// brought to the front.
+		//
+		return $editor;
+	}
+
+	// If we get to here, the Render View is not in a torn-off window
+	//
+	for( $i in `getPanel -vis` )
+	{
+		if( $i == $editor )
+		{
+			// The Render View exists and is in a panel. 
+			//
+			return $editor;
+		}
+	}
+
+	// If we get to here, the Render View is not currently in a panel nor is
+	// it in a torn-off window.
+	//
+	scriptedPanel 
+		-edit 
+		-tearOff 
+		$editor;
+	
+	return $editor;
+}

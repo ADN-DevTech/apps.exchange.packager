@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+AppName=$1
+source ./scripts/pack-osx

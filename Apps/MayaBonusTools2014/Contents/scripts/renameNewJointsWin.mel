@@ -1,0 +1,70 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// renameNewJointsWin.mel
+// cpam Apr 2001
+// last revision sept 2001
+//
+// When creating joints, you can use this tool to rename the
+// joint as it is placed. Open the window, make sure Rename 
+// On is checked and enter a joint name. This is particularly
+// useful for joint chains such as the spine or fingers.
+//
+// This can also be applied to other nodes, as node is selected,
+// it will be renamed.
+
+
+global proc renameNewJoints(){
+	string $name = `textField -q -tx newObjectNameTF`;
+	$name = ($name + "#");
+	rename $name;
+}
+
+global proc renameNewJointsWin(){
+
+	global int $gRenameJointJobNum;
+
+	//kill job if still running from last time
+	if ($gRenameJointJobNum != 0)
+		{scriptJob -k $gRenameJointJobNum;}
+	
+	if (`window -exists renameNewJointsWin`)
+		{deleteUI -wnd renameNewJointsWin;}
+
+	$gRenameJointJobNum = `scriptJob -e "SelectionChanged" "renameNewJoints"`;
+
+	window -t "Rename New Joints" renameNewJointsWin;
+		columnLayout -adj 1;
+			checkBox -l "Rename On"
+				-onCommand "$gRenameJointJobNum = `scriptJob -e \"SelectionChanged\" \"renameNewJoints\"\`"
+				-offCommand "scriptJob -k $gRenameJointJobNum"
+				-v 1
+				renameStateCheckBox;
+		rowColumnLayout -nc 2;
+			text -label "New Joint Name:";
+			textField -w 100 
+				newObjectNameTF;
+		setParent ..;
+		button -l "Close and End Renaming"
+			-c "scriptJob -k $gRenameJointJobNum\; deleteUI -wnd renameNewJointsWin";
+	showWindow;
+	
+}

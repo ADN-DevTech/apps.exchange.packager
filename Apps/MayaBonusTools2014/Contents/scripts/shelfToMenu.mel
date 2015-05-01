@@ -1,0 +1,128 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+// to delete a menu after creating one, use the deleteUI command 
+//	followed by the menu name. The menu name will be of the format 
+//	main_<Menu Name>_Menu
+// e.g. to delete a shelf menu called Toon:
+//	deleteUI main_Toon_Menu;
+// 
+// Update 01/25/12 - Fixed save file option with 
+//        Note:  The saved file will only work for shelves with standard commands and/or procedure names.
+//        Shelves containing entire scripts will likely cause errors without some manual editing
+
+
+global proc shelfToMenu(string $shelf, int $toFile){
+
+	//query shelf
+	string $shelfButtons[] = `shelfLayout -q -ca $shelf`;
+	
+	//find users scripts folder
+	$userScriptsPath =  `internalVar -userScriptDir` ;
+	
+	//make new menu
+	global string $gMainWindow;
+	setParent $gMainWindow;
+	menu -label $shelf
+		-mnemonic "D"
+		-tearOff true
+		("main_" + $shelf + "_Menu");
+
+	//open file and add menu
+	int $fileId;
+	if ($toFile){
+ 
+		$fileId = `fopen ($userScriptsPath + $shelf + "_Menu.mel") "w"`;
+		
+		fprint $fileId ("//  WARNING:  This menu script will only work for shelves containing standard commands and/or procedure names.\n");
+		fprint $fileId ("//  WARNING:  Shelves containing entire scripts will likely cause errors without some manual editing.\n");
+		fprint $fileId ("//  Run the command -> " + $shelf + "_Menu; <- in order to recreate the menu after restart.\n");		
+		fprint $fileId ("//\n");
+
+
+		fprint $fileId ("global proc " + $shelf + "_Menu" +"(){\n");
+		fprint $fileId ("\n");
+
+        fprint $fileId ("\tglobal string $gMainWindow;\n");
+        fprint $fileId ("\tsetParent $gMainWindow;\n");
+        
+		fprint $fileId ("\tmenu -label \"" + $shelf + "\"\n");
+		fprint $fileId ("\t\t-tearOff true\n");
+		fprint $fileId ("\t\tmain_" + $shelf + "_Menu;\n");
+
+		fprint $fileId ("\n");
+
+	}
+
+	//add menuItems
+	for ($button in $shelfButtons){
+		//query shelfButton
+		string $command = `shelfButton -q -c $button`;
+		string $annotation = `shelfButton -q -ann $button`;
+		string $label = `shelfButton -q -l $button`;
+
+		//build menuItem
+		menuItem -l ($label)
+			-ann ($annotation)
+			-c ($command)
+			;
+
+		//option to write to file???
+		//add menuItem
+		if ($toFile){
+
+			fprint $fileId ("\tmenuItem -label \"" + $label + "\"\n");
+			fprint $fileId ("\t\t-annotation \"" + $annotation + "\"\n");
+			fprint $fileId ("\t\t-command \"" + $command + "\";\n");
+
+			fprint $fileId ("\n");
+
+		}
+
+	}
+
+	//close file
+	if ($toFile){
+
+		fprint $fileId "}";
+		fclose $fileId;
+		
+		//string $btPath = `whatIs bonusToolsMenu`;
+		//string $buffer[];
+		//subtract magic number of 24: "Mel procedure found in: "
+		//int $numCharacters = `size($btPath)`;
+		//$btPath = `endString $btPath ($numCharacters-24)`;
+		//subtract magic number of 18: "scripts/bonusToolsMenu.mel"
+		//$numCharacters = `size($btPath)`;
+		//$btPath = `substring $btPath 1 ($numCharacters-26)`;
+		
+		
+		print "//\n";
+		print "\nMenu created and a script for recreating menu has been written to: ";
+		print ($userScriptsPath + $shelf + "_Menu.mel - see header of script for details.\n");
+
+	}
+
+}

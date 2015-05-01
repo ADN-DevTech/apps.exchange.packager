@@ -1,0 +1,63 @@
+#!/bin/sh
+##
+# ConvertNewlines.sh - Wrapper script for starting flip from Aqua-GUI via Platypus
+#
+# Author:  Christoph Dalitz
+# License: free for use, change and distribution without restriction
+##
+
+
+# programs bundled with application
+PGM="$1/Contents/Resources/flip"
+#CD="$HOME/Applications/CocoaDialog.app/Contents/MacOS/CocoaDialog"
+CD="$1/Contents/Resources/CocoaDialog.app/Contents/MacOS/CocoaDialog"
+
+# Platypus adds itself to the command line arguments
+shift
+
+# get language setting
+LANGUAGE="`defaults read -globalDomain 'AppleLocale' 2>/dev/null | cut -b 1-2`"
+if [ "$LANGUAGE" = "de" ]
+then
+    lb_text='Konvertiere Dateien nach...'
+    lb_button3='Abbruch'
+    mb_text='Keine Dateien übergeben'
+    mb_info='Dateien bitte zur Konvertierung auf die Anwendung ziehen'
+else
+    lb_text='Convert files to...'
+    lb_button3='Cancel'
+    mb_text='No files given'
+    mb_info='Please drag & drop files on application for conversion'
+fi
+
+# no input files given?
+if [ $# -eq 0 ]
+then
+    "$CD" msgbox --button1 'Ok' --title 'ConvertNewlines' --text "$mb_text" --informative-text "$mb_info"
+    exit 0
+fi
+
+FILELIST=''
+for f in "$@"
+do
+  if [ -z "$FILELIST" ]
+  then
+      FILELIST="$f"
+  else
+      FILELIST="$FILELIST
+$f"
+  fi
+done
+
+rv=`"$CD" msgbox --button1 'Windows' --button2 'Unix' --button3 "$lb_button3" --title 'ConvertNewlines' --text "$lb_text" --informative-text "$FILELIST"`
+
+
+# run program on all input files
+if [ "$rv" -eq 1 ]
+then
+    "$PGM" -d "$@"
+elif [ "$rv" -eq 2 ]
+then
+    "$PGM" -u "$@"
+fi
+

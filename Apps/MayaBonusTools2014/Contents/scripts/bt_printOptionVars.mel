@@ -1,0 +1,164 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// a division of Silicon Graphics Limited.
+//
+//
+// ALIAS|WAVEFRONT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+//
+//
+// ------------------------------------------------------
+// Date :	March 6. 1999
+// Updated :  02/25/13 by Steven Roselle
+//
+// Description :	Searches user storable variable
+// ------------------------------------------------------
+// Usage :		printOptionVars "search_String, AllFlag" 
+//				AllFlag = 0 : search 1 : print everything
+// Example :		printOptionVars ("Browser",0)
+// 	Outputs : 	311  fileBrowserDisplayMode : 10
+//			312  fileBrowserSortMode : name
+//			349  helpBrowserRaiseWindow : 1
+//			350  helpBrowserUseWindow : 1
+// ------------------------------------------------------
+// Limitation :	May print error messages in script editor, but this is harmless.
+//
+// Description: printOptionVars.mel enables you to do case-sensitive search on 
+// the optionVars used in current Maya session and print out 
+// the results in script editor. 
+// 
+// As soon as you execute, the dialog pops up to 
+// inquire your input for the search string of partial name 
+// of the option variables. You enter the string and press 
+// the search button, and the result is printed in 
+// script editor. Alternatively you can press ALL button 
+// and the result returns you with all the optionVars 
+// used in current Maya session, but be aware - it's mean 
+// long :)
+//
+proc string[] bt_getprintOptionVars( string $pattern, int $all )
+{
+	string $ret[];
+	string $optionVar[] = `optionVar -l`;	// Get all optionVar
+	int $n = size ($optionVar);		// the size of all optionVar print $n
+	string $p;				// $p = Name of optionVar
+	string $v;				// $v = Value of optionVar  $i = 922
+	int $k = 0;				// $k = $ret's counter
+	for ($i = 0 ; $i < $n ; $i++)
+	{
+		$p = $optionVar[$i];
+		string $search =  ( match ( $pattern, $p) );
+		if (($search != "") || ($all == 1))
+		{
+			// Since some option Variables such as 
+			// "SSEitem1" are stored as non-array but it actually is,
+			// it requires testing and if fails, then treat it as optionVar array.
+			if ((`optionVar -as $p` == 1) && (!catch($v = `optionVar -q $p`)))
+			{
+				$v = `optionVar -q $p`;
+				$ret[$k] = ($i + "\t:  " + $p + " = " + $v);
+				$k++;
+			}
+			else
+			{
+				// Since "optionVar" command doesn't know what type of 
+				// variables are stored + no way of knowing,
+				// needs testing for int, float, string array types.
+				int $loop ;
+				string $arrayst[];
+				float $arrayf[];
+				int $arrayi[];
+				
+				if (catch( $arrayst = `optionVar -q $p`))
+				{
+					if (catch($arrayf = `optionVar -q $p`))
+					{
+						$arrayi = `optionVar -q $p`;
+						$loop = size($arrayi);
+						for ($j = 0; $j < $loop; $j++)
+						{
+							$ret[$k] = ($i + "\t:  " + $p + " = " + $arrayi[$j]);
+							$k++;
+						}
+					}
+					else
+					{
+						$arrayf = `optionVar -q $p`;
+						$loop = size($arrayf);
+						for ($j = 0; $j < $loop; $j++)
+						{
+							$ret[$k] = ($i + "\t:  " + $p + " = " + $arrayf[$j]);
+							$k++;
+						}
+					}
+				}
+				else
+				{
+					$arrayst = `optionVar -q $p`;
+					$loop = size($arrayst);
+					for ($j = 0; $j < $loop; $j++)
+					{
+						$ret[$k] = ($i + "\t:  " + $p + " = " + $arrayst[$j]);
+						$k++;
+					}
+				}
+			}
+		}
+	};
+	clear $optionVar;
+	return $ret;
+	clear $ret;
+};
+
+// UI
+global proc bt_printOptionVars()
+{
+	string $res = `promptDialog 
+		-m "Search for option variables (see script editor for results)"
+		-b "All" -b "Search" -b "Cancel"
+		-text "(Enter Search String here)"`;
+	if ($res != "Cancel")
+	{
+		print "\n______________________________________________________________\n";
+		print "**************************************************************\n";
+		string $s[];
+		if ( ($res == "Search") && (`promptDialog -q -text`!="") )
+		{
+			string $pat = `promptDialog -q -text`;
+			$s = bt_getprintOptionVars($pat,0);
+    		print ("\nPrinting Option Variables that contain - "+$pat);
+		}
+		else
+		{
+			$s = bt_getprintOptionVars("",1);
+    		print "\nPrinting All Option Variables";
+		}
+		print "\n";
+		print "\nindex  :  Option Variable Name = Value  \n";
+		print "\n";
+		print $s;
+		print "\n______________________________________________________________\n";
+		print "**************************************************************\n";
+		//print "printOptionVars.mel End.\n Coded by Takumi Takahashi March 1999.\n";
+		//print "______________________________________________________________\n";
+	}
+	
+}

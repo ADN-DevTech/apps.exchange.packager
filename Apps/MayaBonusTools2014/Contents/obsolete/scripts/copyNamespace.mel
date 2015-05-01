@@ -1,0 +1,201 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// MEL Procedure: copyNamespace
+//
+// Date:	March, 2004
+//
+// Description:
+//		Recursively copy the source namespace to the dest namespaces.
+//		This proc will copy all children of the source namespace into
+//		the destination namespace, creating new namespaces as needed.
+//
+//		If specified, this script will finish by removing *all* empty 
+//		namespaces in the scene.
+//
+// Example:
+//
+//	// Create a scene containing namespaces.
+//	file -f -new;
+//	polySphere;
+//	sets;
+//	namespace -add "a";
+//	rename set1 "a:set1";
+//	file -rename "example.ma";
+//	file -f -type "mayaAscii" -save;
+//	file -f -new;
+//	file -import -type "mayaAscii" -ns "ref" "example.ma";
+//
+//  // We now have a scene containing the following objects:
+//	// ref:pSphere1
+//	// ref:a:set1
+//	// We want to remove the "ref" namespace because it is redundant
+//	copyNamespace (":ref", ":", true );
+//
+//	// We now have a scene containing the following objects:
+//	// pSphere1
+//	// a:set1
+//
+//	// Let's import example.ma again.
+//	file -import -type "mayaAscii" -ns "ref" "example.ma";
+//	
+//	// We now have a scene containing the following objects:
+//	// pSphere1
+//	// a:set1
+//	// ref:pSphere1
+//	// ref:a:set1
+//	// executing `copyNamespace (":ref", ":", true )` again
+//	// will not copy any nodes because there would be nameclashes
+//	// However we could:
+//	namespace -set ":";
+//	namespace -add "b";
+//	copyNamespace (":ref", ":b", true );
+//
+//	// We now have a scene containing the following objects:
+//	// pSphere1
+//	// a:set1
+//	// b:pSphere1
+//	// b:a:set1
+//		
+
+proc recursiveNamespaceList( string $root, string $list[] ) 
+//
+// Description:
+//		Recursively list all non-namespace objects contained
+//		in the $root namespace. The contents will be appended
+//		to $list;
+//
+{
+	namespace -set $root;
+	string $nodes[] = `namespaceInfo -ls`;
+	appendStringArray($list, $nodes, `size($nodes)`);
+	string $children[] = `namespaceInfo -lon`;
+	string $child;
+	for ( $child in $children ) {
+		recursiveNamespaceList( (":" + $child), $list );
+	}
+}
+
+proc recursiveNamespaceCopy( string $source, string $dest )
+//
+// Description:
+//		Recursively copy the namespace hierarchy under $source
+//		to $dest. This will not copy any nodes.
+//
+{
+	namespace -set $source;
+	string $children[] = `namespaceInfo -lon`;	
+	string $child;
+	for ( $child in $children ) {
+		$child = ":" + $child;
+		string $tokens[];
+		tokenize $child ":" $tokens;
+		string $shortName = $tokens[`size($tokens)`-1];
+		string $destChild = ($dest + ":" + $shortName);
+
+		// clean up $destChild so we don't get "::" for aesthetic
+		// reasons only.
+		//
+		$destChild = `substitute "::" $destChild ":"`;
+		
+		if ( !`namespace -exists $destChild` ) {
+			namespace -p $dest -add $shortName;
+			print("Creating namespace: " + $destChild + "\n");
+			recursiveNamespaceCopy( $child, $destChild );
+		}
+	}
+}
+
+proc removeEmptyNamespaces( string $root )
+//
+// Description:
+//		Recursively traverse $root and all child namespaces
+//		removing any that are empty.
+//
+{
+	namespace -set $root;
+	string $children[] = `namespaceInfo -lon`;	
+	string $child;
+	for ( $child in $children ) {
+		$child = ":" + $child;
+		removeEmptyNamespaces( $child );
+	}
+	namespace -set $root;
+	string $contents[] = `namespaceInfo -ls`;
+	if ( `size($contents)` == 0 ) {
+		print("Removing empty namespace: " + $root + "\n");
+		namespace -rm $root;
+	}
+}
+
+global proc copyNamespace( string $source, string $dest, int $removeEmptyNamespaces ) 
+{
+	if ( !`namespace -exists $dest` ) {
+		error("Destination namespace: " + $dest + " does not exist");
+	}
+
+	string $list[];
+	// List everything we might need to copy.
+	//
+	recursiveNamespaceList( $source, $list );
+	// Duplicate the namespace hierarchy.
+	//
+	recursiveNamespaceCopy( $source, $dest );
+
+	// Chop off the leading ":" if any.
+	//
+	int $sourceLen = `size($source)`;
+	$source = `substring $source 2 $sourceLen`; 
+	
+	namespace -set ":";
+	string $name;
+
+	// Copy all objects if possible.
+	//
+	for ( $name in $list ) {
+		string $newName;
+		// Build the new name of the object, collapsing any "::" to
+		// ":" (for aesthetic reasons only).
+		//
+		$newName = `substitute $source $name $dest`;
+		$newName = `substitute "::" $newName ":"`;
+		$name = ":" + $name;
+	
+		// Don't copy namespaces.
+		//
+		if ( !`namespace -exists $newName` ) {
+			// Only move objects if there won't be a name clash.
+			//
+			if ( !`objExists $newName` ) {
+				print("Renaming " + $name + " to " + $newName + "\n");
+				$newName = `substitute ":" $newName ""`;
+				rename -is $name $newName;
+			} else {
+				print($newName + " already exists. Cannot rename " + $name + "\n");
+			}
+		}
+	}
+
+	if ( $removeEmptyNamespaces ) {
+		removeEmptyNamespaces(":");
+	}
+}

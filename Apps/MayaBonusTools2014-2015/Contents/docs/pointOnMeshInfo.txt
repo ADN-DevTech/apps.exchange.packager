@@ -1,0 +1,148 @@
+Copyright (C) 1997-2001 Alias|Wavefront,
+a division of Silicon Graphics Limited.
+
+The information in this file is provided for the exclusive use of the
+licensees of Alias|Wavefront.  Such users have the right to use, modify,
+and incorporate this code into other products for purposes authorized
+by the Alias|Wavefront license agreement, without fee.
+
+ALIAS|WAVEFRONT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+EVENT SHALL ALIAS|WAVEFRONT BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+DISCLAIMER: THIS PLUGIN IS PROVIDED AS IS.  IT IS NOT SUPPORTED BY
+           ALIAS|WAVEFRONT, SO PLEASE USE AND MODIFY AT YOUR OWN RISK.
+
+
+PLUGIN NAME: pointOnMeshInfo v1.0
+DESCRIPTION: This plugin defines both a MEL command and a DG node which computes the worldspace position
+             and normal on a poly mesh given a face index, a U-parameter and a V-parameter as input.
+AUTHOR: QT
+REFERENCES: -This plugin's concept is based off of the `pointOnSurface` MEL command and "pointOnSurfaceInfo" node.
+            -The pointOnSubdNode.cpp plugin example from the Maya API Devkit was also used for reference.
+            -The MEL script AEpointOnSurfaceInfoTemplate.mel was referred to for the AE template MEL script
+             that accompanies the pointOnMeshInfo node.
+LAST UPDATED: Oct. 11th, 2001.
+COMPILED AND TESTED ON: Maya 4.0 on Windows
+STEPS TO INSTALL: 1) Unzip the file pointOnMeshInfo_v1_0_Maya4_Windows.zip to any temporary directory.
+                  2) Copy the file pointOnMeshInfo.mll to: /AW/Maya4.0/bin/plug-ins/
+                  3) Copy the file AEpointOnMeshInfoTemplate.mel to: /maya/4.0/scripts/
+                  4) Launch Maya and load the plugin from Windows->Setting/Preferences->Plugin Manager.
+
+pointOnMesh MEL COMMAND USAGE:
+==============================
+   Command Name: pointOnMesh
+   Description: This command returns information for a point on a poly mesh, in particular its
+                worldspace "position" and/or "normal" at a given input face index, U-parameter
+                and V-parameter.
+   Synopsis: pointOnMesh [flags] [argument: name of mesh shape or transform]
+   Modes: This command has a "creation" mode, which creates and hooks up a "pointOnMeshInfo" node
+          to the specified mesh, and a "query" mode, which returns the requested position and normal
+          information.  The command is in query mode when either the "-p/-position" and/or the
+          "-nr/-normal" flag(s) is specified, otherwise the command will be in creation mode, where
+          a pointOnMeshInfo node shall be created and hooked up to the mesh when neither of these
+          flags are specified.
+   Return Value: float array[] or string
+                 In "query" mode, a "float array[]" is returned, returning the position and normal information,
+                 where in "creation" mode, the name of the newly created "pointOnMeshInfo" node is returned
+                 as a "string".
+   Arguments: This command takes either 0 or 1 arguments, specified as a "string" (NOT including the "flag
+              arguments").  The string argument is specified as the LAST argument in the command, indicating
+              the name of a poly mesh's "shape" or "transform" node.  When this string argument is NOT specified,
+              then the command shall look at the first item in the current selection list for a poly mesh's
+              transform or shape node.  You can specify the transform nodes of mesh "instances", but be aware that
+              if the mesh "shape" is specified, the transform of its *FIRST* instance's transform is used to
+              calculate the worldspace position and normal.
+   Flags: -na/-name string        Input flag argument to explicitly specify the name of the newly created "pointOnMeshInfo"
+                                  node.  Applies only in "creation" mode (i.e. when neither -p/-position nor -nr/-normal
+                                  are specified).  If not specified, the newly created node will get the default name
+                                  assigned to it by Maya.
+          -f/-faceIndex int       Input flag argument to specify the face index of the face on the mesh, used to compute the
+                                  position and normal info.  If not specified, the command will operate on the "first" face
+                                  in the mesh (i.e. face of index "0").
+          -r/-relative boolean    Input flag argument to specify whether the input "U" and "V" parameters are interpreted
+                                  "relative" to the face, or "absolutely".  If this flag is set "true" or "1", "relative"
+                                  mode is set, meaning that the 0-1 UV range shall be normalized to *ONLY* (roughly) span the
+                                  AREA OF THE FACE.  When the flag is set to "false" or "0", it means the U and V parameters
+                                  are interpreted to be "absolute", meaning that they represent the actual UV values on the
+                                  mesh.  With -relative set to "false", please be extra careful in ensuring that "parameterU"
+                                  and "parameterV" input parameters lie in the UV range *WITHIN* the specified face (which
+                                  was specified by the "faceIndex" input parameter), otherwise your result shall be (0, 0, 0)
+                                  for both position and normal.  When -relative is set to be "true", "parameterU" and "parameterV"
+                                  input values MUST lie *between* 0-1, and extra care should be taken when these values for
+                                  parameterU and/or parameterV get very "close" to 0 or 1, which may return position and normal
+                                  results "off" of the face (in which case (0, 0, 0) is again returned for both position and
+                                  normal).  The default is "true" (i.e. "relative"), when this flag is not specified.
+          -u/-parameterU float    Input flag whose argument specifies the U parameter on the poly mesh face.  Default is 0.5.
+          -v/-parameterV float    Input flag whose argument specifies the V parameter on the poly mesh face.  Default is 0.5.
+          -p/-position            Output flag that indicates the "position" on the mesh at the specified face, U and V, is
+                                  requested and should thus be computed and outputted to the command's (float array) result.
+          -nr/-normal             Output flag that indicates the "normal" on the mesh at the specified face, U and V, is
+                                  requested, and should be computed and outputted to the command's (float array) result.
+   Examples:
+      // CREATES, HOOKS UP AND STORES THE NAME OF A "pointOnMeshInfo" NODE WITH THE SPECIFIED INPUT VALUES ON THE POLY TRANSFORM "myPolyModel":
+      string $myPOMI = `pointOnMesh -na "myPointOnMeshInfo" -f 2001 -r true -u 0.1 -v 0.2 "myPolyModel"`;
+      // Result: myPointOnMeshInfo //
+      // QUERY BOTH THE POSITION AND NORMAL ON A POLY "SHAPE", STORING THE RESULT IN A FLOAT ARRAY AND EXTRACTING THE DATA FROM EACH ARRAY ELEMENT:
+      float $result[] = `pointOnMesh -p -nr -f 2002 -r true -u 0.3 -v 0.4 "myPolyModelShape"`;
+      float $positionX, $positionY, $positionZ, $normalX, $normalY, $normalZ;
+      $positionX = $result[0];
+      $positionY = $result[1];
+      $positionZ = $result[2];
+      $normalX = $result[3];
+      $normalY = $result[4];
+      $normalZ = $result[5];
+      print("Here's the resultant position: (" + $positionX + ", " +$positionY + ", " + $positionZ + ")\n");
+      print("Here's the resultant normal: (" + $normalX + ", " +$normalY + ", " + $normalZ + ")\n");
+      // QUERY JUST THE NORMAL, USING THE SELECTION LIST AND DEFAULT INPUT PARAMETERS:
+      select -r "myPolyModel";
+      $result = `pointOnMesh -nr`;
+      $normalX = $result[0];
+      $normalY = $result[1];
+      $normalZ = $result[2];
+      print("Here's the resultant normal: (" + $normalX + ", " +$normalY + ", " + $normalZ + ")\n");
+
+pointOnMeshInfo NODE USAGE:
+===========================
+   Node name: pointOnMeshInfo
+   Description: This node computes information associated with a point on a poly mesh, in particular its
+                worldspace "position" and "normal".  The point is specified as a face index and UV coord.
+                The input attributes it uses are an input poly mesh surface, a face index, a "relative"
+                mode boolean indicator, a U-parameter value and a V-parameter value.  The output attributes
+                are two compound attributes ".position" and ".normal", each which comprise of the individual
+                XYZ components of each compound result.
+   Attributes: .inMesh/.im        Type mesh      Default=NULL     The input mesh surface.  For "worldspace" results, CONNECT YOUR MESH'S ".worldMesh" ATTRIBUTE TO ".inMesh".
+               .faceIndex/.f      Type long int  Default=0        The face index specifying the face to get info from.
+               .relative/.r       Type boolean   Default=false    Indicates whether UV's are interpreted to be "absolute", or just "relative" to the specified face.
+               .parameterU/.u     Type double    Default=0.5      Specifies the "U" value of the point to get the info from.
+               .parameterV/.v     Type double    Default=0.5      Specifies the "V" value of the point to get the info from.
+               .position/.p       Type double3   Default=(0,0,0)  The resultant position.
+                  .positionX/.px  Type double    Default=0        Resultant x value of position.
+                  .positionY/.py  Type double    Default=0        Resultant y value of position.
+                  .positionZ/.pz  Type double    Default=0        Resultant z value of position.
+               .normal/.n         Type double3   Default=(0,0,0)  The resultant normal.
+                  .normalX/.nx    Type double    Default=0        Resultant x value of normal.
+                  .normalY/.ny    Type double    Default=0        Resultant y value of normal.
+                  .normalZ/.nz    Type double    Default=0        Resultant z value of normal.
+   Example of creating and hooking up the node in MEL:
+      // CREATES A "pointOnMeshInfo" NODE HOOKED UP TO A POLY CUBE, THEN CREATES A SPHERE AND "STICKS" IT TO THE CUBE:
+      $cubeResult = `polyCube -w 10 -h 10 -d 10`;
+      $cube = $cubeResult[0];
+      $myPOMI = `createNode pointOnMeshInfo`;
+      connectAttr ($cube+".worldMesh") ($myPOMI+".inMesh");
+      setAttr ($myPOMI+".f") 3;
+      setAttr ($myPOMI+".r") true;
+      setAttr ($myPOMI+".u") 0.25;
+      setAttr ($myPOMI+".v") 0.75;
+      $sphereResult = `sphere`;
+      $ball = $sphereResult[0];
+      connectAttr ($myPOMI+".position") ($ball+".translate");
+      // PRINT OUT THE NORMAL ATTRIBUTE'S RESULT JUST FOR FUN:
+      float $normalX = `getAttr ($myPOMI+".nx")`;
+      float $normalY = `getAttr ($myPOMI+".ny")`;
+      float $normalZ = `getAttr ($myPOMI+".nz")`;
+      print("The normal at the specified point is: (" + $normalX + ", " + $normalY + ", " + $normalY + ")\n");

@@ -1,0 +1,220 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//      duplicateEdges (creates a polyline from a series of connected poly edges)
+//
+//
+//  NOTE: This script will duplicate selected edges on a poly object 
+//	  and connect the resulting curves.  All edges must be contiguous. 
+//	  The end result will be a single 1 degree curve.  No construction
+//	  history will be kept. 
+//	  
+//
+//
+// Input Arguments: NONE
+//
+
+
+global proc int ptCmp(float $p1[], float $p2[])
+{
+
+// read in and compare two point positions
+// return true:1 if the points are the same
+//
+float $distance;
+float $v[3];
+$v[0] = $p1[0] - $p2[0];
+$v[1] = $p1[1] - $p2[1];
+$v[2] = $p1[2] - $p2[2];
+$distance = $v[0]*$v[0] + $v[1]*$v[1] + $v[2]*$v[2];
+$distance = sqrt( $distance );				
+//print ("Distance is : "+$distance+"\n");
+	
+if ($distance == 0) 
+	{
+	return 1;
+	}
+else
+	{
+	return 0;
+	}
+}
+
+global proc duplicateEdges()
+{ 
+
+// initialize edge and curve lists
+// and check for valid selection
+//
+int $error = 0;
+string $crvs[];
+string $edgeList[] = `filterExpand -sm 32` ;
+int $size = `size $edgeList`;
+if ($size < 1)
+	{
+	print ("\n\n\/\/ERROR: Nothing valid selected.\/\/\n");
+	$error = 1;
+	}
+
+	
+// Duplicate edges as curves and put in list
+//
+int $c = 0;
+for ($edge in $edgeList)
+	{
+	string $dupCrv[] = `duplicateCurve -name tmpCrv -ch 0 -rn 0 -local 0 $edge`;
+	string $crv =  $dupCrv[0];
+	$crvs[$c] = $crv;
+	$c ++; 	
+	}
+
+// Get number of curves in list for loop
+//
+int $size = `size  $crvs`;
+
+
+// Step through list of curves until only one remains
+//
+while ($size > 1)
+	{
+	
+	// check size of list before comparison loop
+	//
+	$sizein = $size;
+
+	// Compare first curve to all in list
+	//
+	for ($c = 1; $c < $size; $c++)
+		{
+		
+		// Get number of points on curve1
+		//
+		string $tmp = $crvs[0]+".cv[*]";		
+		select -r $tmp;
+		string $cvList[] = `filterExpand -sm 28`;
+		int $c1_lastCV = (`size($cvList)` - 1);
+				
+		// Get number of points on curve2
+		//
+		string $tmp = $crvs[$c]+".cv[*]";		
+		select -r $tmp;
+		string $cvList[] = `filterExpand -sm 28`;
+		int $c2_lastCV = (`size($cvList)` - 1);
+				
+
+		// Get positional values of endpoints for both curves
+		//
+		//print ("Compare "+$crvs[0]+" to "+$crvs[$c]+"\n");
+		string $tmp = $crvs[0]+".cv[0]";
+		float $c1p1[] = `xform -q -t $tmp`;  //curve1 endpoint1
+		string $tmp = $crvs[0]+".cv["+$c1_lastCV+"]";
+		float $c1p2[] = `xform -q -t $tmp`;  //curve1 endpoint2
+		string $tmp = $crvs[$c]+".cv[0]";
+		float $c2p1[] = `xform -q -t $tmp`;  //curve2 endpoint1
+		string $tmp = $crvs[$c]+".cv["+$c2_lastCV+"]";
+		float $c2p2[] = `xform -q -t $tmp`;  //curve2 endpoint2
+
+	
+		// Compare endpoints looking for match 
+		// If match is found attach curves, replace 
+		// first curve with new curve, delete second curve
+		//
+		int $match = ptCmp($c1p1,$c2p1);
+		if ($match)
+			{
+			attachCurve  -ch 0 -rpo 1 -kmk 1 -m 1 -bb 0.5 -bki 0 -p 0.1 $crvs[0] $crvs[$c] ;
+			delete $crvs[$c];
+			}
+		else 
+			{
+			int $match = ptCmp($c1p1,$c2p2);
+			if ($match)
+				{
+				attachCurve  -ch 0 -rpo 1 -kmk 1 -m 1 -bb 0.5 -bki 0 -p 0.1 $crvs[0] $crvs[$c] ;
+				delete $crvs[$c];
+				}
+			else 
+				{
+				int $match = ptCmp($c1p2,$c2p1);
+				if ($match)
+					{
+					attachCurve  -ch 0 -rpo 1 -kmk 1 -m 1 -bb 0.5 -bki 0 -p 0.1 $crvs[0] $crvs[$c] ;
+					delete $crvs[$c];
+					}
+				else 
+					{
+					int $match = ptCmp($c1p2,$c2p2);
+					if ($match)
+						{
+						attachCurve  -ch 0 -rpo 1 -kmk 1 -m 1 -bb 0.5 -bki 0 -p 0.1 $crvs[0] $crvs[$c] ;
+						delete $crvs[$c];
+						}
+						
+					}
+				}	
+			}	
+
+		}	// close nested if statements
+
+	
+	// select all tmpCrv's and remove shape nodes
+	// and rebuild list of curves
+	//
+	select -r "tmpCrv*";
+	select -d "tmpCrv*Shape";	
+	string $sel[] = `ls -sl`;
+	$crvs = $sel;
+
+	// check size of new list after comparison loop
+	// if equal to list before then error and exit
+	//
+	$sizeout = (`size($crvs)`);
+	if ($sizeout == $sizein)
+		{
+		print ("\n\n\/\/ERROR: All edges must be contiguous.\/\/\n");
+		$error = 1;
+		delete "tmpCrv*";
+		select $edgeList;
+		$size = 0;
+		break;
+		}
+	else
+		$size = $sizeout;
+
+	select -cl;	
+
+	}
+	
+	
+	if ($error != 1) 
+		{
+		rename "tmpCrv" "edgeCurve";
+		select -r "edgeCurve";
+		print ("\nEdges duplicated successfully.\n");
+		}
+
+}
+
+
+	
+
+

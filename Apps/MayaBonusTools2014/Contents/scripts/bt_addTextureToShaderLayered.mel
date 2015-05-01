@@ -1,0 +1,138 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//
+// Procedure: bt_addTextureToShaderLayered
+//
+// Description:
+//
+//		Add a file texture to a shader node's color connection
+//		with either adding a new layered texture in between,
+//		or adding a new layer to an existing layered texture
+//		connection
+//
+// Arguments:
+//		shader : shader / shading engine to add to
+//		thisTexture : texture to add
+//		killColorLayer : replace color layer in layered texture
+//		connectAlpha : connect alpha of texture to layered texture alpha
+//
+//
+// Last Updated :	07/18/00
+//					03/12/02 reversed order of files in layered texture
+//
+proc string plugNode( string $plug )
+{
+    string $buffer[];
+    tokenize($plug, ".", $buffer);
+    return $buffer[0];
+}
+
+global proc bt_addTextureToShaderLayered(string $shader, 
+									  string $thisTexture,
+									  int $blendMode,
+									  int $killColorLayer,
+									  int $connectAlpha)
+{
+	//if (size($shader) == 0)
+	//	error ("No shader name passed to addTextureToShaderLayered()");
+	//if (size($thisTexture) == 0);
+	//	error ("No texture name passed to addTextureToShaderLayered()");
+
+	print("// Add texture to shader - layered...\n");
+
+	// Check to see if we got passed in a shading engine
+	string $shaderAttr = ".color";
+	string $sType[] = `ls -showType $shader`;
+	if ($sType[1] == "shadingEngine")
+	{
+		string $shaders[] = `listConnections -d 1 ($shader+".surfaceShader")`;
+		$shader = $shaders[0];
+		if (size($shader) == 0)
+			$shaderAttr = ".surfaceShader";
+	}
+
+	// Check if the shader already has a layered texture
+	// if so use it.
+	string $colorCons[] = `listConnections -d on -p on ($shader+$shaderAttr)`;
+
+	string $layeredTx = "";
+	string $existingTx = "";
+	if (size($colorCons))
+	{
+		string $node = `plugNode $colorCons[0]`;
+		string $nType[] = `ls -showType $node`;
+		if ($nType[1] == "layeredTexture")
+		{
+			$layeredTx = $nType[0];
+		}
+		// See if its any kind of texture
+		else
+		{
+			string $allTex[] = `ls -tex`;
+			for ($i = 0; $i < size($allTex); $i++)
+			{
+				if ($node == $allTex[$i])
+				{
+					$existingTx = $node;
+					break;
+				}
+			}
+		}
+	} else {
+		print("// Connect texture to shader directly...\n");
+		connectAttr ($thisTexture+".outColor") ($shader+".color");
+	}
+
+	// Break old non-layered texture connection
+	if (size($layeredTx) == 0)
+	{
+		if (size($colorCons))
+		{
+			disconnectAttr ($colorCons[0]) ($shader+$shaderAttr);
+
+			// Hook the file texture to the layered texture.
+			$layeredTx = addToLayeredTx( $layeredTx, $thisTexture, $blendMode, $killColorLayer, $connectAlpha );
+
+			// If there was an existing texture than hook that up
+			// to the layered texture last - layered texture is 
+			// counter-intuitive - the lowest index is on the top
+			// i.e. 0 is on top of 1
+			if (size($existingTx))
+			{
+				//$layeredTx = addToLayeredTx( $layeredTx, $existingTx, $blendMode, 0, 0);
+				//use blend mode of none for base texture
+				$layeredTx = addToLayeredTx( $layeredTx, $existingTx, 0, 0, 0);
+				print ("// Add existing to layered tex " + $layeredTx + "\n");
+			}
+
+		// Hook the layered texture up to the shader
+		connectAttr ($layeredTx+".outColor") ($shader+$shaderAttr);
+		}
+	}
+	else
+	{	
+
+		// Just hook up the file texture to the existing layered texture
+		addToLayeredTx( $layeredTx, $thisTexture, $blendMode, $killColorLayer, $connectAlpha );
+	}
+}

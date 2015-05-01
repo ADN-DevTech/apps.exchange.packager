@@ -1,0 +1,320 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// 
+//
+// Last update : Aug 22th, 2004
+// modified: cpam Oct 2004
+//		converted into a tool from a window
+
+global proc orientToEdgeToolProperties () {
+
+	// Linux Motif2.1 shrinks the checkBox, if the string is ""
+    // NT would tab over the blank (" ") string label.
+    // So...
+	string $emptyLabel = "";
+    if (`about -linux`) {
+        $emptyLabel = " ";
+    }
+
+	string $parent = `toolPropertyWindow -q -location`;
+
+	setUITemplate -pushTemplate OptionsTemplate;
+
+	setParent $parent;
+
+	columnLayout orientToEdgeTool;
+		frameLayout -collapsable true -collapse false
+			-l "Orient To Edge Tool Settings";
+			columnLayout;
+
+				radioButtonGrp -nrb 3 
+					-l "Rotate Axis" 
+					-l1 "X"
+					-l2 "Y"
+					-l3 "Z"
+					rotationalAlignEdgeAxisRadio;
+
+			setParent ..;
+		setParent ..;
+	setParent ..;	
+
+	setUITemplate -popTemplate;
+}
+
+global proc orientToEdgeToolValues ( string $toolName ) {
+
+	string $parent = (`toolPropertyWindow -q -location` + "|orientToEdgeTool");
+	setParent $parent;
+
+	// Initialize settings
+	//
+
+	int $axis = `optionVar -q rotationalAlignEdgeAxis`;
+	switch ($axis)
+	{
+		case 0:
+		case 1:
+			 radioButtonGrp -e -sl 1 rotationalAlignEdgeAxisRadio;
+			optionVar -iv rotationalAlignEdgeAxis 1;
+			 //$manipMode = 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  rotationalAlignEdgeAxisRadio;
+			optionVar -iv rotationalAlignEdgeAxis 2;
+			 //$manipMode = 2;
+		break;
+		case 3:
+			radioButtonGrp -e -sl 3 rotationalAlignEdgeAxisRadio;
+			optionVar -iv rotationalAlignEdgeAxis 3;
+			 //$manipMode = 3;
+		break;
+	}
+
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv rotationalAlignEdgeAxis 1")
+		-on2 ("optionVar -iv rotationalAlignEdgeAxis 2")
+		-on3 ("optionVar -iv rotationalAlignEdgeAxis 3")
+		-select $axis
+		rotationalAlignEdgeAxisRadio;
+
+	string $helpTag = "orientToEdgeTool";
+	toolPropertySetCommon $toolName "orientToEdge.xpm" $helpTag;
+	toolPropertySelect "orientToEdgeTool";
+}
+
+global proc rotationalAlignEdge( string $Selection1[], int $axis ){
+
+	//string $selectionList[2];
+	//$selectionList = `ls -sl`;
+
+	string $shape[] = `listRelatives -f -parent $Selection1[0]`;
+	string $transform[] = `listRelatives -f -parent $shape[0]`;
+	string $moveObject = $transform[0];
+
+	float $pivots[3];
+	$pivots =`xform -q -ws -scalePivot $moveObject`;
+
+	float $objectVertex[3];
+	$objectVertex = `pointPosition $Selection1[0]`;
+
+	$attachedVertices = `polyListComponentConversion -ff -fe -fuv -fvf -tv $Selection1[1]`;
+	string $guideVertices[2];
+	$guideVertices = `filterExpand -sm 31 $attachedVertices`;
+
+	$guideVertex1 = `pointPosition $guideVertices[0]`;
+
+	$guideVertex2 = `pointPosition $guideVertices[1]`;
+
+	//locate center
+	float $guideFloat[3];
+	for ($i = 0; $i < 3; $i++ ){
+		$objectVertex[$i] -= $pivots[$i];
+		$guideVertex1[$i] -= $pivots[$i];
+		$guideVertex2[$i] -= $pivots[$i];
+		$guideFloat[$i] = $guideVertex1[$i] - $guideVertex2[$i];
+
+		if ($i == ($axis-1)){
+			$objectVertex[$i] = 0;
+			$guideVertex1[$i] = 0;
+			$guideVertex2[$i]= 0;
+			$guideFloat[$i] = 0;
+		}
+	}
+	vector $pivotVector;
+	vector $objectVector;
+	vector $guideVector;
+	vector $guidePivotVector;
+
+	//detectNearPoint;
+	vector $vertex1;
+	vector $vertex2;
+	$vertex1 = $guideVertex1;
+	$vertex2 = $guideVertex2;
+
+	//default vertex2 = pivot;
+
+	if ( `mag $vertex1` < `mag $vertex2` ){
+		for ($i = 0; $i < 3; $i++ ){
+			$guideFloat[$i] = (-$guideFloat[$i]);
+		}
+		$guidePivotVector = $guideVertex1;
+	}else {
+		$guidePivotVector = $guideVertex2;
+	}
+
+	$pivotVector = $pivots;
+	$objectVector = $objectVertex;
+	$guideVector = $guideFloat;
+
+	float $radius;
+	$radius = `mag $objectVector`;
+	float $guideVectorSize = `mag $guideVector`;
+	$a = `pow $guideVectorSize 2`;
+	float $guideVectorDot = `dot $guideVector $guidePivotVector`;
+	$b = 2 * $guideVectorDot;
+	float $guidePivotVectorSize = `mag $guidePivotVector`;
+	float $radiusPower = `pow $radius 2`;
+	$c = `pow $guidePivotVectorSize 2 ` - $radiusPower;
+	$D = `pow $b 2` - (4 * $a * $c);
+
+	if ( $D >= 0 ){
+		float $t1, $t2;
+		if ( $a == 0 ) {
+		$t1 =  ( (-$b) - `sqrt $D` );
+		$t2 = ( (-$b) + `sqrt $D` );
+		} else {
+		$t1 =  ( (-$b) - `sqrt $D` )/ (2 * $a);
+		$t2 = ( (-$b) + `sqrt $D` )/ (2 * $a);
+		}
+
+		vector $finalVector1 = $guidePivotVector + ($t1 * $guideVector);
+		vector $finalVector2 = $guidePivotVector + ($t2 * $guideVector);
+
+		//$finalVector1 += $pivotVector;
+		//$finalVector2 += $pivotVector;
+
+		vector $cross1;
+		$cross1 = `cross $objectVector $finalVector1`;
+		//print($cross1.y); print ("\n");
+		
+		$rad = `angle $objectVector $finalVector1`;
+		$degree1 = rad_to_deg($rad);
+
+		switch( $axis ){
+			case 1:
+				if ($cross1.x < 0 ){
+					$degree1 = (-$degree1);
+				}
+				break;
+
+			case 2:
+				if ($cross1.y < 0 ){
+					$degree1 = (-$degree1);
+				}
+				break;
+
+			case 3:
+				if ($cross1.z < 0 ){
+					$degree1 = (-$degree1);
+				}
+				break;
+		}
+
+
+		vector $cross2;
+		$cross2 = `cross $objectVector $finalVector2`;
+
+		$rad = `angle $objectVector $finalVector2`;
+		$degree2 = rad_to_deg($rad);
+
+		switch( $axis ){
+			case 1:
+				if ($cross2.x < 0 ){
+					$degree2 = (-$degree2);
+				}
+				break;
+
+			case 2:
+				if ($cross2.y < 0 ){
+					$degree2 = (-$degree2);
+				}
+				break;
+
+			case 3:
+				if ($cross2.z < 0 ){
+					$degree2 = (-$degree2);
+				}
+				break;
+
+		}
+
+		float $degree;
+		if (abs($degree1) < abs($degree2)){
+			$degree = $degree1;
+		}else{
+			$degree = $degree2;
+		}
+
+		//print $degree1;print ("\n");
+		//print $degree2;print ("\n");
+		select -r $moveObject;
+
+		switch( $axis ){
+	case 1:
+		rotate -r -os $degree 0 0;
+		break;
+
+	case 2:
+		rotate -r -os 0 $degree 0;
+		break;
+
+	case 3:
+		rotate -r -os 0 0 $degree;
+		break;
+		}
+	}
+	//select $selectionList;
+}
+
+proc orientToEdgeToolCtx(){
+
+	scriptCtx
+		-title "Orient To Edge Tool"
+		//-image1 "polyWedgeFace.png"
+		-showManipulators false
+		-baseClassName "orientToEdgeTool"
+		-toolCursorType "tumble"
+		-totalSelectionSets 1
+
+		-cumulativeLists false
+		-expandSelectionList true
+		//-fcs ("snapNearPoint $moveObject $axis")
+		//-fcs ("rotationalAlignEdge $Selection1 $Selection2 $axis")
+		-fcs ("rotationalAlignEdge $Selection1 `optionVar -q rotationalAlignEdgeAxis`")
+
+		-setNoSelectionPrompt "Select an alignment vertex on object to rotate, then select an alignment edge on target object."
+		//-setSelectionPrompt ("Select additional vert " +
+		//"and press Enter to complete")
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 2
+		-polymeshVertex on
+		-polymeshEdge on	
+
+		-exitUponCompletion false
+		//-toolFinish ("rotationalAlignEdge $Selection1 $Selection2 2")
+		orientToEdgeTool;
+
+}
+
+
+global proc orientToEdgeTool(){
+
+	if (!`contextInfo -exists orientToEdgeTool`)
+	{
+		orientToEdgeToolCtx;
+	}
+	setToolTo orientToEdgeTool;
+
+}

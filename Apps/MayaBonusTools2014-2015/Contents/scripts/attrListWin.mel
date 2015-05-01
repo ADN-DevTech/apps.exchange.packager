@@ -1,0 +1,192 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// 
+//
+//  Creation Date:  February 17 1998
+//
+//  Last revision date: January 24 2001
+//
+//
+//  Procedure Name: attrListWin()
+//
+//  Description:
+//    displays the selected node type and the attributes with their attribte type
+//
+//
+    
+
+
+global proc attrListWin()
+{
+	if (`window -ex attrListWindow`) deleteUI attrListWindow;
+
+	window -width 450 -height 535 -sizeable true -title "Attribute List" attrListWindow;
+		$form = `formLayout -numberOfDivisions 100 mainForm`;
+		$frame = `frameLayout
+				-borderVisible true 
+				-borderStyle "in"
+				-label "Attribute List"
+				-labelVisible true
+				-marginWidth 5 
+				-marginHeight 5 
+				descriptionFrame`;
+				$form1 = `formLayout -height 120 -numberOfDivisions 100 form1`;
+				
+					string $iconButton =`iconTextCheckBox -style "iconOnly"
+						-w 26 -h 26
+					    	-image1 "lock.png" -label "lock"`;
+					string $nodeNameUI =`textFieldGrp
+       			                 	-label "Node Name"
+						-columnAlign 1 "left"
+						-editable false`;
+					string $nodeTypeUI =`textFieldGrp
+		                        	-label "Node Type"
+						-columnAlign 1 "left"
+						-editable false`;
+					string $nodeClassificationUI =`textFieldGrp
+		                        	-label "Node Classification"
+						-columnAlign 1 "left"
+						-editable false`;
+					string $attrUIField = `textFieldGrp
+	       		                 	-label "Attribute Type"
+						-columnAlign 1 "left"
+						-editable false`;
+				
+				setParent $form;
+
+		string $pane = `paneLayout`;
+			string $mainList= `textScrollList -numberOfRows 25 -allowMultiSelection false`;
+			textScrollList -e -sc ("mikScrollSelection " + $mainList + " " + $attrUIField) $mainList;
+
+		formLayout -edit
+			-attachForm		$iconButton "top"	1
+			-attachForm		$iconButton "right"	1
+			-attachControl		$nodeNameUI "top" 	1 	$iconButton
+			-attachControl		$nodeTypeUI "top" 	1 	$nodeNameUI
+			-attachControl		$nodeClassificationUI "top" 	1 	$nodeTypeUI
+			-attachControl		$attrUIField "top" 	1 	$nodeClassificationUI
+		$form1;
+
+		formLayout -edit
+			-attachForm		$frame	"top"		1
+			-attachForm		$frame	"left"		1
+			-attachNone		$frame	"bottom"
+			-attachForm 		$frame	"right" 	1
+
+			-attachControl		$pane		"top" 	5	$frame
+			-attachForm		$pane		"left"	1
+			-attachForm		$pane		"right" 	1
+			-attachForm		$pane		"bottom" 	1
+		$form;
+
+	scriptJob
+		-parent attrListWindow
+		-event "SelectionChanged" ("mikUpdateWindow "   + $nodeNameUI 
+								+ " " + $iconButton
+								+ " " + $nodeTypeUI 
+								+ " " + $nodeClassificationUI 
+								+ " " + $attrUIField 
+								+ " " + $mainList);
+
+	mikUpdateWindow $nodeNameUI $iconButton $nodeTypeUI $nodeClassificationUI $attrUIField $mainList;
+
+	showWindow;
+}
+
+
+global proc mikScrollSelection( string $list, string $field )
+{
+
+	string $selection[] = `ls -sl`;
+	string $selected = $selection[0];
+	string $attrName[] = `textScrollList -q -si $list`;
+	string $attrType;
+
+	string $cmd = "getAttr - type " + $selected + "." + $attrName[0];
+	
+	if (catch($attrType = `eval $cmd`))
+	{
+		textFieldGrp -e -text "Unable to get attribute type" $field;
+	}else
+	{
+		textFieldGrp -e -text $attrType $field;
+	}
+}
+
+
+global proc mikUpdateWindow ( string $nodeNameUI,
+							 string $iconButton, 
+							 string $nodeTypeUI,
+							 string $nodeClassificationUI, 
+							 string $attrUIField, 
+							 string $mainList)
+
+{
+
+	string 	$selection[] = `ls -sl`;
+	string 	$selected = $selection[0];
+	string 	$nodeType;
+	string 	$nodeClassification[];
+	string 	$attrType;
+
+	if ( `iconTextCheckBox -q -v $iconButton` ) return;
+
+	if ( `size $selection` )
+	{
+		$nodeType = `nodeType $selected`;
+		$nodeClassification = `getClassification $nodeType`;
+		textFieldGrp -e -text $selection[0] $nodeNameUI;
+		textFieldGrp -e -text $nodeType $nodeTypeUI;
+		textFieldGrp -e -text $nodeClassification[0] $nodeClassificationUI;
+		textFieldGrp -e -text "" $attrUIField;
+	} else
+	{
+		textFieldGrp -e -text "Nothing Selected" $nodeNameUI;
+		textFieldGrp -e -text "" $nodeTypeUI;
+		textFieldGrp -e -text "" $nodeClassificationUI;
+		textFieldGrp -e -text "" $attrUIField;
+
+		$selected = "Nothing Selected";
+		$selection = {""};
+		textScrollList -e -ra $mainList;
+
+	}
+
+	if ( (`size($selection)`) && ( $selected != "Nothing Selected"  ) ) mikFillScrollSelection $selected $mainList;
+}
+
+
+global proc mikFillScrollSelection ( string $selected, string $mainList  )
+
+{
+	textScrollList -e -ra $mainList;
+	string $item;
+	string $list[] = `listAttr $selected`;
+	string $sortedList[] = sort ($list);
+	for ($item in $sortedList)
+	{
+		textScrollList -e -append $item $mainList;
+	}
+
+}
+

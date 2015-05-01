@@ -1,0 +1,149 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// SCRIPT NAME: drawSplitProperties.mel v3.4
+// TESTED ON: Maya 4.0
+// DESCRIPTION: For creating the layout, and retrieving values of the settings
+//              from the "Draw Split Tool" plugin's Options Window.  Please see
+//              the file "readme.txt" or "drawSplitTool.cpp" for full details.
+//
+global proc drawSplitProperties()
+{
+   setUITemplate -pushTemplate DefaultTemplate;
+   string $parent = `toolPropertyWindow -q -location`;
+   setParent $parent;
+
+   columnLayout QT_drawSplitColumnLayout;
+      tabLayout -childResizable true QT_drawSplitTabs;
+         columnLayout QT_drawSplitTab;
+            frameLayout -cll true -cl false -l "Draw Split Options" QT_drawSplitFrame;
+               columnLayout QT_drawSplitOptions;
+
+                  separator -style "none";
+
+                  intSliderGrp
+                     -label "Min Draw Sample Size" -field true
+                     -minValue 2 -maxValue 100 -fieldMinValue 2 -fieldMaxValue 1000
+                     -value 25
+                  QT_drawSplitMinSampleSizeIntSliderGrp;
+
+                  separator -style "in";
+
+                  intSliderGrp
+                     -label "Multi-Slices" -field true
+                     -minValue 1 -maxValue 10 -fieldMinValue 1 -fieldMaxValue 100
+                     -value 1
+                  QT_drawSplitMultiSlicesIntSliderGrp;
+
+                  floatSliderGrp
+                     -label "Multi-Slice Dropoff Power" -field true
+                     -minValue 0 -maxValue 5 -fieldMinValue 0 -fieldMaxValue 10
+                     -value 1
+                  QT_drawSplitMultiSliceDropoffPowerFloatSliderGrp;
+
+                  separator -style "in";
+
+                  intSliderGrp
+                     -label "Subdivisions" -field true
+                     -minValue 1 -maxValue 10 -fieldMinValue 1 -fieldMaxValue 100
+                     -value 1
+                  QT_drawSplitSubdivisionsIntSliderGrp;
+
+                  separator -style "in";
+
+                  checkBox
+                     -label "Edge-Snapping"
+                     -value 0
+                  QT_drawSplitEdgeSnappingCheckBox;
+
+                  radioButtonGrp
+                     -label "Edge-Snapping Type" -numberOfRadioButtons 2 -labelArray2 "Closest Endpoint" "Edge Intervals"
+                     -select 1
+                  QT_drawSplitEdgeSnappingTypeRadioButtonGrp;
+
+                  floatSliderGrp
+                     -label "Snapping Endpoint Offset" -field true
+                     -minValue 0 -maxValue 1 -fieldMinValue 0 -fieldMaxValue 1
+                     -value 0.5
+                  QT_drawSplitEdgeSnappingOffsetFloatSliderGrp;
+
+                  intSliderGrp
+                     -label "Number Of Snap Intervals" -field true
+                     -minValue 1 -maxValue 10 -fieldMinValue 1 -fieldMaxValue 100
+                     -value 2
+                  QT_drawSplitEdgeSnappingIntervalsIntSliderGrp;
+
+                  separator -style "in";
+
+                  radioButtonGrp
+                     -label "Select New Verts Upon Exit" -numberOfRadioButtons 3 -labelArray3 "Never" "Last Split" "All Splits On Mesh"
+                     -select 2
+                  QT_drawSplitSelectNewVertsUponExitRadioButtonGrp;
+
+                  separator -style "in";
+
+                  checkBox
+                     -label "Auto Backface Culling"
+                     -value 1
+                  QT_drawSplitAutoBackfaceCullingCheckBox;
+
+                  separator -style "none";
+
+                  setParent ..;
+               setParent ..;
+            setParent ..;
+         setParent ..;
+      setParent ..;
+
+   tabLayout -e -tl QT_drawSplitTab "Tool Defaults" QT_drawSplitTabs;
+   setUITemplate -popTemplate;
+   drawSplitSetCallbacks($parent);
+}
+
+
+global proc drawSplitSetCallbacks(string $parent)
+{
+   setParent $parent;
+   intSliderGrp -e -cc "optionVar -iv QT_drawSplitMinSampleSize #1" QT_drawSplitMinSampleSizeIntSliderGrp;
+   intSliderGrp -e -cc "optionVar -iv QT_drawSplitMultiSlices #1" QT_drawSplitMultiSlicesIntSliderGrp;
+   floatSliderGrp -e -cc "optionVar -fv QT_drawSplitMultiSliceDropoffPower #1" QT_drawSplitMultiSliceDropoffPowerFloatSliderGrp;
+   intSliderGrp -e -cc "optionVar -iv QT_drawSplitSubdivisions #1" QT_drawSplitSubdivisionsIntSliderGrp;
+   checkBox -e
+      -onc "optionVar -iv QT_drawSplitEdgeSnapping 1; radioButtonGrp -e -enable 1 QT_drawSplitEdgeSnappingTypeRadioButtonGrp; floatSliderGrp -e -enable (`optionVar -q QT_drawSplitEdgeSnappingType`==1) QT_drawSplitEdgeSnappingOffsetFloatSliderGrp; intSliderGrp -e -enable (`optionVar -q QT_drawSplitEdgeSnappingType`==2) QT_drawSplitEdgeSnappingIntervalsIntSliderGrp;"
+      -ofc "optionVar -iv QT_drawSplitEdgeSnapping 0; radioButtonGrp -e -enable 0 QT_drawSplitEdgeSnappingTypeRadioButtonGrp; floatSliderGrp -e -enable 0 QT_drawSplitEdgeSnappingOffsetFloatSliderGrp; intSliderGrp -e -enable 0 QT_drawSplitEdgeSnappingIntervalsIntSliderGrp;"
+   QT_drawSplitEdgeSnappingCheckBox;
+   radioButtonGrp -e
+      -on1 "optionVar -iv QT_drawSplitEdgeSnappingType 1; floatSliderGrp -e -enable 1 QT_drawSplitEdgeSnappingOffsetFloatSliderGrp; intSliderGrp -e -enable 0 QT_drawSplitEdgeSnappingIntervalsIntSliderGrp;"
+      -on2 "optionVar -iv QT_drawSplitEdgeSnappingType 2; floatSliderGrp -e -enable 0 QT_drawSplitEdgeSnappingOffsetFloatSliderGrp; intSliderGrp -e -enable 1 QT_drawSplitEdgeSnappingIntervalsIntSliderGrp;"
+   QT_drawSplitEdgeSnappingTypeRadioButtonGrp;
+   floatSliderGrp -e -cc "optionVar -fv QT_drawSplitEdgeSnappingOffset #1" QT_drawSplitEdgeSnappingOffsetFloatSliderGrp;
+   intSliderGrp -e -cc "optionVar -iv QT_drawSplitEdgeSnappingIntervals #1" QT_drawSplitEdgeSnappingIntervalsIntSliderGrp;
+   radioButtonGrp -e
+      -on1 "optionVar -iv QT_drawSplitSelectNewVertsUponExit 0"
+      -on2 "optionVar -iv QT_drawSplitSelectNewVertsUponExit 1"
+      -on3 "optionVar -iv QT_drawSplitSelectNewVertsUponExit 2"
+   QT_drawSplitSelectNewVertsUponExitRadioButtonGrp;
+   checkBox -e
+      -onc "optionVar -iv QT_drawSplitAutoBackfaceCulling 1; polyOptions -global -fullBack"
+      -ofc "optionVar -iv QT_drawSplitAutoBackfaceCulling 0; polyOptions -global -backCulling"
+   QT_drawSplitAutoBackfaceCullingCheckBox;
+}

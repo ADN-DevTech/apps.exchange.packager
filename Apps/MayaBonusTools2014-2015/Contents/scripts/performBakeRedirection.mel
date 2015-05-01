@@ -1,0 +1,458 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//
+//  Creation Date:  April 7, 2004
+//
+//  Description:
+//		This script creates and manages the option box for the 
+//	"Bake Redirection"	menu item.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+
+proc setOptionVars (int $forceFactorySettings)
+{
+	if ($forceFactorySettings || !`optionVar -exists bakeRedirectionMode`) {
+		// use selected as root
+		optionVar -intValue bakeRedirectionMode 0;
+    }
+    
+    if ($forceFactorySettings || !`optionVar -exists bakeRedirectionDeleteSources`) 
+    {
+		optionVar -intValue bakeRedirectionDeleteSources 1;
+	}
+
+    //	bakeRedirectionRangeMethodWhich:
+	//	1: set the clip for the selected range
+	//	2: set the clip for the time slider range
+	//	3: set the clip for the specified start and end times (default)
+	//
+	if ( $forceFactorySettings || !`optionVar -exists bakeRedirectionRangeMethodWhich`) {
+		optionVar -intValue bakeRedirectionRangeMethodWhich 3;
+	}
+
+    if( $forceFactorySettings || !`optionVar -exists bakeRedirectionStart` ) {
+		optionVar -floatValue bakeRedirectionStart 0;
+	} 
+	
+	if( $forceFactorySettings || !`optionVar -exists bakeRedirectionEnd` ) {
+		optionVar -floatValue bakeRedirectionEnd 10;
+	} 
+}
+
+//
+//  Procedure Name:
+//      bakeRedirectionSetup
+//
+//  Description:
+//		Update the state of the option box UI to reflect the option values.
+//
+//  Input Arguments:
+//      parent               - Top level parent layout of the option box UI.
+//                             Required so that UI object names can be 
+//                             successfully resolved.
+//
+//	forceFactorySettings     - Whether the option values should be set to
+//                             default values.
+//
+//  Return Value:
+//      None.
+//
+global proc bakeRedirectionSetup (string $parent, int $forceFactorySettings)
+{
+	// Retrieve the option settings
+	//
+	setOptionVars( $forceFactorySettings );
+
+	setParent $parent;
+	
+	int $bakeRedirectionMode = `optionVar -query bakeRedirectionMode`;
+
+	if ($bakeRedirectionMode == 0)
+	{
+		radioButtonGrp -edit -select 1 bakeRotationTranslationRB;
+	}
+	else if ($bakeRedirectionMode == 1)
+	{
+		radioButtonGrp -edit -select 1 bakeRotationRB;
+	}
+	else if ($bakeRedirectionMode == 2)
+	{
+		radioButtonGrp -edit -select 1 bakeTranslationRB;
+	}
+    
+    int $deleteSources = `optionVar -query bakeRedirectionDeleteSources`;
+    
+    checkBoxGrp -edit -value1 $deleteSources deleteNodeCB;
+
+    //	Set the start and end times.
+	float $start = `optionVar -query bakeRedirectionStart`;
+	float $end   = `optionVar -query bakeRedirectionEnd`;
+	floatFieldGrp -edit -value1 $start -enable false frameStartValue;
+	floatFieldGrp -edit -value1 $end -enable false frameEndValue;
+    
+    int $whichMethod = `optionVar -query bakeRedirectionRangeMethodWhich`;
+	switch($whichMethod) {
+		case 1:
+			radioButtonGrp -e -sl 1 selectedMethod;
+			break;
+		case 2:
+			radioButtonGrp -e -sl 1 timeSliderMethod;
+			break;
+		case 3:
+		default:
+			radioButtonGrp -e -sl 1 startEndMethod;
+			floatFieldGrp -e -enable true frameStartValue;
+			floatFieldGrp -e -enable true frameEndValue;
+			break;
+	}
+}
+
+//
+//  Procedure Name:
+//      bakeRedirectionCallback
+//
+//  Description:
+//		Update the option values with the current state of the option box UI.
+//
+//  Input Arguments:
+//      parent - Top level parent layout of the option box UI.  Required so
+//               that UI object names can be successfully resolved.
+//
+//	doIt       - Whether the command should execute.
+//
+//  Return Value:
+//      None.
+//
+
+global proc bakeRedirectionCallback (string $parent, int $doIt)
+{
+    setParent $parent;
+
+	if (`radioButtonGrp -q -sl bakeRotationTranslationRB`)
+	{
+		optionVar -intValue bakeRedirectionMode 0;
+	}
+	else if (`radioButtonGrp -q -sl bakeRotationRB`)
+	{
+		optionVar -intValue bakeRedirectionMode 1;
+	}
+	else if (`radioButtonGrp -q -sl bakeTranslationRB`)
+	{
+		optionVar -intValue bakeRedirectionMode 2;
+	}
+        
+    int $deleteSources = `checkBoxGrp -query -value1 deleteNodeCB`;
+    optionVar -intValue bakeRedirectionDeleteSources $deleteSources;
+    
+    if (`radioButtonGrp -q -sl selectedMethod` == 1) {
+		optionVar -intValue bakeRedirectionRangeMethodWhich 1;
+	} else if (`radioButtonGrp -q -sl timeSliderMethod` == 1) {
+		optionVar -intValue bakeRedirectionRangeMethodWhich 2;
+	} else {
+		optionVar -intValue bakeRedirectionRangeMethodWhich 3;
+	}
+
+    optionVar -floatValue  bakeRedirectionStart `floatFieldGrp -query -value1 frameStartValue`;
+    optionVar -floatValue  bakeRedirectionEnd `floatFieldGrp -query -value1 frameEndValue`;
+
+    if ($doIt)
+	{
+		performBakeRedirection 0;
+		addToRecentCommandQueue "performBakeRedirection 0" "BakeRedirection";
+	}
+}
+
+proc string createWidgets( string $parent )
+{
+	setParent $parent;
+	
+	string $tabForm = `columnLayout -adjustableColumn true`;
+	
+	columnLayout;
+
+	radioButtonGrp
+		-numberOfRadioButtons 1
+		-label "Bake Attributes:"
+		-label1 "Rotation and Translation"
+		bakeRotationTranslationRB;
+
+	radioButtonGrp
+		-numberOfRadioButtons 1
+		-label ""
+		-label1 "Rotation Only"
+		-shareCollection bakeRotationTranslationRB
+		bakeRotationRB;
+		
+	radioButtonGrp
+		-numberOfRadioButtons 1
+		-label ""
+		-label1 "Translation Only"
+		-shareCollection bakeRotationTranslationRB
+		bakeTranslationRB;
+
+	checkBoxGrp -label "" -label1 "Delete Redirection Node"
+        deleteNodeCB;
+        
+        	// clip start & duration
+	radioButtonGrp -numberOfRadioButtons 1
+		-label "Time Range"
+		-label1 "Selected"
+		-annotation "Selected: The clip start and end are defined by the time range selected on the Time Slider."
+		selectedMethod;
+
+	radioButtonGrp -numberOfRadioButtons 1
+		-label1 "Time Slider"
+		-annotation "Time Slider: The clip start and end are defined by the entire range of the Time Slider."
+		-shareCollection selectedMethod
+		timeSliderMethod;
+
+	radioButtonGrp -numberOfRadioButtons 1
+		-label1 "Start/End"
+		-annotation "Start/End: Manually enter the clip start and end in the boxes below."
+		-select 1
+		-shareCollection selectedMethod
+		-onCommand "floatFieldGrp -e -enable true frameStartValue; floatFieldGrp -e -enable true frameEndValue;"
+		-offCommand "floatFieldGrp -e -enable false frameStartValue; floatFieldGrp -e -enable false frameEndValue;"
+		startEndMethod;
+
+	frameLayout -bv no -lv no -collapsable no startEndFrame;
+		columnLayout -adjustableColumn true;
+		floatFieldGrp -label "Start Time" -value1 0.0 frameStartValue;
+		floatFieldGrp -label "End Time" -value1 10.0 frameEndValue;
+		setParent ..;
+
+        
+    setParent ..;
+	setParent ..;
+
+	return $tabForm;
+}
+
+global proc bakeRedirectionOptions ()
+{
+	string $commandName = "bakeRedirection";
+
+	string $applyTitle = "Bake Redirection";
+	
+	// Build the option box "methods"
+	//
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+
+	//	Get the option box.
+	//
+	//  The value returned is the name of the layout to be used as
+	//	the parent for the option box UI.
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+
+	setOptionBoxCommandName("bakeRedirection");
+
+	setUITemplate -pushTemplate DefaultTemplate;
+	waitCursor -state 1;
+	tabLayout -scr true -tv false;	// To get the scroll bars
+
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	createWidgets $parent;
+
+	waitCursor -state 0;
+	setUITemplate -popTemplate;
+
+	//	'Apply' button.
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit
+		-label "Bake"
+		-command ($callback + " " + $parent + " " + 1)
+		$applyBtn;
+
+	//	'Save' button.
+	//
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + "; hideOptionBox")
+		$saveBtn;
+
+	//	'Reset' button.
+	//
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Set the option box title.
+	//
+	setOptionBoxTitle("Bake Redirection Options");
+
+	//	Set the current values of the option box.
+	//
+	eval (($setup + " " + $parent + " " + 0));	
+	
+	//	Show the option box.
+	//
+	showOptionBox();
+}
+
+
+//
+//  Procedure Name:
+//      assembleCmd
+//
+//  Description:
+//		Construct the command that will apply the option box values.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+proc string assembleCmd()
+{
+	string $cmd;
+	int $bakeMode = 0;
+
+	setOptionVars(false);
+
+	if (`optionVar -exists bakeRedirectionMode`) 
+    {
+		$bakeMode = `optionVar -query bakeRedirectionMode`;
+	}
+        
+	string $currentSelection[] = `ls -selection`;
+	string $root = $currentSelection[0]; 
+    
+    int $bakeTranslation = false;
+    int $bakeRotation = false;
+    
+    if (($bakeMode == 0) || ($bakeMode == 1))
+    {
+        $bakeRotation = true;
+    }
+
+    if (($bakeMode == 0) || ($bakeMode == 2))
+    {
+        $bakeTranslation = true;
+    }
+    
+    int $deleteSources = false;
+	if (`optionVar -exists bakeRedirectionDeleteSources`) 
+    {
+		$deleteSources = `optionVar -query bakeRedirectionDeleteSources`;
+	}
+
+    string $createMethod = "startEndMethod";
+
+    if (`optionVar -exists bakeRedirectionRangeMethodWhich`)
+    {
+        int $whichMethod = `optionVar -q bakeRedirectionRangeMethodWhich`;
+        switch ($whichMethod) {
+            case 1:
+                $createMethod = "selectedMethod";
+                break;
+            case 2:
+                $createMethod = "timeSliderMethod";
+                break;
+            case 3:
+            default:
+                $createMethod = "startEndMethod";
+                break;
+        }
+    }
+    
+    string $start = `optionVar -query bakeRedirectionStart`;
+    string $end = `optionVar -query bakeRedirectionEnd`;
+
+    print ($start + "; " + $end + "\n");
+    
+	$cmd =	"doBakeRedirectionArgList 1 {" +
+		"\"" + $root + "\" " +
+		",\"" + $bakeRotation + "\" " +
+		",\"" + $bakeTranslation + "\" " +
+        ",\"" + $deleteSources + "\" " +
+        ",\"" + $createMethod + "\" " +
+        ",\"" + `optionVar -query bakeRedirectionStart` + "\"" +
+        ",\"" + `optionVar -query bakeRedirectionEnd` + "\"" +
+		" };";
+
+	return $cmd;
+}
+
+//
+//  Procedure Name:
+//      performBakeRedirecion
+//
+//  Description:
+//      Bakes redirection on the character into anim curves
+//
+//  Input Arguments:
+//      0 - Execute the command.
+//      1 - Show the option box dialog.
+//      2 - Return the command.
+//
+//  Return Value:
+//      None.
+//
+global proc string
+performBakeRedirection (int $action)
+{
+	string $cmd = "";
+
+	switch ($action) {
+		//	Execute the command.
+		//
+		case 0:
+			//	Retrieve the option settings
+			//
+            setOptionVars(false);
+
+			//	Get the command.
+			//
+			$cmd = `assembleCmd`;
+
+			//	Execute the command with the option settings.
+			//
+			eval($cmd);
+
+			break;
+
+		//	Show the option box.
+		//
+		case 1:
+			bakeRedirectionOptions;
+			break;
+		case 2:
+			//	Get the command.
+			//
+			$cmd = `assembleCmd`;
+	}
+	return $cmd;
+}
+

@@ -1,0 +1,202 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+/* MEL Calculator
+ * CPAM Nov 13,  1998
+ * 
+ * This creates a simple working calculator.
+ * 
+ * The one liner button allows you to enter a complete
+ * equation. ie. 3+4 or sin(.79)
+ * 
+ * The one liner button creates a node called calculator.
+ * If a node exists this with name you have a problem.
+ * 
+ * NOTE: For the one liner button you should enter a real
+ * number to get a decimal answer. If only integers are
+ * entered and the answer is real it will be truncated.
+ */
+
+global float $gnumber1 = 0;
+global float $gnumber2 = 0;
+global float $ganswer = 0;
+global string $goperator = "";
+global string $gfieldAnswer = "";
+
+global proc equals (float $number1, string $operator)
+{
+    float $answer;
+    float $number2;
+    string $fieldAnswer;
+    $number2 = `textField -q -text display`;
+    switch ($operator)
+	{
+	case "+":
+	    $answer = $number1 + $number2;
+	    break;
+	case "-":
+	    $answer = $number1 - $number2;
+	    break;
+	case "*":
+	    $answer = $number1 * $number2;
+	    break;
+	case "/":
+	    $answer = $number1 / $number2;
+	    break;
+	}
+	textField -e -text "" display;
+	$fieldAnswer = $answer;
+	textField -e -text $fieldAnswer display;
+}
+
+
+global proc oneLiner()
+{
+    string $formula;
+    float $formulaAnswer;
+    group -empty -name "calculator";
+    addAttr -ln calculator -at double  -dv 0.000 |calculator;
+    setAttr -e -keyable true |calculator.calculator;
+    $formula = `textField -q -text display`;
+    expression -s ("calculator=" + $formula + ";")  -o calculator -ae 1 -uc all;
+    $formulaAnswer = `getAttr calculator.calculator`;
+    print $formula;
+    print "=";
+    print $formulaAnswer;
+    print "\n";
+    textField -e -text $formulaAnswer display;
+    delete "calculator";
+}
+
+
+
+
+global proc calculator ()
+{
+
+global string $goperator;
+global float $gnumber1;
+global float $gnumber;
+global float $ganswer;
+
+if (`window -exists calculatorWindow`) { deleteUI calculatorWindow; }
+
+window -widthHeight 150 153
+ 	-title "Calculator"
+	calculatorWindow;
+ 	columnLayout;
+		button -label "One Liner!"
+		-width 150
+		-command "oneLiner";
+		textField -width 150
+		-insertionPosition 0
+		display;
+        gridLayout -numberOfColumns 6 -cellWidthHeight 25 25;
+                
+		/*
+		 * TOP ROW
+		 * 
+		 * 7 8 9 _ _ C
+		 */
+		 
+		button -label "7"
+		-command "textField -e -insertText \"7\" display";
+		button -label "8"
+		-command "textField -e -insertText \"8\" display";
+		button -label "9"
+		-command "textField -e -insertText \"9\" display";
+		text " ";
+		text " ";
+		button -label "C"
+		-command "textField -e -text \"\" display;\
+		$goperator = \"\";\
+		$gnumber1 = 0;\
+		$gnumber2 = 0;\
+		$ganswer = 0;\
+		";
+		
+		/*
+		 * SECOND ROW
+		 * 
+		 * 4 5 6 _ * /
+		 */
+		 
+		button -label "4"
+		-command "textField -e -insertText \"4\" display";
+		button -label "5"
+		-command "textField -e -insertText \"5\" display";
+		button -label "6"
+		-command "textField -e -insertText \"6\" display";
+		text " ";
+		button -label "*"
+		-command "$gnumber1 = `textField -q -text display`;\
+		textField -e -text \"\" display;\
+		$goperator = \"*\";\
+		";
+		button -label "/"
+		-command "$gnumber1 = `textField -q -text display`;\
+		textField -e -text \"\" display;\
+		$goperator = \"/\";\
+		";
+		
+		/*
+		 * THIRD ROW
+		 * 
+		 * 1 2 3 _ + -
+		 */
+		
+		button -label "1"
+		-command "textField -e -insertText \"1\" display";
+		button -label "2"
+		-command "textField -e -insertText \"2\" display";
+		button -label "3"
+		-command "textField -e -insertText \"3\" display";
+		text " ";
+		button -label "+"
+		-command "$gnumber1 = `textField -q -text display`;\
+		textField -e -text \"\" display;\
+		$goperator = \"+\";\
+		";
+		button -label "-"
+		-command "$gnumber1 = `textField -q -text display`;\
+		textField -e -text \"\" display;\
+		$goperator = \"-\";\
+		";
+		
+		/*
+		 * FOURTH ROW
+		 * 
+		 * _ 0 . _ _ =
+		 */
+		 
+		text " ";
+		button -label "0"
+		-command "textField -e -insertText \"0\" display";
+		button -label "."
+		-command "textField -e -insertText \".\" display";
+		text " ";
+		text " ";
+		button -label "="
+		-command "equals $gnumber1 $goperator;";
+window -e -widthHeight 150 153 calculatorWindow;
+showWindow;
+}
+

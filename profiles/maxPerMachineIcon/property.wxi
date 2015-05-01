@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"> 
+
+	<Property Id="DefaultUIFont" Value="Tahoma8" /> <!-- UI default font -->
+	<Property Id="ErrorDialog" Value="SetupError" /> <!-- Specify the ErrorDialog name in use in UI.wxi -->
+
+	<!-- Exchange Store -->
+	<Property Id="EULAURL" Value="http://apps.exchange.autodesk.com/en/eula" />
+	<Property Id="DOCUMENTATIONURL" Value="{{Documentation}}" />
+	<Property Id="FRIENDLYVERSION" Value="{{AppVersion}}" />
+	<Property Id="PRODUCTSHORTNAME" Value="{{AppName}}" />
+	<Property Id="PUBLISHEREMAIL" Value="{{PublisherEmail}}" />
+	<Property Id="REBOOT" Value="Suppress" />
+	
+	<!-- 3ds Max -->
+	<Property Id="MAX_INSTALL_LOCATION">
+		<RegistrySearch Id="MaxLocation"
+			Root="HKLM" Key="SOFTWARE\Autodesk\3dsMax\16.0" Name="Installdir" Type="directory" {{WIN64}} />
+	</Property>
+	
+	<!-- ARP support -->
+	<Property Id="ARPCOMMENTS" Value="{{AppDescription}}" />
+	<Property Id="ARPCONTACT" Value="{{PublisherEmail}}" />
+	<!-- Property Id="ARPPRODUCTICON" Value="{{AppName}}.ico" / -->
+	<Property Id="ARPHELPLINK" Value="{{PublisherURL}}" />
+	<!-- Property Id="ARPREADME" Value="Your README link" / -->
+	<Property Id="ARPURLINFOABOUT" Value="{{PublisherURL}}" />
+	<!-- Property Id="ARPURLUPDATEINFO" Value="{{PublisherURL}}" / -->
+	<Property Id="ARPHELPTELEPHONE" Value="{{PublisherPhone}}" />
+	<!-- Property Id="ARPAUTHORIZEDCDFPREFIX" Value="URL of the update channel for the application" / -->
+	<!-- Property Id="ARPSIZE" Value="1200" / -->
+	<!--
+	<Property Id="ARPNOMODIFY" Value="0" />
+	<Property Id="ARPNOREPAIR" Value="0" />
+	<Property Id="ARPNOREMOVE" Value="0" />
+	<Property Id="ARPSYSTEMCOMPONENT" Value="0" />
+	-->		
+
+</Include> 		

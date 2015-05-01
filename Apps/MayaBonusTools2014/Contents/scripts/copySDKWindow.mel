@@ -1,0 +1,114 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+global proc copySDKGetAttr (string $button){
+	
+	string $objects[] = `ls -sl`;
+	string $attr[] = `selectedChannelBoxAttributes`;
+	if ($button != "destinationDrivenBtn"){
+		string $copySDKObject = ($objects[0] + "." + $attr[0]);
+		textFieldButtonGrp -edit
+			-text $copySDKObject
+			$button;
+	} else {
+		string $copySDKObjects;
+		for ($object in $objects){
+			$copySDKObjects += ($object + "." + $attr[0]);
+			$copySDKObjects += " ";
+		}
+		textFieldButtonGrp -edit
+			-text $copySDKObjects
+			$button;
+	}
+}
+
+global proc copySDK(){
+	
+	string $sourceDriven = `textFieldButtonGrp -query -text sourceDrivenBtn`;
+	string $destinationDriver = `textFieldButtonGrp -query -text destinationDriverBtn`;
+	string $destinationDriven = `textFieldButtonGrp -query -text destinationDrivenBtn`;
+
+	string $drivenBuffer[];
+	tokenize ($destinationDriven, " ", $drivenBuffer);
+
+	string $attrBuffer[];
+	tokenize ($sourceDriven, ".", $attrBuffer);
+
+	for ($driven in $drivenBuffer){
+		string $driverCurve[] = `listConnections -source true $sourceDriven`;
+		string $newDriverCurve[] = `duplicate -name ($driven + "_" + $attrBuffer[1]) $driverCurve[0]`;
+		//connect new node
+		connectAttr -force $destinationDriver ($newDriverCurve[0] + ".input");
+		connectAttr -force ($newDriverCurve[0] + ".output") $driven;
+	}
+}
+
+global proc copySDKWindow(){
+
+	//check if window is open
+	string $copySDKWindow = "copySDKWindow";
+	if (`window -exists $copySDKWindow`)
+		//delete it if it is - easy way to reset values
+		{deleteUI -window $copySDKWindow;}
+
+	//make the window
+	window -title "Copy Set Driven Key Window" 
+		-width 415
+		-height 120
+		$copySDKWindow;
+
+	columnLayout mainColumnLayout;
+
+	textFieldButtonGrp -label "Set Driven Key Source" 
+		-text "Object to copy from" 
+		-buttonLabel "Set"
+		-buttonCommand "copySDKGetAttr sourceDrivenBtn"
+		-editable false
+		-annotation ("Select the source driven object and highlight the driving attrbute in " +
+			"the channel box")
+		sourceDrivenBtn;
+
+	textFieldButtonGrp -label "New Destination Driver" 
+		-text "Driver to copy to" 
+		-buttonLabel "Set"
+		-buttonCommand "copySDKGetAttr destinationDriverBtn"
+		-editable false
+		-annotation ("Select the new driver object and highlight the driving attrbute in " +
+			"the channel box")
+		destinationDriverBtn;
+
+	textFieldButtonGrp -label "New Destination Driven" 
+		-text "Driven to copy to" 
+		-buttonLabel "Set"
+		-buttonCommand "copySDKGetAttr destinationDrivenBtn"
+		-editable false
+		-annotation ("Select the new driven object(s) and highlight the driven attrbute in " +
+			"the channel box")
+		destinationDrivenBtn;
+
+	button -label "Copy"
+		-width 405
+		-command "copySDK"
+		copySDKBtn;
+
+	showWindow $copySDKWindow;
+
+}

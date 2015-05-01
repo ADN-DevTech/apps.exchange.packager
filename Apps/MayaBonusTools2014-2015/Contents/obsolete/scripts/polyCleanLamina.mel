@@ -1,0 +1,98 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+
+global proc polyCleanLamina()
+{
+
+	string $selMesh[] = `ls -o -ni -sl -s -dag -type "mesh"`;
+	string $sai = `stringArrayIntersector`;
+
+
+	for ( $m in $selMesh ) {
+
+// find facets that have at least one nonmanifold edge
+print("\nProcessing >" + $m + "< ...\n");
+
+		string	$q;
+		string	$tmp[] = `polyInfo -nme $m`;
+		string	$nme[] = `ls -fl $tmp`;
+	
+		string	$nmf[] = `polyInfo -ef $nme`;
+	
+		for ( $t in $nmf ) {
+			$q += `substring $t 13 (size($t))`;
+		}
+		clear $tmp;
+		tokenize $q $tmp;
+		$tmp = sort( $tmp);
+		
+		clear $nmf;
+		$nmf[0] = $tmp[0];
+		int $i = 1;
+		for ( $t in $tmp) {
+			if ($t != $nmf[$i-1]) $nmf[$i++] = $t;
+		}
+	
+print ("Found " + size($nmf) + " nonmanifold Facet(s).\n");
+//print $nmf;
+//print ("-----------------------\n\n");
+	
+	
+		string $delFacets[];
+		clear $delFacets;
+		for ( $i=0 ; $i<size($nmf) ; $i++ ) {
+			if (size($nmf[$i])) {
+//print("Check Facet " + $i + " against the others..\n");
+				string $q1[] = `polyInfo -fe ($m + ".f[" +$nmf[$i] + "]")`;
+				$q = `substring $q1[0] 13 (size($q1[0]))`;
+				tokenize $q $tmp;
+	
+				for ( $j=$i+1 ; $j<size($nmf) ; $j++ ) {
+					if (size($nmf[$j])) {
+						string $q1[] = `polyInfo -fe ($m + ".f[" +$nmf[$j] + "]")`;
+						$q = `substring $q1[0] 13 (size($q1[0]))`;
+						string $tmp1[];
+						tokenize $q $tmp1;
+						if (size($tmp) == size($tmp1)) {
+							stringArrayIntersector -edit -intersect $tmp $sai;
+							stringArrayIntersector -edit -intersect $tmp1 $sai;
+							string $tmp2[] = `stringArrayIntersector -query $sai`;
+							if (size($tmp1) == size($tmp2)) {
+								$delFacets[size($delFacets)] = ($m + ".f[" +$nmf[$j] + "]");
+								$nmf[$j] = "";
+							}
+							stringArrayIntersector -edit -reset $sai;
+						}
+					}
+				}
+			}
+		}
+
+print("Deleting " + size($delFacets) + " Facet(s).\n");
+//print("Deleting these " + size($delFacets) + " Facets:\n");
+//print $delFacets;
+//print("----------------------------------\n");
+		delete  $delFacets;
+	}
+	deleteUI $sai;
+}

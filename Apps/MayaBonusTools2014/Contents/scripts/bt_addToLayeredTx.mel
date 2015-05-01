@@ -1,0 +1,92 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Procedure: addToLayeredTx
+//
+// Description:
+//
+//		Add a file texture to a layered texture node.
+//		If $layeredTx is specified as an empty string
+//		than a new layered texture node is created.
+//
+// Arguments:
+//		layeredTx : layered texture to add to
+//		newTexture : texture to add
+//		blendMode : blendMode to use for texture in layered texture
+//		killColorLayer : if the right-most layer is a color, replace it.
+//		connectAlpha : connect textures alpha up to the layered texture alpha
+//
+//
+// Last Updated : 07/18/00
+//
+global proc 
+string addToLayeredTx(string $layeredTx, string $newTexture, 
+					  int $blendMode,
+					  int $killColorLayer, int $connectAlpha)
+{
+	if (size($newTexture) == 0)
+		error ("No texture name passed to addFileToLayeredTx()");
+
+	// Create a new layered texture if none
+	if (size($layeredTx) == 0)
+		$layeredTx = `shadingNode -asTexture layeredTexture`;
+	
+	int $idx = `getAttr -s ($layeredTx+".inputs")`;
+
+	// If layer to connect to has no input, then overwrite it
+	if ($killColorLayer && ($idx > 0))
+	{
+		int $idx1 = $idx - 1;
+		string $connected[] = `listConnections -s 1 ($layeredTx+".inputs["+$idx1+"].color")`;
+		if (size($connected) == 0)
+			$idx = $idx - 1;
+	}
+	// Just in case something weird happens...
+	if ($idx < 0) $idx = 0;
+
+	// Hook up the file texture to the layered texture
+	while (catch(
+		`connectAttr ($newTexture+".outColor") ($layeredTx+".inputs["+$idx+"].color")`))
+	{
+		$idx = $idx + 1;
+	}
+
+	if ($connectAlpha)
+	{
+		while (catch (`connectAttr ($newTexture+".outAlpha") ($layeredTx+".inputs["+$idx+"].alpha")`))
+		{
+			$idx = $idx + 1;
+		}
+	}
+	//print ("Final index used = " + $idx + "\n");
+	
+	// Set the blend mode. Leave it at none, if its the first texture
+	// *** wrong to leave at none - comment out conditional
+	//if ($idx != 0)
+	//{
+		setAttr ($layeredTx + ".inputs[" + $idx + "].blendMode ")  $blendMode;
+	//}
+	
+	return $layeredTx;
+}
+
+

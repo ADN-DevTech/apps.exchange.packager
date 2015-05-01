@@ -1,0 +1,53 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+// moveObjectPivotToComponentCentre.mel
+// 
+
+
+global proc moveObjectPivotToComponentCentre(){
+	int $i;
+	float $vtx_pos[3];
+	float $center_pos[3];
+	string $selection[] = `ls -sl`;
+	ConvertSelectionToVertices;
+	string $now_sel_vtx[] = `filterExpand -sm 31`;
+	int $now_sel_vtx_size = `size $now_sel_vtx`;
+	string $shape_node[] = `ls -sl -o`;
+	select $shape_node[0];
+	string $transform_node[] = `pickWalk -d up`;
+
+	for ($i = 0; $i < $now_sel_vtx_size; $i++)
+	{
+		$vtx_pos = `pointPosition -world $now_sel_vtx[$i]`;
+		$center_pos[0] += $vtx_pos[0];
+		$center_pos[1] += $vtx_pos[1];
+		$center_pos[2] += $vtx_pos[2];
+	}
+
+	$center_pos[0] /= $now_sel_vtx_size;
+	$center_pos[1] /= $now_sel_vtx_size;
+	$center_pos[2] /= $now_sel_vtx_size;
+
+	xform -ws -piv $center_pos[0] $center_pos[1] $center_pos[2];
+
+}

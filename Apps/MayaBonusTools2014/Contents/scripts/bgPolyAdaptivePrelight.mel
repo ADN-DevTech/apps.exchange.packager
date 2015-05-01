@@ -1,0 +1,167 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//*******************************************************************
+// Description:
+//		Adaptive tessellation using prelight and color variance test.
+//		Bernard Kwok
+// Created:
+//		April 20, 2002
+// Last Updated:
+//		August 7, 2002
+//
+//*******************************************************************
+
+global proc colorsVary(float $tolerance)
+//
+// Procedure:
+//	colorsVary
+// Description:
+// 	Simple prototype MEL script to find out poly faces
+// 	with a color variation with some user specified
+// 	tolerance.
+//
+{
+  PolySelectConvert 1;
+  string $faces[] = `filterExpand -ex true -sm 34`;
+  string $subdivideFaces[];
+  int $numSubdivFaces = 0;
+
+  for ($i=0; $i < size($faces); $i++) 
+  {  
+    // Get vertex/faces for face $i
+    string $vf[] = `polyListComponentConversion -ff -tvf $faces[$i]`;
+	int $nvf = size($vf);
+
+    // See if the color varies too much between any two
+    // vertices on the face. If so keep track of
+    // this face for subdivision
+    float $allValues[] = `polyColorPerVertex -q -r -g -b -a $vf`;
+    int $totalCnt = size($allValues);	
+
+    // See how much each pair of vertex colors
+    // vary by if > $tolerance per any channel
+    // than we need to subdivide the face.
+	//
+    // Keep track the face in a secondary list of faces.
+    for ($j=0; $j < $totalCnt-4; $j++)
+    {
+      float $diff = abs( $allValues[$j] - $allValues[$j+4] );
+      if ($diff > $tolerance) {
+
+		// Store a new face
+		$subdivideFaces[$numSubdivFaces] = $faces[$i];
+		$numSubdivFaces++;
+
+		// Break out of this loop
+		break;
+      }
+    }
+  }
+
+  select -r $subdivideFaces;
+}
+
+global proc adaptivePrelightScript(int $iter, float $tol)
+//
+// Procedure:
+//	adaptivePrelightScript
+// Description:
+// 	Adaptively run prelight and subdivide based on color
+// 	variance. Uses colorsVary MEL procedure.
+// Notes:
+//	Simple prototype only.
+//
+{
+  for ($i =0; $i < $iter; $i++) {
+
+	print("Iteration " + $i + "\n");
+	select -r `ls -type mesh`;
+	if ($i == 0)
+	  polyGeoSampler -cs -sf 1 -su -colorBlend "overwrite" -alphaBlend "overwrite";
+	else
+	  polyGeoSampler -cs -rs -sf 1 -su -colorBlend "overwrite" -alphaBlend "overwrite";
+	colorsVary $tol;
+	string $a[] = `ls -sl`;
+	if (size($a) == 0)
+	  break;
+	else
+	  performPolySubdivide "f" 0;
+  }
+}
+
+global proc bgPolyAdaptivePrelight(int $iter, float $tol, int $smooth, int $shadows)
+//
+// Procedure:
+//	adaptivePrelight
+// Description:
+// 	Adaptively run prelight and subdivide based on color
+// 	variance. Requires polyVariance plugin.
+//
+{
+  string $origSelect[] = `ls -sl`;
+  if (size($origSelect) == 0)
+  {
+	print("// No objects selected. Exiting.\n");
+      return;
+  }   
+
+  print("// Prelight Iteration 0\n");
+  if ($shadows)
+	polyGeoSampler -cs -sf 1 -su -colorBlend "overwrite" -alphaBlend "overwrite";
+  else
+  	polyGeoSampler -sf 1 -su -colorBlend "overwrite" -alphaBlend "overwrite";
+
+  string $a[];
+  for ($i =1; $i < $iter; $i++) 
+  {	
+	print("// Perform Variance Check...\n");
+	//catch it because polyVariance will return a string instead of a
+	//string array if the tolerance is too high
+	catch ($a = `polyVariance -colorTolerance $tol`);
+	
+	if (size($a) == 0)
+	{
+	  break;
+	}
+	else {
+	  print("// Perform Tessellation...\n");
+	  select -r $a;
+	  if ($smooth == 1)
+		performPolySmooth 0;
+	  else if ($smooth == 2)
+	  	polySubdivideFacet -mode 0;
+	  else if ($smooth == 3)
+		polySubdivideFacet -mode 1;
+
+	}
+
+	print("// Prelight Iteration " + $i + "\n");
+  	if ($shadows)
+		polyGeoSampler -cs -rs -sf 1 -su -colorBlend "overwrite" -alphaBlend "overwrite";
+  	else
+  		polyGeoSampler -sf 1 -su -colorBlend "overwrite" -alphaBlend "overwrite";
+
+	refresh;
+  }
+  refresh;
+  print("// AdaptivePrelight finished.....\n");	
+}

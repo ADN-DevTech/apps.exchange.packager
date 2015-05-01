@@ -1,0 +1,2047 @@
+// Author:		Steven T. L. Roselle
+//
+// Created:        ( 04/01/14 )
+
+
+////////////////////////////////////////////////////
+// View Display Procs
+//
+
+global proc int bt_setMaxFieldValue(string $id, string $optVar)
+{
+	// Return number from integer field change
+	//
+
+	int $val = `intField -q -value $id` ;
+	optionVar -iv $optVar $val;
+	return $val;
+}
+
+
+global proc bt_setMaxSliderValues()
+{
+
+    int $maxNearClip = `optionVar -q bt_maxNearClip`;
+    int $maxFarClip = `optionVar -q bt_maxFarClip`;
+    int $maxGridSize = `optionVar -q bt_maxGridSize`;
+    int $maxWalkSpeed = `optionVar -q bt_maxWalkSpeed`;
+        
+        		
+	global string $BT_maxNearClipFieldName;
+	global string $BT_maxFarClipFieldName;
+	global string $BT_maxGridSizeFieldName;
+	global string $BT_maxWalkSpeedFieldName;
+
+    int $width = 300;
+    
+	if( `window -exists bt_setMaxSliderValues` )
+		{
+		deleteUI bt_setMaxSliderValues;
+		//windowPref -remove bt_setMaxSliderValues;
+		}
+		
+    window -w $width -h 30 -s true -t "Set Max Slider Values" bt_setMaxSliderValues;
+    
+			   columnLayout -adjustableColumn true;
+
+    					rowColumnLayout -numberOfColumns 3 -columnWidth 1 ($width/2) -columnWidth 2 ($width/4) -columnWidth 3 ($width/3) ;
+
+    							text -l "Near Clipping Plane :    " -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al right;
+    							$BT_maxNearClipFieldName = `intField -minValue 10 -maxValue 1100  -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -value $maxNearClip -cc "bt_setMaxFieldValue $BT_maxNearClipFieldName bt_maxNearClip"`;
+    							text -l "  Max Value" -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al left;
+    
+    							text -l "Far Clipping Plane :    " -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al right;
+    							$BT_maxFarClipFieldName = `intField -minValue 10 -maxValue 1100000  -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -value $maxFarClip -cc "bt_setMaxFieldValue $BT_maxFarClipFieldName bt_maxFarClip"`;
+    							text -l "  Max Value" -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al left;    
+
+    							text -l "Grid Szie :    " -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al right;
+    						    $BT_maxGridSizeFieldName = `intField -minValue 10 -maxValue 500000  -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -value $maxGridSize -cc "bt_setMaxFieldValue $BT_maxGridSizeFieldName bt_maxGridSize"`;
+    							text -l "  Max Value" -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al left;
+
+                                /*(
+    							text -l "Walk Speed :    " -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al right;
+    						     $BT_maxWalkSpeedFieldName = `intField -minValue 1 -maxValue 1100  -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -value $maxWalkSpeed -cc "bt_setMaxFieldValue $BT_maxWalkSpeedFieldName bt_maxWalkSpeed"`;
+    							text -l "  Max Value" -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al left;
+    							*/
+
+    							//$BT_replicateFieldName = `intField -minValue 1 -maxValue 1100  -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -value $replicateCount -cc "BT_setCopiesFieldValue $BT_replicateFieldName BT_replicateCount"`;
+        
+    						setParent ..;  //column                             
+                                
+
+    						rowColumnLayout -numberOfColumns 3 -columnWidth 1 ($width/3 + 13) -columnWidth 2 ($width/3 + 13) -columnWidth 3 ($width/3 + 13);
+    						    button -label "Update Sliders" -ann "" -command "bt_viewDisplayControlHUD";
+    						    button -label "Reset Values" -ann "" -command "optionVar -iv bt_maxGridSize 5000; optionVar -iv bt_maxFarClip 110000; optionVar -iv bt_maxNearClip 10; optionVar -iv bt_maxWalkSpeed 10; bt_setMaxSliderValues";
+    						    button -label "Close" -ann "" -command "deleteUI bt_setMaxSliderValues;";
+    						setParent ..;  //column                             
+    
+        
+    
+    					setParent ..;  //frame 
+                
+    
+            setParent ..;
+    
+    showWindow bt_setMaxSliderValues;    				
+}
+
+
+
+global proc bt_toggleGrid()
+{
+    if (`optionVar -q bt_gridVisibility` == 0)
+       {
+       optionVar -iv bt_gridVisibility 1;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Grid display turned on globally and for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -grid 1 $currentPanel;    
+        grid -toggle 1;
+        }
+    else
+       {
+       optionVar -iv bt_gridVisibility 0;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Grid display turned off globally and for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -grid 0 $currentPanel;    
+        grid -toggle 0;
+        }   
+}
+
+
+
+global proc bt_enableWalkCam()
+{
+    $currentPanel = `getPanel -withFocus`;
+	$cam = `modelPanel -q -camera $currentPanel`;
+	$camShape = `listRelatives -shapes $cam`;
+
+    WalkTool;
+
+    $camType = `getAttr ($cam+".orthographic")`;
+    if ($camType == 1)
+        inViewMessage -smg "Walk Camera only works in perspective view" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 5000;
+    else
+        {
+        inViewMessage -smg "Click to look around - ESC to quit" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 5000;
+        inViewMessage -smg "w hotkey + click to walk forward" -pos midCenterTop -bkc 0x11111111 -alpha .2 -fade -fst 5000;
+        inViewMessage -smg "s hotkey + click to walk backward" -pos midCenterBot -bkc 0x11111111 -alpha .2 -fade -fst 5000;
+        inViewMessage -smg "a hotkey + click to step left" -pos midLeft -bkc 0x11111111 -alpha .2 -fade -fst 5000;
+        inViewMessage -smg "d hotkey + click to step right" -pos midRight -bkc 0x11111111 -alpha .2 -fade -fst 5000;
+        }
+}
+
+global proc bt_toggleUIVisibility()
+{
+	//Toggle UI between current state and hidden UI elements
+	
+	//contains procs for setting prefs
+	source createPrefWndUI.mel;
+
+		
+	global string $gMainWindow;
+	int $state = `optionVar -q bt_uiVisibility`;
+	
+	if ($state) //if UI already on
+		{	
+		toggleMenuBarsInPanels false; 
+		window -e -mbv false -titleBar false $gMainWindow; 
+		HideUIElements;
+		optionVar -iv bt_uiVisibility 0;
+
+		if( (`window -exists LayoutTools`) == true )
+			print ""; 	//do nothing
+		else if (`layout -ex bt_form`) 
+			{
+			//make sure LayoutTools is nested
+			optionVar -intValue bt_UIMode 1; bt_UI;	
+			}	
+		//else
+		//	showChannelsLayers "Channel Box / Layer Editor" 1;
+	}
+		
+	else
+		{
+		toggleMenuBarsInPanels true; 
+		window -e -mbv true -titleBar true $gMainWindow; 
+		RestoreUIElements;
+		optionVar -iv bt_uiVisibility 1;
+		int $channelsLayersVisibility = `optionVar -query channelsLayersVisible`;
+
+
+		if( (`window -exists LayoutTools`) == true )
+			{
+			print ""; 	//do nothing
+			showChannelsLayers $channelsLayersVisibility;
+			}
+		else if (`layout -ex bt_form`) 
+			{
+			//make sure LayoutTools is floating
+			optionVar -intValue bt_UIMode 1; bt_UI;	
+			}	
+		else
+			showChannelsLayers $channelsLayersVisibility;
+		}
+
+}
+
+
+global proc bt_showAllUI()
+{
+	//Make visible all UI elements
+	
+	//contains procs for setting prefs
+	source createPrefWndUI.mel;
+
+	global string $gMainWindow;
+	
+	toggleMenuBarsInPanels true; 
+	window -e -mbv true -titleBar true $gMainWindow; 
+	ShowUIElements;
+	optionVar -iv bt_uiVisibility 1;
+	int $channelsLayersVisibility = `optionVar -query channelsLayersVisible`;	
+
+	if( (`window -exists LayoutTools`) == true )
+		{
+		print ""; 	//do nothing
+		showChannelsLayers $channelsLayersVisibility;
+		}
+	else if (`layout -ex bt_form`) 
+		{
+		//make sure LayoutTools is floating
+		optionVar -intValue bt_UIMode 1; bt_UI;	
+		}	
+	else
+		showChannelsLayers $channelsLayersVisibility;
+
+
+}
+
+
+global proc bt_cycleAxisView()
+{
+	int $axisState = `optionVar -q bt_axisVisibilty`;
+	
+	switch ($axisState)
+				
+			{
+			
+			case 0:	
+				toggleAxis -o off;
+				setViewAxisVisibility 1;
+				optionVar -intValue bt_axisVisibilty 1;
+				break;
+			case 1:
+				toggleAxis -o on;
+				setViewAxisVisibility 0;
+				optionVar -intValue bt_axisVisibilty 2;
+				break;
+			case 2:
+				toggleAxis -o off;
+				setViewAxisVisibility 0;
+				optionVar -intValue bt_axisVisibilty 0;
+				break;		
+			}	
+
+}
+		
+
+
+global proc bt_cycleGridNumbers()
+{
+	//toggle grid numbers
+	//
+
+	$gridNumberState = `grid -q -dpl`;
+	$gridNumberLocation = `grid -q -olp`;
+
+	if (($gridNumberState == 0) && ($gridNumberLocation == "edge"))
+		{
+		grid -dpl 1;
+		grid -dol 1;
+    	grid -olp axis;
+    	grid -plp axis;	
+    	}
+  	
+	if (($gridNumberState == 1) && ($gridNumberLocation == "axis"))
+	    {
+	    grid -olp edge;	
+		grid -plp edge;
+        }    	    	
+
+	if (($gridNumberState == 1) && ($gridNumberLocation == "edge"))
+		{
+		grid -dpl 0;
+		grid -dol 0;
+		}
+	else
+	    {
+		grid -dpl 1;
+		grid -dol 1;
+		}	        
+	
+}	
+		
+
+
+
+global proc bt_frameOrtho()
+{
+ 	$currentPanel = `getPanel -withFocus`;
+	$cam = `modelPanel -q -camera $currentPanel`;
+    //tumbleCtx -e -orthoLock false tumbleContext;
+    //tumbleCtx -e -autoOrthoConstrain false tumbleContext;
+    viewLookAt $cam;
+}
+
+
+global proc bt_lockUnlockOrtho()
+{
+    
+   	int $orthoState = `optionVar -q bt_orthoState`;
+
+    if ($orthoState == 1)
+        {
+        tumbleCtx -e -orthoLock false tumbleContext;
+        tumbleCtx -e -autoOrthoConstrain false tumbleContext;
+        inViewMessage -smg "Tumbling unlocked for all orthographic views" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+        optionVar -iv bt_orthoState 0;
+        }
+    else
+        {
+        tumbleCtx -e -orthoLock true tumbleContext;
+        tumbleCtx -e -autoOrthoConstrain true tumbleContext;            
+        inViewMessage -smg "Tumbling locked for all orthographic views" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+        optionVar -iv bt_orthoState 1;
+        }
+    //viewLookAt $cam;
+    
+}
+ 
+ 
+global proc bt_resetOrtho()
+{
+ 	$currentPanel = `getPanel -withFocus`;
+	$cam = `modelPanel -q -camera $currentPanel`;
+	$camShape = `listRelatives -shapes $cam`;
+
+
+    $camType = `getAttr ($cam+".orthographic")`;
+    if ($camType == 1)
+        {
+        setAttr ($cam+".orthographic") 0;
+        setAttr ($cam+".rotateX") 0;
+        setAttr ($cam+".rotateY") 0;
+        setAttr ($cam+".rotateZ") 0;
+        setAttr ($cam+".orthographic") 1;
+        viewLookAt $cam;
+        inViewMessage -smg ("Camera \"" + $cam + "\" reset to flat orthographic view") -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 2000;
+        }
+    else
+        inViewMessage -smg "Active camera is not orthographic" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+
+}   
+
+
+global proc float bt_getClipNear()
+{		
+
+	
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;
+		
+		return `getAttr ($camShape[0]+".nearClipPlane")`;
+			
+
+		}
+	else
+		{
+		//warning ("Set active panel to a camera.");
+		return 0.01;
+		}
+}
+
+
+
+global proc float bt_getClipFar()
+{		
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;
+		
+		return `getAttr ($camShape[0]+".farClipPlane")`;
+			
+
+		}
+	else
+		{
+		//warning ("Set active panel to a camera.");
+		return 1000;
+		}
+}
+		
+		
+
+global proc bt_changeClippingPlaneFarHUD()
+{		
+	global string $bt_clipPlaneSliderName;
+	
+	$value = `bt_returnHUDSliderValue ("bt_HUD_ClipFarSlider")`;
+	
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+    	$camShape = `listRelatives -shapes $cam`;	
+		setAttr ($camShape[0]+".farClipPlane") $value;
+		}
+	else
+		warning ("Set active panel to a camera.");
+	
+}
+
+
+global proc bt_changeClippingPlaneNearHUD()
+{		
+	global string $bt_clipPlaneSliderName;
+	
+	$value = `bt_returnHUDSliderValue ("bt_HUD_ClipNearSlider")`;
+	
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;	
+		setAttr ($camShape[0]+".nearClipPlane") $value;
+		}
+	else
+		warning ("Set active panel to a camera.");
+	
+}
+
+
+
+
+
+
+
+////////////////////////////////////////////////////
+// Poly Display Procs
+//
+
+
+global proc bt_resetPolyDisplay()
+{
+	string $selected[] = `ls -sl`;
+	string $filtered[] = `filterExpand -sm 10 -sm 12 -sm 68 $selected`;
+	string $allMeshes[] = `ls -type mesh`;
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+    if ($affectsSelected == 1)
+        {
+        polyOptions  -ae  -sb 2  -db 0  -dmb 0  -dv 0  -dn 0 -facet  -dc 0  -dt 0  -dw 0  -din 0 0 0 0  -sn 0.4 -bc  -duv 0  -uvt 0  -cs 0  -cm diffuse  -bcv 1;
+        if (`size $filtered` != 0)
+            displaySurface -xRay 0 $filtered;
+        print ("Reset poly display for selected meshes (does not affect single/double sided)\n");
+        inViewMessage -smg "Reset poly display for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+		}
+    else
+        {
+        polyOptions -ae  -sb 2  -db 0  -dmb 0  -dv 0  -dn 0 -facet  -dc 0  -dt 0  -dw 0  -din 0 0 0 0  -sn 0.4 -bc  -duv 0  -uvt 0  -cs 0  -cm diffuse  -bcv 1 -gl;
+        if (`size $allMeshes` != 0)
+            displaySurface -xRay 0 $allMeshes;
+   		print ("Reset poly display for all meshes (does not affect single/double sided)\n");
+        inViewMessage -smg "Reset poly display for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+        }
+}
+
+
+global proc bt_toggleXRayDisplay()
+{
+	//Toggle Xray view for selected models for if nothing selected toggle for all panels
+
+	string $selected[] = `ls -sl`;
+	string $filtered[] = `filterExpand -sm 10 -sm 12 -sm 68 $selected`;
+	string $allMeshes[] = `ls -type mesh`;
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+	
+	if  ((($affectsSelected == 1) && (`size $filtered` != 0))  ||  ($affectsSelected == 0))
+	    {
+    	int $state = `optionVar -q bt_xRay`;
+    	if ($state == 1)
+    		{
+    		if  ($affectsSelected == 1)
+                {
+    			displaySurface -xRay 0 $filtered;
+           		print ("XRay disabled for selected meshes.\n");
+                inViewMessage -smg "XRay disabled for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    			}
+    		else
+    		    {
+    			displaySurface -xRay 0 $allMeshes;
+           		print ("XRay disabled for all meshes.\n");
+                inViewMessage -smg "XRay disabled for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		    }
+    		optionVar -iv bt_xRay 0;
+    		}
+    	else
+    	    {
+    		if  ($affectsSelected == 1)
+                {
+           		print ("XRay enabled for selected meshes.\n");
+    			displaySurface -xRay 1 $filtered;
+                inViewMessage -smg "XRay enabled for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    			}
+    		else
+    		    {
+           		print ("XRay enabled for all meshes.\n");
+    			displaySurface -xRay 1 $allMeshes;
+                inViewMessage -smg "XRay enabled for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		    }
+    		optionVar -iv bt_xRay 1;
+    	    }
+    	  }
+    else
+        print ("Nothing selected for XRay.\n");
+    
+}
+
+
+
+global proc bt_toggleSyncBackCullingDisplay()
+{
+	$BackCullingDisp = `optionVar -q bt_BackCullingState`; //1 or 2
+    $polyObjsAffected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if ($BackCullingDisp == 0)
+	    {
+	    if ($polyObjsAffected == 0)
+	        {
+    		polyOptions -bc -gl;
+       		print ("Back culling turned off for all meshes.\n");
+            inViewMessage -smg "Back culling turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -bc;
+       		print ("Back culling turned off for selected meshes.\n");
+            inViewMessage -smg "Back culling turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_BackCullingState 1;
+		}
+	else
+	    {
+	    if ($polyObjsAffected == 0)
+	        {
+    		polyOptions -fb -gl;
+       		print ("Back culling turned on for all meshes.\n");
+            inViewMessage -smg "Back culling turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -fb;
+       		print ("Back culling turned on for selected meshes.\n");
+            inViewMessage -smg "Back culling turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}    	
+		optionVar -iv bt_BackCullingState 0;
+		}		
+}
+
+
+
+global proc bt_toggleSyncTextureBordersDisplay()
+{
+	$textureBorderDisplayDisp = `optionVar -q bt_textureBorderDisplayState`; //1 or 2
+	$edgeBorderDisplayDisp = `optionVar -q bt_textureBorderDisplayState`; //1 or 2
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if (($edgeBorderDisplayDisp == 0) || ($textureBorderDisplayDisp == 0))
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dmb 1 -db 0 -gl;
+       		print ("Texture borders turned on for all meshes.\n");
+            inViewMessage -smg "Texture borders turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+            }		
+    	else
+    	    {
+    		polyOptions -dmb 1 -db 0;
+       		print ("Texture borders turned on for selected meshes.\n");    	        
+            inViewMessage -smg "Texture borders turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    	    }
+
+    	
+		optionVar -iv bt_textureBorderDisplayState 1;
+		optionVar -iv bt_edgeBorderDisplayState 0;
+		}
+	else
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dmb 0 -gl;	            
+       		print ("Texture borders turned off for all meshes.\n");
+            inViewMessage -smg "Texture borders turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+	        }
+    	else
+    	    {
+    		polyOptions -dmb 0;    	
+       		print ("Texture borders turned off for selected meshes.\n");
+            inViewMessage -smg "Texture borders turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+
+
+		optionVar -iv bt_edgeBorderDisplayState 0;
+		optionVar -iv bt_textureBorderDisplayState 0;
+		}		
+}
+
+
+global proc bt_toggleSyncEdgeBordersDisplay()
+{
+	$textureBorderDisplayDisp = `optionVar -q bt_edgeBorderDisplayState`; //1 or 2
+	$edgeBorderDisplayDisp = `optionVar -q bt_edgeBorderDisplayState`; //1 or 2
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if (($edgeBorderDisplayDisp == 0) || ($textureBorderDisplayDisp == 0))
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dmb 0 -db 1 -gl;
+       		print ("Geometry borders turned on for all meshes.\n");
+            inViewMessage -smg "Geometry borders turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dmb 0 -db 1;
+       		print ("Geometry borders turned on for selected meshes.\n");
+            inViewMessage -smg "Geometry borders turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_edgeBorderDisplayState 1;
+		optionVar -iv bt_textureBorderDisplayState 0;
+		}
+	else
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -db 0 -gl;
+       		print ("Geometry borders turned off for all meshes.\n");
+            inViewMessage -smg "Geometry borders turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -db 0;    
+       		print ("Geometry borders turned off for selected meshes.\n");
+            inViewMessage -smg "Geometry borders turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}	
+		optionVar -iv bt_edgeBorderDisplayState 0;
+		optionVar -iv bt_textureBorderDisplayState 0;
+		}		
+}
+
+
+global proc bt_toggleSyncFaceCenterDisplay()
+{
+	$faceCenterDisplayDisp = `optionVar -q bt_faceCenterDisplayState`; //1 or 2
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if ($faceCenterDisplayDisp == 1) 
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dc 1 -gl;
+       		print ("Face centers turned on for all meshes.\n");
+            inViewMessage -smg "Face centers turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dc 1;
+       		print ("Face centers turned on for selected meshes.\n");
+            inViewMessage -smg "Face centers turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_faceCenterDisplayState 0;
+		}
+	else
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dc 0 -gl;
+       		print ("Face centers turned off for all meshes.\n");
+            inViewMessage -smg "Face centers turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dc 0; 
+       		print ("Face centers turned off for selected meshes.\n");
+            inViewMessage -smg "Face centers turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}   	
+		optionVar -iv bt_faceCenterDisplayState 1;
+		}		
+}
+
+
+global proc bt_toggleSyncFaceTriDisplay()
+{
+	$faceTriDisplayDisp = `optionVar -q bt_faceTriDisplayState`; //1 or 2
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if ($faceTriDisplayDisp == 1) 
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dt 1 -gl;
+       		print ("Face triangles turned on for all meshes.\n");
+            inViewMessage -smg "Face triangles turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dt 1;
+       		print ("Face triangles turned on for selected meshes.\n");
+            inViewMessage -smg "Face triangles turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_faceTriDisplayState 0;
+		}
+	else
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dt 0 -gl;
+       		print ("Face triangles turned off for all meshes.\n");
+            inViewMessage -smg "Face triangles turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dt 0;  
+       		print ("Face triangles turned off for selected meshes.\n");
+            inViewMessage -smg "Face triangles turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}  	
+		optionVar -iv bt_faceTriDisplayState 1;
+		}		
+}
+
+
+global proc bt_toggleSyncVertexDisplay()
+{
+	$vertDisplayDisp = `optionVar -q bt_vertexDisplayState`; //1 or 2
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if ($vertDisplayDisp == 1) 
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dv 1 -gl;
+       		print ("Vertex display turned on for all meshes.\n");
+            inViewMessage -smg "Vertex display turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dv 1;
+       		print ("Vertex display turned on for selected meshes.\n");
+            inViewMessage -smg "Vertex display turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_vertexDisplayState 0;
+		}
+	else
+	    {
+	    if ($affectsSelected == 0)
+	        {
+    		polyOptions -dv 0 -gl;
+       		print ("Vertex display turned off for all meshes.\n");
+            inViewMessage -smg "Vertex display turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dv 0;   
+       		print ("Vertex display turned off for selected meshes.\n");
+            inViewMessage -smg "Vertex display turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		} 	
+		optionVar -iv bt_vertexDisplayState 1;
+		}		
+}
+
+
+global proc bt_toggleSyncVertexNormalDisplay()
+{
+	$faceNormalDisp = `optionVar -q bt_vertexNormalState`; //1 or 2
+	$vertNormalDisp = `optionVar -q bt_vertexNormalState`; //1 or 2
+    $polyObjsAffected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if (($faceNormalDisp == 0) || ($vertNormalDisp == 0))
+	    {
+	    if ($polyObjsAffected == 0)
+	        {
+    		polyOptions -pt -dn 1 -gl;
+       		print ("Vertex normals turned on for all meshes.\n");
+            inViewMessage -smg "Vertex normals turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -pt -dn 1;
+       		print ("Vertex normals turned on for selected meshes.\n");
+            inViewMessage -smg "Vertex normals turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_vertexNormalState 1;
+		optionVar -iv bt_faceNormalState 0;
+		}
+	else
+	    {
+	    if ($polyObjsAffected == 0)
+	        {
+       		print ("Vertex normals turned off for all meshes.\n");
+    		polyOptions -dn 0 -gl;
+            inViewMessage -smg "Vertex normals turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dn 0;  
+       		print ("Vertex normals turned off for selected meshes.\n");
+            inViewMessage -smg "Vertex normals turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}  	
+		optionVar -iv bt_vertexNormalState 0;
+		optionVar -iv bt_faceNormalState 0;
+		}		
+}
+
+
+global proc bt_toggleSyncFaceNormalDisplay()
+{
+	$faceNormalDisp = `optionVar -q bt_faceNormalState`; //1 or 2
+	$vertNormalDisp = `optionVar -q bt_faceNormalState`; //1 or 2
+    $polyObjsAffected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+	if (($faceNormalDisp == 0) || ($vertNormalDisp == 0))
+	    {
+	    if ($polyObjsAffected == 0)
+	        {
+    		polyOptions -f -dn 1 -gl;
+       		print ("Face normals turned on for all meshes.\n");
+            inViewMessage -smg "Face normals turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -f -dn 1;
+       		print ("Face normals turned on for selected meshes.\n");
+            inViewMessage -smg "Face normals turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	
+		optionVar -iv bt_vertexNormalState 0;
+		optionVar -iv bt_faceNormalState 1;
+		}
+	else
+	    {
+	    if ($polyObjsAffected == 0)
+	        {
+    		polyOptions -dn 0 -gl;
+       		print ("Face normals turned off for all meshes.\n");
+            inViewMessage -smg "Face normals turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}
+    	else
+    	    {
+    		polyOptions -dn 0;
+       		print ("Face normals turned off for selected meshes.\n");
+            inViewMessage -smg "Face normals turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    		}    	
+		optionVar -iv bt_vertexNormalState 0;
+		optionVar -iv bt_faceNormalState 0;
+		}		
+}
+
+
+
+global proc bt_cycleVertColorDisplay()
+{
+	int $vertColorState = `optionVar -q bt_vertColorState`; //1-3
+    $polyObjsAffected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+		
+	if ($vertColorState == 1) //turn off with channel to none and material blend to overwrite
+		{
+    	if ($polyObjsAffected ==  0)
+	        {
+	        polyOptions -cs 1 -cm "none" -mb "overwrite" -gl;          		
+	        print ("Display color per vertex only (no shader/texture blend) for all meshes.\n");
+            inViewMessage -smg "Turn on color per vertex only for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+	        }	
+	    else
+	        {
+	        polyOptions -cs 1 -cm "none" -mb "overwrite";          		
+    		print ("Display color per vertex only (no shader/texture blend) for selected meshes.\n");
+            inViewMessage -smg "Turn on color per vertex only for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+	        }	
+   		optionVar -intValue bt_vertColorState 2;      		       		
+    	}
+	else if ($vertColorState == 2) //turn on, channel to ambient/diffuse, material blend to multiply
+		{
+    	if ($polyObjsAffected ==  0)
+	        {	 
+	  		polyOptions -cs 1 -cm "ambientDiffuse" -mb "multiply" -gl;
+       		print ("Turn on color per vertex blended display (multiplied with shader ambient/diffuse) for all meshes.\n");
+            inViewMessage -smg "Turn on color per vertex blended display for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+	  		}
+	  	else
+	  	    {
+	  		polyOptions -cs 1 -cm "ambientDiffuse" -mb "multiply";
+       		print ("Turn on color per vertex blended display (multiplied with shader ambient/diffuse) for selected meshes.\n");
+            inViewMessage -smg "Turn on color per vertex blended display for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+	  	    }
+		optionVar -intValue bt_vertColorState 3;
+    	}		
+   	else if ($vertColorState == 3)  //turn on, channel to none, material blend to overwrite
+		{
+    	if ($polyObjsAffected ==  0)
+	        {	    
+		    polyOptions -cs 0 -cm "none" -mb "overwrite" -gl;
+       		print ("Turn off color per vertex display for all meshes.\n");
+            inViewMessage -smg "Turn off color per vertex display for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+		    }
+		else
+		    {
+		    polyOptions -cs 0 -cm "none" -mb "overwrite";		        
+       		print ("Turn off color per vertex display for selected meshes.\n");
+            inViewMessage -smg "Turn off color per vertex display for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+		    }
+		optionVar -intValue bt_vertColorState 1;
+		}	
+    	
+    //select -r $selected;
+}
+
+   
+   
+
+global proc bt_cycleEdgeDisplayDisplay()
+{
+	
+
+	int $EdgeDisplayState = `optionVar -q bt_EdgeDisplayState`; //1-3
+    $polyObjsAffected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+		
+
+	if ($EdgeDisplayState == 0)  //turn standard on
+		{
+    	if ($polyObjsAffected ==  1)
+	        {	
+	        polyOptions -ae;
+       		print ("Standard edge display turned on for selected meshes.\n");
+            inViewMessage -smg "Standard edge display turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+	        }
+	  	else
+	  	    {
+            polyOptions -ae -gl;
+       		print ("Standard edge display turned on for all meshes.\n");
+            inViewMessage -smg "Standard edge display turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+            }
+		optionVar -intValue bt_EdgeDisplayState 1;
+		}
+	else if ($EdgeDisplayState == 1) //turn soft/hard on
+		{
+    	if ($polyObjsAffected ==  1)
+	        {	
+            polyOptions -se;
+       		print ("Soft edge display turned on for selected meshes.\n");
+            inViewMessage -smg "Soft edge display turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+            }
+	  	else
+	  	    {
+            polyOptions -se -gl;
+       		print ("Soft edge display turned on for all meshes.\n");
+            inViewMessage -smg "Soft edge display turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+            }
+		optionVar -intValue bt_EdgeDisplayState 2;
+    	}		
+	else if ($EdgeDisplayState == 2) //turn hard on
+		{
+    	if ($polyObjsAffected ==  1)
+	        {	
+    	    polyOptions -he;
+       		print ("Hard edge highlight turned on for selected meshes.\n");
+            inViewMessage -smg "Hard edge highlight turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+    	    }
+	  	else
+	  	    {
+            polyOptions -he -gl;
+       		print ("Hard edge highlight turned on for all meshes.\n");
+            inViewMessage -smg "Hard edge highlight turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+            }
+		optionVar -intValue bt_EdgeDisplayState 0;
+    	}	
+    	
+}
+
+
+
+global proc bt_toggleSyncSingleDoubleSided(){
+    
+	//Toggle double sided attr to keep track of setting for all objects
+	$doubleSidedState = `optionVar -q bt_doubleSided`;
+    $affectsSelected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+			
+	string $selected[] = `ls -sl`;
+	string $poly;
+	string $polys[] = `filterExpand -sm 12`;
+	
+	if (`optionVar -q bt_doubleSided` == 0)
+			{
+			optionVar -intValue bt_doubleSided 1;
+			}
+	else
+			{
+			optionVar -intValue bt_doubleSided 0;
+			}
+			
+	if ($affectsSelected != 0)
+		{
+		//Toggle selected
+			
+		for ($poly in $polys)
+			{
+			select -r $poly;
+			$shape = `listRelatives -s`;
+			$attr = $shape[0]+".doubleSided";
+			//change for toggling individually
+			//if (`getAttr $attr`)
+			if ($doubleSidedState)
+			    {
+				setAttr $attr off;
+				print ("Double Sided turned off for selected meshes.\n");
+                inViewMessage -smg "Double Sided turned off for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+				}
+
+			else
+			    {
+				setAttr $attr on;
+				print ("Double Sided turned on for selected meshes.\n");
+                inViewMessage -smg "Double Sided turned on for selected meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+                }
+			}
+		}
+		
+	else
+		{
+		//Toggle selected		
+		string $polys[] = `ls -type mesh`;
+			
+		for ($poly in $polys)
+			{
+			if ($doubleSidedState == 0)
+				{
+				//print ("\n "+$poly);
+				$attr = $poly+".doubleSided";
+				setAttr $attr 1;
+				print ("Double Sided turned on for all meshes.\n");
+                inViewMessage -smg "Double Sided turned on for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;			
+				}
+			else
+				{
+				//print ("\n "+$poly);
+				$attr = $poly+".doubleSided";
+				setAttr $attr 0;
+				print ("Double Sided turned off for all meshes.\n");
+                inViewMessage -smg "Double Sided turned off for all meshes" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+				}			
+			}				
+		}
+		
+	select -r $selected;
+}
+
+
+////////////////////////////////////////////////////
+// Anim Display Procs
+//
+
+
+global proc bt_toggleCurves()
+{
+    if (`optionVar -q bt_curveVisibility` == 0)
+       {
+       optionVar -iv bt_curveVisibility 1;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Curve display turned on for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -nurbsCurves 1 $currentPanel;    
+        }
+    else
+       {
+       optionVar -iv bt_curveVisibility 0;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Curve display turned off for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -nurbsCurves 0 $currentPanel;    
+        }   
+}
+
+
+global proc bt_toggleDefomers()
+{
+    if (`optionVar -q bt_deformersVisibility` == 0)
+       {
+       optionVar -iv bt_deformersVisibility 1;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Deformer display turned on for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -deformers 1 $currentPanel;    
+        }
+    else
+       {
+       optionVar -iv bt_deformersVisibility 0;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Deformer display turned off for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -deformers 0 $currentPanel;    
+        }   
+}
+
+
+global proc bt_toggleIKHandles()
+{
+    if (`optionVar -q bt_IKVisibility` == 0)
+       {
+       optionVar -iv bt_IKVisibility 1;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "IK Handle display turned on for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -ikHandles 1 $currentPanel;    
+        }
+    else
+       {
+       optionVar -iv bt_IKVisibility 0;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "IK Handle display turned off for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -ikHandles 0 $currentPanel;    
+        }   
+}
+
+
+global proc bt_toggleJoints()
+{
+    if (`optionVar -q bt_JointVisibility` == 0)
+       {
+       optionVar -iv bt_JointVisibility 1;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Joint display turned on for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -joints 1 $currentPanel;    
+        }
+    else
+       {
+       optionVar -iv bt_JointVisibility 0;    	
+       string $panelList[] = `getPanel -type modelPanel`;
+       inViewMessage -smg "Joint display turned off for all panels" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;
+       for ($currentPanel in $panelList)   
+            modelEditor  -e -joints 0 $currentPanel;    
+        }   
+}
+
+
+
+global proc bt_changeGlobalJointSizeHUD()
+{		
+	
+	$value = `bt_returnHUDSliderValue ("bt_HUD_glboalJointSizeSlider")`;
+    jointDisplayScale $value;
+	
+}
+
+
+
+global proc bt_changeIKSizeHUD()
+{		
+	
+	$value = `bt_returnHUDSliderValue ("bt_HUD_IKSizeSlider")`;
+    ikHandleDisplayScale $value;
+	
+}
+
+
+
+global proc setJointSize(float $value)
+{
+    string $jointList[] = `ls -sl -type joint`;
+    string $joint;
+    
+    for ($joint in $jointList)
+        setAttr ($joint + ".radius") $value; 
+}
+
+///////////////////////////
+// 
+//    Return slider values
+
+
+global proc float bt_returnHUDSliderValue( string $HUD )
+{
+	float $value = `hudSlider -q -v $HUD`;
+	return $value;
+}
+
+
+////////////////////////////
+//
+//  Create Display HUDs
+//
+
+global proc bt_polyDisplayControlHUD ()
+{	
+
+    $polyObjsAffected = `optionVar -q polyDisplayLimitedToSelectedOV`;
+
+    // disable any confliction HUDs
+    setViewAxisVisibility 0;
+    toggleAxis -o on;
+
+	$HUDCount = 1;
+	while ($HUDCount <= 25)
+		{
+		headsUpDisplay -rp 5 $HUDCount;
+		$HUDCount ++;
+		}
+
+	hudButton -s 5
+			  -b 19
+			  -vis 1
+			  -l "- Minimize -"
+			  -bw 100
+			  -bsh "roundRectangle"
+			  -rc "bt_minimizeControl"
+			  bt_HUD_MaximizeButtons;	               	
+	
+	if ($polyObjsAffected == 1)  // all polys
+	    {
+    	hudButton -s 5
+    			  -b 18
+    			  -vis 1
+    			  -l "All / Selected"
+    			  -bw 100
+    			  -bsh "roundRectangle"
+    			  -rc "optionVar -iv polyDisplayLimitedToSelectedOV 0; bt_polyDisplayControlHUD; inViewMessage -smg \"Set affected to all\" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;"
+    			  HUDAffectPolysButton;
+	     }
+    else  // selected poly
+	    {
+    	hudButton -s 5
+    			  -b 18
+    			  -vis 1
+    			  -l "All / Selected"
+    			  -bw 100
+    			  -bsh "roundRectangle"
+    			  -rc "optionVar -iv polyDisplayLimitedToSelectedOV 1; bt_polyDisplayControlHUD; inViewMessage -smg \"Set affected to selected\" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;"
+    			  HUDAffectPolysButton;
+	     }    
+			  		
+	if ($polyObjsAffected == 1)  // all polys
+	    {
+    	headsUpDisplay -section          5
+    	               -block            17
+    	               -blockSize        "small"
+    	               -label            "     Affect Selected"
+    	               //-labelFontSize    "large"
+    	               HUDdAllSelectedLabel;
+	     }
+    else  // selected poly
+	    {
+    	headsUpDisplay -section          5
+    	               -block            17
+    	               -blockSize        "small"
+    	               -label            "         Affect All"
+    	               //-labelFontSize    "large"
+    	               HUDdAllSelectedLabel;
+	     }			
+			  	
+	hudButton -s 5
+    		  -b 16
+    		  -vis 1
+    		  -l "Reset Display"
+    		  -bw 100
+    		  -bsh "rectangle"
+    		  -rc "bt_resetPolyDisplay"
+    		  HUDResetDispButton;
+	
+	/*	  
+	hudButton -s 5
+			  -b 16
+			  -vis 1
+			  -l "XRay Mesh"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleXRayDisplay"
+			  HUDXRayButton;
+    */
+		  
+	hudButton -s 5
+			  -b 15
+			  -vis 1
+			  -l "Back Culling"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncBackCullingDisplay"
+			  HUDCullingButton;
+	
+	hudButton -s 5
+			  -b 14
+			  -vis 1
+			  -l "1:2 Sided"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncSingleDoubleSided"
+			  HUDSidedButton;
+	
+	hudButton -s 5
+			  -b 13
+			  -vis 1
+			  -l "Cycle CPV"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_cycleVertColorDisplay"
+			  HUDVertOnlyButton;
+	
+	/*
+	hudButton -s 5
+			  -b 12
+			  -vis 1
+			  -l "UVs"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncUVDisplay;"
+			  HUDUVsButton;
+	*/
+	
+	hudButton -s 5
+			  -b 12
+			  -vis 1
+			  -l "Soft/Hard Edges"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_cycleEdgeDisplayDisplay"
+			  HUDSoftButton;
+			  
+		
+	hudButton -s 5
+			  -b 11
+			  -vis 1
+			  -l "Face Triangles"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncFaceTriDisplay"
+			  HUDTrisButton;
+	
+	
+	hudButton -s 5
+			  -b 10
+			  -vis 1
+			  -l "Face Centers"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncFaceCenterDisplay"
+			  HUDFaceCentersButton;	
+			  
+	hudButton -s 5
+			  -b 9
+			  -vis 1
+			  -l "Face Normals"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncFaceNormalDisplay"
+			  HUDFaceNormalsButton;
+	
+	hudButton -s 5
+			  -b 8
+			  -vis 1
+			  -l "Vert Normals"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncVertexNormalDisplay"
+			  HUDVertNormalsButton;
+	
+	hudSlider -s 5
+			  -block 7
+			  -visible 1
+			  -label "     Normal Length:"
+			  -value 1
+			  -type "float"
+			  -minValue 0.01
+			  -maxValue 10
+			  -labelWidth 105
+			  -valueWidth 50
+			  -sliderLength 60
+			  -sliderIncrement 0.01
+			  -dragCommand "if (`optionVar -q polyDisplayLimitedToSelectedOV`) polyOptions -sn `bt_returnHUDSliderValue ( \"HUDNormalSlider\" )`; else polyOptions -gl -sn `bt_returnHUDSliderValue ( \"HUDNormalSlider\" )`;"
+			  HUDNormalSlider;
+	
+	hudButton -s 5
+			  -b 6
+			  -vis 1
+			  -l "Geo Borders"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncEdgeBordersDisplay"
+			  HUDGeoBordersButton;
+		
+	hudButton -s 5
+			  -b 5
+			  -vis 1
+			  -l "Texture Borders"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncTextureBordersDisplay"
+			  HUDTextBordersButton;
+			
+	hudSlider -s 5
+			  -block 4
+			  -visible 1
+			  -label "      Border  Width:"
+			  -value 2
+			  -type "float"
+			  -minValue 1
+			  -maxValue 10
+			  -labelWidth 105
+			  -valueWidth 50
+			  -sliderLength 60
+			  -sliderIncrement 0.01
+			  -dragCommand "if (`optionVar -q polyDisplayLimitedToSelectedOV`) polyOptions -sb  `bt_returnHUDSliderValue ( \"HUDBorderSlider\" )`; else polyOptions -gl -sb  `bt_returnHUDSliderValue ( \"HUDBorderSlider\" )`;"
+			  HUDBorderSlider;
+				  
+	hudButton -s 5
+			  -b 3
+			  -vis 1
+			  -l "Vertices"
+			  -bw 100
+			  -bsh "rectangle"
+			  -rc "bt_toggleSyncVertexDisplay"
+			  HUDVertsButton;
+			    			  
+	hudSlider -s 5
+			  -block 2
+			  -visible 1
+			  -label "        Vertex Size:"
+			  -value 2
+			  -type "float"
+			  -minValue 1
+			  -maxValue 10
+			  -labelWidth 105
+			  -valueWidth 50
+			  -sliderLength 60
+			  -sliderIncrement 0.01
+			  -dragCommand "if (`optionVar -q polyDisplayLimitedToSelectedOV`) polyOptions -sv  `bt_returnHUDSliderValue ( \"HUDVertSlider\" )`; else polyOptions -gl -sv  `bt_returnHUDSliderValue ( \"HUDVertSlider\" )`;"
+			  HUDVertSlider;
+			  		  
+	hudButton -s 5
+			  -b 1
+			  -vis 1
+			  -l "Close"
+			  -bw 100
+			  -bsh "roundRectangle"
+			  -rc "bt_turnOffControlHUDs"
+			  HUDKillButtons;
+}
+
+
+
+////////////////////////////
+
+
+global proc bt_viewDisplayControlHUD()
+{	
+	
+    setViewAxisVisibility 0;
+    toggleAxis -o on;
+    
+    
+    if (`optionVar -ex bt_maxGridSize` == 0)
+        optionVar -iv bt_maxGridSize 5000;
+    if (`optionVar -ex bt_maxFarClip` == 0)
+        optionVar -iv bt_maxFarClip 110000;
+    if (`optionVar -ex bt_maxNearClip` == 0)
+        optionVar -iv bt_maxNearClip 10;
+    if (`optionVar -ex bt_maxWalkSpeed` == 0)
+        optionVar -iv bt_maxWalkSpeed 10;
+
+	$HUDCount = 1;
+	while ($HUDCount <= 25)
+		{
+		headsUpDisplay -rp 5 $HUDCount;
+		$HUDCount ++;
+		}
+		      
+
+	hudButton -s 5
+			  -b 18
+			  -vis 1
+			  -l "- Minimize -"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_minimizeControl"
+			  bt_HUD_MaximizeButtons;	
+			  
+
+			  
+	hudButton -s 5
+			  -b 17
+			  -vis 1
+			  -l "Hide / Restore UI"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_toggleUIVisibility"
+			  bt_HUD_toggleUIButton;	
+				
+	
+	
+	hudButton -s 5
+			  -b 16
+			  -vis 1
+			  -l "Show All UI"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_showAllUI"
+			  bt_HUD_showUIButton;		
+			  	
+		
+	hudButton -s 5
+			  -b 15
+			  -vis 1
+			  -l "Cycle Background"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "CycleBackgroundColor"
+			  bt_HUD_cycleBGButton;	
+
+		
+	hudButton -s 5
+			  -b 14
+			  -vis 1
+			  -l "Cycle Axis"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_cycleAxisView"
+			  bt_HUD_cycleAxisButton;	
+	  
+		
+	hudButton -s 5
+			  -b 13
+			  -vis 1
+			  -l "Cycle Cameras"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "CycleThroughCameras"
+			  bt_HUD_cycleCameras;
+			  
+			  			  		
+		
+	hudButton -s 5
+			  -b 12
+			  -vis 1
+			  -l "Lock / Unlock Ortho"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_lockUnlockOrtho"
+			  bt_HUD_freeOrtho;			  
+		
+		
+	hudButton -s 5
+			  -b 11
+			  -vis 1
+			  -l "Frame Ortho"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_frameOrtho"
+			  bt_HUD_frameOrtho;			
+		
+		
+	hudButton -s 5
+			  -b 10
+			  -vis 1
+			  -l "Reset Ortho"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_resetOrtho"
+			  bt_HUD_resetOrtho;	
+			  			  			
+
+	hudButton -s 5
+			  -b 9
+			  -vis 1
+			  -l "Zoom / Focal Length"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "ZoomTool;"
+			  bt_HUD_zoomButton;
+			  
+			  	  			  			  			  	
+	hudButton -s 5
+			  -b 8
+			  -vis 1
+			  -l "Walk Camera"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_enableWalkCam"
+			  bt_HUD_walkButton;
+
+    /* for old scripted walk tool now built into 2015
+	$walkSpeed = `optionVar -q bt_walkCamSpeed`;			
+	hudSlider -s 5
+			  -block 8
+			  -visible 1
+			  -label "        Walk Speed:"
+			  -value $walkSpeed
+			  -type "float"
+			  -minValue 0.01
+			  -maxValue `optionVar -q bt_maxWalkSpeed`
+			  -labelWidth 105
+			  -valueWidth 110
+			  -sliderLength 100
+			  -sliderIncrement 0.01
+			  -pressCommand  "undoInfo -swf 0 "
+			  -dragCommand "optionVar -fv bt_walkCamSpeed `bt_returnHUDSliderValue ( \"bt_HUD_WalkSlider\" )`"
+			  -releaseCommand  "undoInfo -swf 1 "
+			  bt_HUD_WalkSlider;
+	*/
+
+			  
+	hudButton -s 5
+			  -b 7
+			  -vis 1
+			  -l "Toggle Grids"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_toggleGrid"
+			  bt_HUD_gridButton;	
+	
+	
+	hudButton -s 5
+			  -b 6
+			  -vis 1
+			  -l "Grid Numbers"
+			  -bw 110
+			  -bsh "rectangle"
+			  -rc "bt_cycleGridNumbers"
+			  bt_HUD_gridNumButton;
+        
+        
+	$gridSize = `grid -q -size`;			
+	hudSlider -s 5
+			  -block 5
+			  -visible 1
+			  -label "        Grid Size:"
+			  -value $gridSize
+			  -type "float"
+			  -minValue 5
+			  -maxValue `optionVar -q bt_maxGridSize`
+			  -labelWidth 105
+			  -valueWidth 50
+			  -sliderLength 400
+			  -sliderIncrement 5
+			  -pressCommand  "undoInfo -swf 0 "
+			  -dragCommand "grid -size  `bt_returnHUDSliderValue ( \"bt_HUD_GridSlider\" )`"
+			  -releaseCommand  "undoInfo -swf 1 "
+			  bt_HUD_GridSlider;		
+
+			  		
+	hudSlider -s 5
+			  -block 4
+			  -visible 1
+			  -label "      Near Clipping:"
+			  -value `bt_getClipNear`
+			  -type "float"
+			  -minValue 0.001
+			  -maxValue `optionVar -q bt_maxNearClip`
+			  -labelWidth 105
+			  -valueWidth 50
+			  -sliderLength 400
+			  -sliderIncrement .001
+			  -dragCommand  "print (\"Near clipping plane set to \" + `bt_getClipNear` + \" units.\\n\"); bt_changeClippingPlaneNearHUD"
+
+			  bt_HUD_ClipNearSlider;		
+	
+		
+	hudSlider -s 5
+			  -block 3
+			  -visible 1
+			  -label "      Far Clipping:"
+			  -value `bt_getClipFar`
+			  -type "float"
+			  -minValue 5
+			  -maxValue `optionVar -q bt_maxFarClip`
+			  -labelWidth 105
+			  -valueWidth 50
+			  -sliderLength 400
+			  -sliderIncrement 5
+			  -dragCommand  "print (\"Far clipping plane set to \" + `bt_getClipFar` + \" units.\\n\"); bt_changeClippingPlaneFarHUD"
+			  bt_HUD_ClipFarSlider;
+			  
+			  	
+	hudButton -s 5
+			  -b 2
+			  -vis 1
+			  -l "Set Slider Range"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_setMaxSliderValues"
+			  bt_HUD_setSliderMaxButton;
+			  
+			  			  
+	hudButton -s 5
+			  -b 1
+			  -vis 1
+			  -l "Close"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_turnOffControlHUDs"
+			  bt_HUD_KillButtons;			  
+}
+
+
+////////////////////////
+
+
+global proc bt_animDisplayControlHUD()
+{	
+	
+    setViewAxisVisibility 0;
+    toggleAxis -o on;
+    
+
+	$HUDCount = 1;
+	while ($HUDCount <= 25)
+		{
+		headsUpDisplay -rp 5 $HUDCount;
+		$HUDCount ++;
+		}
+      
+
+	hudButton -s 5
+			  -b 14
+			  -vis 1
+			  -l "- Minimize -"
+			  -bw 120
+			  -bsh "roundRectangle"
+			  -rc "bt_minimizeControl"
+			  bt_HUD_MaximizeButtons;
+
+
+	hudButton -s 5
+			  -b 13
+			  -vis 1
+			  -l "Show Deformations"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "hideShowDeformingGeom show; inViewMessage -smg \"All deforming meshes unhidden\" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;"
+			  bt_HUD_showDeformingGeoButton;
+			  
+	hudButton -s 5
+			  -b 12
+			  -vis 1
+			  -l "Hide Deformations"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "hideShowDeformingGeom hide; inViewMessage -smg \"All deforming meshes hidden\" -pos midCenter -bkc 0x11111111 -alpha .2 -fade -fst 1500;"
+			  bt_HUD_hideDeformingGeoButton;
+			  			  
+	hudButton -s 5
+			  -b 11
+			  -vis 1
+			  -l "Toggle Deformers"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "bt_toggleDefomers"
+			  bt_HUD_showDeformersButton;
+
+			  
+	hudButton -s 5
+			  -b 10
+			  -vis 1
+			  -l "Toggle Curves"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "bt_toggleCurves"
+			  bt_HUD_showCurvesButton;
+			  
+			  
+	hudButton -s 5
+			  -b 9
+			  -vis 1
+			  -l "Toggle  IK"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "bt_toggleIKHandles"
+			  bt_HUD_showIKButton;
+			  
+			  
+
+	hudSlider -s 5
+			  -block 8
+			  -visible 1
+			  -label "         Global IK Size:"
+			  -value 1
+			  -type "float"
+			  -minValue 0.001
+			  -maxValue 10
+			  -labelWidth 120
+			  -valueWidth 50
+			  -sliderLength 100
+			  -sliderIncrement .001
+			  -dragCommand  "bt_changeIKSizeHUD"
+			  bt_HUD_IKSizeSlider;
+
+			  
+			  
+	hudButton -s 5
+			  -b 7
+			  -vis 1
+			  -l "Toggle Joints"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "bt_toggleJoints"
+			  bt_HUD_showJointsButton;
+
+
+	hudSlider -s 5
+			  -block 6
+			  -visible 1
+			  -label "      Global Joint Size:"
+			  -value 1
+			  -type "float"
+			  -minValue 0.001
+			  -maxValue 10
+			  -labelWidth 120
+			  -valueWidth 50
+			  -sliderLength 100
+			  -sliderIncrement .001
+			  -dragCommand  "bt_changeGlobalJointSizeHUD"
+			  bt_HUD_glboalJointSizeSlider;				  
+			  
+			  			  
+	hudSlider -s 5
+			  -block 5
+			  -visible 1
+			  -label "         Per Joint Size: "
+			  -value 1
+			  -type "float"
+			  -minValue 0.01
+			  -maxValue 10
+			  -labelWidth 120
+			  -valueWidth 50
+			  -sliderLength 100
+			  -sliderIncrement 0.001
+			  -dragCommand "setJointSize `bt_returnHUDSliderValue ( \"bt_HUD_PerJointSizeSlider\" )`;"
+			  bt_HUD_PerJointSizeSlider;
+			  
+			  			  			  
+	hudButton -s 5
+			  -b 4
+			  -vis 1
+			  -l "Toggle Joint Label"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "displayJointLabels 2;"
+			  bt_HUD_toggleLabelsButton;
+			  
+			 
+	hudButton -s 5
+			  -b 3
+			  -vis 1
+			  -l "Toggle Local Axis"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "ToggleLocalRotationAxes"
+			  bt_HUD_toggleAxisButton;
+			  
+			  			  	
+	hudButton -s 5
+			  -b 2
+			  -vis 1
+			  -l "Toggle Select Handle"
+			  -bw 120
+			  -bsh "rectangle"
+			  -rc "ToggleSelectionHandles"
+			  bt_HUD_toggleHandlesButton;
+			  
+			  			  			  
+	hudButton -s 5
+			  -b 1
+			  -vis 1
+			  -l "Close"
+			  -bw 120
+			  -bsh "roundRectangle"
+			  -rc "bt_turnOffControlHUDs"
+			  bt_HUD_KillButtons;			  
+}
+
+/////////////////////////
+
+proc bt_checkCtr1Hotkey()
+{
+    string $hotkeyExists = `hotkey -q -ctl -name "1"`;
+    
+    if ($hotkeyExists == "bt_displayControlHUDNamedCommand")
+        print "CTRL 1 hotkey already setup for Display Control HUD\n";
+    else if (`size $hotkeyExists` > 0)
+        print "CTRL 1 hotkey is already being used.  If you\'d like CTRL 1 to be associated with this tool simply delete the existing hotkey and rerun the tool to auto create.\n";       
+    else if ($hotkeyExists != "bt_displayControlHUDNamedCommand")
+        {
+        print "Automatically setting CTRL 1 as hotkey for this tool\n";
+        nameCommand
+            -annotation "Display Control HUD"
+            -command "bt_displayControl"
+            bt_displayControlHUDNamedCommand;
+        hotkey -k "1" -ctl -name "bt_displayControlHUDNamedCommand";
+        }
+        
+}
+
+
+global proc bt_minimizeControl()
+{
+    
+	$HUDCount = 1;
+	while ($HUDCount <= 25)
+		{
+		headsUpDisplay -rp 5 $HUDCount;
+		$HUDCount ++;
+		}	
+
+
+	hudButton -s 5
+			  -b 4
+			  -vis 1
+			  -l ">  View Display"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_viewDisplayControlHUD"
+			  bt_HUD_ViewDispButtons;	
+			  
+							  
+	hudButton -s 5
+			  -b 3
+			  -vis 1
+			  -l ">  Anim Display"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_animDisplayControlHUD"
+			  bt_HUD_AnimDispButtons;
+			  
+			  			  
+	hudButton -s 5
+			  -b 2
+			  -vis 1
+			  -l ">   Poly Display"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_polyDisplayControlHUD"
+			  bt_HUD_PolyDispButton;	
+
+	hudButton -s 5
+			  -b 1
+			  -vis 1
+			  -l "Close"
+			  -bw 110
+			  -bsh "roundRectangle"
+			  -rc "bt_turnOffControlHUDs"
+			  bt_HUD_KillButtons;
+    						  	        
+}
+
+
+proc bt_turnOnAllPanelHUDs()
+
+{
+string $panelList[] = `getPanel -type modelPanel`;
+for ($currentPanel in $panelList)   
+	modelEditor -e -hud true  $currentPanel;	
+}
+
+
+global proc bt_turnOffControlHUDs()
+{
+	$HUDCount = 1;
+	while ($HUDCount <= 25)
+		{
+		headsUpDisplay -rp 5 $HUDCount;
+		$HUDCount ++;
+		}
+}
+
+
+global proc bt_displayControl()
+{
+
+    bt_checkCtr1Hotkey;
+    bt_turnOnAllPanelHUDs;
+    
+    if (`optionVar -q bt_displayControlVisibility` == 0)
+    
+    {
+        optionVar -iv bt_displayControlVisibility 1;
+        
+    	$HUDCount = 1;
+    	while ($HUDCount <= 25)
+    		{
+    		headsUpDisplay -rp 5 $HUDCount;
+    		$HUDCount ++;
+    		}	
+    
+    
+    	hudButton -s 5
+    			  -b 4
+    			  -vis 1
+    			  -l ">  View Display"
+    			  -bw 110
+    			  -bsh "roundRectangle"
+    			  -rc "bt_viewDisplayControlHUD"
+    			  bt_HUD_ViewDispButtons;	
+    			  
+    							  
+    	hudButton -s 5
+    			  -b 3
+    			  -vis 1
+    			  -l ">  Anim Display"
+    			  -bw 110
+    			  -bsh "roundRectangle"
+    			  -rc "bt_animDisplayControlHUD"
+    			  bt_HUD_AnimDispButtons;
+    			  
+    			  			  
+    	hudButton -s 5
+    			  -b 2
+    			  -vis 1
+    			  -l ">   Poly Display"
+    			  -bw 110
+    			  -bsh "roundRectangle"
+    			  -rc "bt_polyDisplayControlHUD"
+    			  bt_HUD_PolyDispButton;	
+    
+    	hudButton -s 5
+    			  -b 1
+    			  -vis 1
+    			  -l "Close"
+    			  -bw 110
+    			  -bsh "roundRectangle"
+    			  -rc "bt_turnOffControlHUDs"
+    			  bt_HUD_KillButtons;
+        }
+        
+    else
+        {
+        optionVar -iv bt_displayControlVisibility 0;
+        
+        $HUDCount = 1;
+    	while ($HUDCount <= 25)
+    		{
+    		headsUpDisplay -rp 5 $HUDCount;
+    		$HUDCount ++;
+    		}	            
+        }
+    						  	        
+}
+

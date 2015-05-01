@@ -1,0 +1,83 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//-
+// ==========================================================================
+//
+// ==========================================================================
+//+
+
+//
+//  Description:
+//     This script creates a new Maya menu that contains a
+//	   single item "Formated Text". When selected, it will create
+//     a beveled text with history, where the text can be the
+//     formatted result of numerical inputs.
+//
+//  Procedures:
+//     createFormatedText, addStringFormatMenuItems,
+//
+
+
+global string $StrFMTCreateMenuVariable = "";
+
+global proc bt_createFormatedText()
+{
+	// Make sure all of the bevel plus options are initialized.
+	// 0 means to not force them back to their default values.  Just
+	// initialize them if they don't exist yet.
+	bevelPlusSetOptionVars(0);
+
+	optionVar -intValue textCurvesType 3;
+	source performtextCurves;
+	performtextCurves(0);
+	string $sel[] = `ls -sl`;
+
+	// Create a circle node dependency object called "stringFormat"
+	string $nodes = `createNode stringFormat`;
+	connectAttr ($nodes+".output") ($sel[0]+".text");
+
+	// Initialize with some values that do not produce an empty string
+	setAttr -type "string" ($nodes+".format") "Current Frame : Float = ^0f , Decimal = ^0d , Timecode = ^0t ";
+	//setAttr ($nodes+".values[0]") 35.5 ;
+	connectAttr time1.outTime ($nodes+".values[0]");	
+	
+	print ("The default input value to the stringFormat node is the current frame.  This is just an example.  You can make a new connection for values in the HyperGraph.\n");
+}
+
+// Add menu entries to the Create Light menu
+//
+global proc string addStringFormatMenuItems(string $parentMenu)
+{
+	string $menuName;
+	string $res = "";
+
+	//$menuName = `menuItem -p $parentMenu -l "Formated Text"
+	//	-ann "Creates a formated text node which can be animated"
+	//	-c "createFormatedText" -i "text.png"` ;
+	//$res = $res + ";deleteUI -mi " + $menuName;
+
+	return $res; 
+}

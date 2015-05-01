@@ -1,0 +1,253 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+// bt_mirrorTranslateRotate.mel - (used for mirroring/inverting location and orientation across a given axis)
+//
+// This tool will either invert/mirror transform values for the selected object across the given axis.
+//
+// NOTE: the local axis is used, so be sure to check local axis of each object before setting
+// the mirror axis if you are unsure which direction to mirror. 
+//
+// Created by Steven T. L. Roselle
+// Last updated:      ( 02/01/12 )
+
+
+global proc bt_applyMirrorTransforms(int $axis, int $xforms[])
+
+{
+	
+	string $trans; 
+	string $rot1; 
+	string $rot2;
+	string $connection[];
+	string $lockCheck1[];
+	string $lockCheck2[];
+	string $attrListOrig[];
+	string $attrListFinal[];
+	
+
+	// bt_getTR list of selected objects
+	$objList = `ls -sl -ap`;
+
+	if (`size $objList` == 0)
+		error "Nothing selected to mirror.";
+	
+	
+	//////////////////////////////////////
+	//
+	// define attributes to use when mirroring
+	//
+	//string $attrListOrig[] = {".tx", ".ty", ".tz", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz"};
+
+	$attrCount = 0;
+	if ($xforms[0])
+		{
+		$attrListOrig[$attrCount] = ".tx";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".ty";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".tz";
+		$attrCount ++;			
+		}
+	if ($xforms[1])
+		{
+		$attrListOrig[$attrCount] = ".rx";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".ry";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".rz";
+		$attrCount ++;			
+		}
+	if ($xforms[2])
+		{
+		$attrListOrig[$attrCount] = ".sx";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".sy";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".sz";
+		$attrCount ++;			
+		}
+
+
+	
+	//////////////////////////////////////
+	//
+	// define translate and rotate axis to mirror
+	//
+	if ($axis == 1)
+		{$trans = ".tx"; $rot1 = ".ry"; $rot2 = ".rz";}
+	else if ($axis == 2)
+		{$trans = ".ty"; $rot1 = ".rx"; $rot2 = ".rz";}
+	else if ($axis == 3)
+		{$trans = ".tz"; $rot1 = ".rx"; $rot2 = ".ry";}
+	
+	
+	
+	//////////////////////////////////////
+	//
+	// Invert individually
+	//
+		//if (`size $objList` != 2) warning ("Nothing selected");
+		for ($obj in $objList)
+			{
+	
+			// invert appropriate attrs and/or curves for objects
+			
+			if ($xforms[0]) //Translate
+				{	
+				$lockCheck1 = `listAttr -l  ($obj+$trans)`;
+				//print ($obj+$trans);
+				if (`size $lockCheck1` == 0)					
+					{
+					print ("Inverting value for "+ $obj+$trans + " ->  ");
+                    $tempVal = (`getAttr ($obj+$trans)` * -1);
+                    print (`getAttr ($obj+$trans)` + " to " + $tempVal + "\n");
+   					setAttr ($obj+$trans) $tempVal;			
+					
+					}
+				}
+			if ($xforms[1])  //Rotate
+				{
+				$lockCheck1 = `listAttr -l ($obj+$rot1)`;
+				if (`size $lockCheck1` == 0)
+					{	
+					print ("Inverting values for " + $obj+$rot1 + " ->  ");					
+                    $tempVal = (`getAttr ($obj+$rot1)` * -1);
+                    print (`getAttr ($obj+$rot1)` + " to " + $tempVal + "\n");
+  					setAttr ($obj+$rot1) $tempVal;
+					
+					}
+		
+				$lockCheck1 = `listAttr -l ($obj+$rot2)`;
+				if (`size $lockCheck1` == 0)
+					{									
+					print ("Inverting values for " + $obj+$rot2 + " ->  ");					
+                    $tempVal = (`getAttr ($obj+$rot2)` * -1);
+                    print (`getAttr ($obj+$rot2)` + " to " + $tempVal + "\n");
+					setAttr ($obj+$rot2) $tempVal;
+					
+					}
+				}
+			} 
+
+		select -r $objList;
+
+	
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+//
+//		UI procs....
+
+
+global proc int bt_getTRMirrorAxes(string $id)
+{
+	// Return axis from radio button change
+	//
+	int $axes= `radioButtonGrp -q  -sl $id` ;
+	return $axes;
+}
+
+global proc int bt_getTRMirrorMethod(string $id)
+{
+	// Return method from radio button change
+	//
+	int $method = `radioButtonGrp -q  -sl $id` ;
+	return $method;
+}
+
+global proc int[] bt_getTRMirrorXforms(string $id)
+{
+	// Return tranforms to use from checkboxes
+	//
+	int $xforms[] = {1,1,1};
+	int $T = `checkBoxGrp -q  -v1 $id` ;	
+	int $R = `checkBoxGrp -q  -v2 $id` ;	
+	//int $S = `checkBoxGrp -q  -v3 $id` ;	
+	
+	//int $xforms[] = {$T, $R, $S};
+	int $xforms[] = {$T, $R};
+	return $xforms;
+}	
+
+global proc int bt_getTRIgnoreLocked(string $id)
+{
+	// Return method from radio button change
+	//
+	int $ignore = `checkBoxGrp -q  -v1 $id` ;
+	return $ignore;
+}
+
+global proc int bt_getTRIncludeCustom(string $id)
+{
+	// Return method from radio button change
+	//
+	int $custom = `checkBoxGrp -q  -v1 $id` ;
+	return $custom;
+}
+
+global proc bt_mirrorTranslateRotate()
+{
+	//Create UI and prompt user for mirrorping axis
+	//
+
+	global string $mirrorTRMethodName;
+	global string $mirrorTRAxesNameodName;
+	global string $mirrorTRXformName;
+	global string $ignoreTRLockedName;
+	global string $includeTRCustomName;
+	
+	if( (`window -exists bt_applyMirrorTransforms`) == true )
+			{
+			deleteUI bt_applyMirrorTransforms;
+ 			windowPref -remove bt_applyMirrorTransforms;
+			}
+
+	window  -sizeable true   -width 315 -height 60 -t "Mirror Translate/Rotate Values" bt_applyMirrorTransforms;
+			rowColumnLayout -numberOfColumns 1;
+
+			
+			$mirrorTRAxesNameodName = `radioButtonGrp  -numberOfRadioButtons 3 -cat 1 right 5 -cw4 105 70 70 70 -sl 1 -label "Mirror Axis (Object):" -labelArray3 "X" "Y" "Z"`;
+			$mirrorTRXformName = `checkBoxGrp -numberOfCheckBoxes 2 -cat 1 right 5 -cw3 105 70 70 -v1 1 -v2 1 -label "Include Attributes:" -labelArray2 "Translate" "Rotate"`;			
+			//$includeTRCustomName = `checkBoxGrp  -numberOfCheckBoxes 1 -cat 1 left 5 -cw2 100 180  -v1 1 -label "" -labelArray2 "Custom Attributes" ""`;
+			//$ignoreTRLockedName = `checkBoxGrp  -numberOfCheckBoxes 1 -cat 1 left 5 -cw2 100 180  -v1 1 -label "" -labelArray2 "Ignore Locked Attributes" ""`;
+			
+			setParent..;
+			rowColumnLayout -numberOfColumns 3 -cw 1 105 -cw 2 105 -cw 3 105;
+	
+				separator -style none ; separator -style none ; separator -style none;
+				separator -style single ; separator -style single ; separator -style single;
+				button -label "Mirror" -command ("bt_applyMirrorTransforms(`bt_getTRMirrorAxes($mirrorTRAxesNameodName)`, `bt_getTRMirrorXforms($mirrorTRXformName)`) ; deleteUI bt_applyMirrorTransforms; windowPref -remove bt_applyMirrorTransforms"); 
+				button -label "Apply" -command ("bt_applyMirrorTransforms(`bt_getTRMirrorAxes($mirrorTRAxesNameodName)`, `bt_getTRMirrorXforms($mirrorTRXformName)`) "); 
+				button -label "Close" -command ("deleteUI bt_applyMirrorTransforms; windowPref -remove bt_applyMirrorTransforms");
+			setParent..;
+	
+	showWindow bt_applyMirrorTransforms;
+}
+
+
+//bt_mirrorTranslateRotate;

@@ -1,0 +1,240 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//  Creation Date:  Nov 9, 2002
+//
+//  Procedure Name:
+//      performBonesOnCurve
+//
+//  Description:
+//        
+//         
+//  Input Arguments:
+//        $option : Whether to set the options to default values.
+//  Return Value:
+//        None
+//
+
+proc setOptionVars (int	$forceFactorySettings)
+{
+
+	if ($forceFactorySettings || !`optionVar -exists "bonesOnCurveNumber"`)
+		optionVar -intValue "bonesOnCurveNumber" 5;
+
+	if ($forceFactorySettings || !`optionVar -exists "bonesOnCurveRebuildCurve"`)
+		optionVar -intValue "bonesOnCurveRebuildCurve" 0;
+
+	if ($forceFactorySettings || !`optionVar -exists "bonesOnCurveAddIK"`)
+		optionVar -intValue "bonesOnCurveAddIK" 0;
+
+}
+
+global proc bonesOnCurveSetup (string $parent, int $forceFactorySettings)
+{
+	setOptionVars($forceFactorySettings);
+	setParent $parent;
+
+	intSliderGrp
+        -edit
+        -value `optionVar -query bonesOnCurveNumber`
+        bonesOnCurveNumber;
+
+	checkBoxGrp
+        -edit
+        -value1 `optionVar -query bonesOnCurveRebuildCurve`
+        bonesOnCurveRebuildCurve;
+
+	checkBoxGrp
+        -edit
+        -value1 `optionVar -query bonesOnCurveAddIK`
+        bonesOnCurveAddIK;
+
+}
+
+global proc bonesOnCurveCallback (string $parent, int $doIt)
+{	
+	setParent $parent;
+
+	optionVar -intValue "bonesOnCurveNumber"
+		`intSliderGrp -query -value bonesOnCurveNumber`;
+
+	optionVar -intValue "bonesOnCurveRebuildCurve"
+		`checkBoxGrp -query -value1 bonesOnCurveRebuildCurve`;
+
+	optionVar -intValue "bonesOnCurveAddIK"
+		`checkBoxGrp -query -value1 bonesOnCurveAddIK`;
+
+	if ($doIt) 
+	{
+		performBonesOnCurve 0;
+		string $tmpCmd = "performBonesOnCurve 0 ";
+		addToRecentCommandQueue $tmpCmd "Bones On Curve";
+	}
+}
+
+proc bonesOnCurveOptions ()
+{
+	string $commandName = "bonesOnCurve";
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	setOptionBoxCommandName($commandName);
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//
+	waitCursor -state 1;
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	/*
+	frameLayout -label "General" 
+		-borderStyle "etchedIn"
+		-collapsable 0;
+	*/
+
+	columnLayout;
+
+	intSliderGrp
+        -field on
+        -label "Number of Bones"
+        -minValue 1
+        -maxValue 15
+        -fieldMinValue 1
+        -fieldMaxValue 100
+        -value 5
+        bonesOnCurveNumber;
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "Rebuild Curve"
+        -value1 1
+        bonesOnCurveRebuildCurve;
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "Add Spline IK"
+        -value1 1
+        bonesOnCurveAddIK;
+	
+	setParent ..;
+
+	//setParent ..;
+	
+	setParent -menu ..;
+
+	waitCursor -state 0;
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit 
+		-label "Apply"
+		-command ($callback + " " + $parent + " " + 1) 
+		$applyBtn;
+	
+	string $applyAndCloseBtn = getOptionBoxApplyAndCloseBtn();
+	button -edit 
+		-label "Create Bones"
+		$applyAndCloseBtn;
+
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + " " +"; hideOptionBox")
+		$saveBtn;
+
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Step 7: Set the option box title.
+	//	=================================
+	//
+	setOptionBoxTitle("Bones On Curve Options");
+	//	Step 8: Customize the 'Help' menu item text.
+	//	============================================
+	//
+	//setOptionBoxHelpTag("Poly Attribute Map");
+	//	Step 9: Set the current values of the option box.
+	//	=================================================
+	//
+	eval (($setup + " " + $parent + " " + 0));
+	//	Step 10: Show the option box.
+	//	=============================
+	//
+	showOptionBox();
+}
+
+
+proc string assembleCmd()
+{
+	setOptionVars (false);
+
+	int $doHistory = `constructionHistory -q -toggle`;
+
+	string $cmd = "bonesOnCurve ";
+	$cmd += `optionVar -query "bonesOnCurveNumber"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "bonesOnCurveRebuildCurve"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "bonesOnCurveAddIK"`;
+
+	print $cmd;
+	return $cmd;	
+}
+
+
+global proc string performBonesOnCurve (int $option)
+{
+	string $cmd="";
+
+	switch ($option) 
+	{
+		case 0:
+			$cmd = `assembleCmd`;
+			eval($cmd);
+			break;
+		case 1:
+			bonesOnCurveOptions;
+			break;
+		case 2:
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}

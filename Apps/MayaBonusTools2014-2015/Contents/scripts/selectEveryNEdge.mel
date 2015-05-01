@@ -1,0 +1,114 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+proc int getEdgeIdIndex(int $edgeId, int $edgeIds[])
+{
+	int $i;
+	int $len = `size($edgeIds)`;
+
+	for ($i=0; $i<$len; $i++)
+	{
+		if ($edgeId == $edgeIds[$i])
+			return $i;
+	}
+
+	return -1;
+}
+
+proc int getEdgeIdFromSelectionString(string $sel)
+{
+	string $buffer[];
+	int $numTokens;
+	$numTokens = `tokenize $sel "[]" $buffer`;
+
+	if ($numTokens != 2)
+		return -1;
+	else
+		return $buffer[1];
+}
+
+global proc selectEveryNEdge()
+{
+	string $selectedObject[] = `ls -sl -o`;
+
+	getEdges;
+	string $initialEdgeSelection[] = `ls -sl -flatten`;
+	int $numEdges = `size $initialEdgeSelection`;
+
+	if (0 == $numEdges || 2 < $numEdges)
+		return;
+
+	string $firstEdge = $initialEdgeSelection[0];
+	int $firstEdgeId = getEdgeIdFromSelectionString($firstEdge);
+
+	if (1 == $numEdges) {
+		polySelect -edgeLoop $firstEdgeId $selectedObject[0];
+		return;
+	}
+
+	string $secondEdge = $initialEdgeSelection[1];
+	int $secondEdgeId = getEdgeIdFromSelectionString($secondEdge);
+
+	int $edgeLoopIds[] = `polySelect -noSelection -edgeLoop $firstEdgeId $selectedObject[0]`;
+
+	int $firstEdgeIndex = getEdgeIdIndex($firstEdgeId, $edgeLoopIds);
+	if ($firstEdgeIndex == -1)
+		return;
+
+	int $secondEdgeIndex = getEdgeIdIndex($secondEdgeId, $edgeLoopIds);
+	if ($secondEdgeIndex == -1) {
+		clear $edgeLoopIds;
+		$edgeLoopIds = `polySelect -noSelection -edgeRing $firstEdgeId $selectedObject[0]`;
+
+		$firstEdgeIndex = getEdgeIdIndex($firstEdgeId, $edgeLoopIds);
+		if ($firstEdgeIndex == -1)
+			return;
+
+		$secondEdgeIndex = getEdgeIdIndex($secondEdgeId, $edgeLoopIds);
+		if ($secondEdgeIndex == -1) {
+			return;
+		}
+	}
+
+	int $numEdgesInLoop = `size($edgeLoopIds)`;
+	int $isFullLoop = ($edgeLoopIds[0] == $edgeLoopIds[$numEdgesInLoop-1]);
+
+	int $edgesToSkip = `abs ($secondEdgeIndex - $firstEdgeIndex)`;
+
+	if ($isFullLoop && $edgesToSkip > ($numEdgesInLoop - $edgesToSkip - 1)) {
+		$edgesToSkip = $numEdgesInLoop - $edgesToSkip - 1;
+	}
+
+	int $i;
+	string $selectionString = "select ";
+
+	for ($i=$firstEdgeIndex; $i<$numEdgesInLoop; $i += $edgesToSkip)
+	{
+		$selectionString += $selectedObject[0] + ".e[" + $edgeLoopIds[$i] + "] ";
+	}
+
+	for ($i=$firstEdgeIndex-$edgesToSkip; $i>=0; $i -= $edgesToSkip)
+	{
+		$selectionString += $selectedObject[0] + ".e[" + $edgeLoopIds[$i] + "] ";
+	}
+
+	eval($selectionString);
+}

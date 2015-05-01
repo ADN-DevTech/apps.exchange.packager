@@ -1,0 +1,236 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// 
+
+// orientToVertTool
+// Written : Aug 22th, 2004
+// modified: cpam Oct 2004
+// modified: sroselle 11/24/2004
+
+global proc orientToVertToolProperties () {
+
+	// Linux Motif2.1 shrinks the checkBox, if the string is ""
+    // NT would tab over the blank (" ") string label.
+    // So...
+	string $emptyLabel = "";
+    if (`about -linux`) {
+        $emptyLabel = " ";
+    }
+
+	string $parent = `toolPropertyWindow -q -location`;
+
+	setUITemplate -pushTemplate OptionsTemplate;
+
+	setParent $parent;
+
+	columnLayout orientToVertTool;
+		frameLayout -collapsable true -collapse false
+			-l "Orient To Vertex Tool Settings";
+			columnLayout;
+
+				radioButtonGrp -nrb 3 
+					-l "Rotate Axis" 
+					-l1 "X"
+					-l2 "Y"
+					-l3 "Z"
+					rotationalAlignAxisRadio;
+			setParent ..;
+		setParent ..;
+	setParent ..;	
+
+	setUITemplate -popTemplate;
+}
+
+
+
+global proc orientToVertToolValues ( string $toolName ) {
+
+	string $parent = (`toolPropertyWindow -q -location` + "|orientToVertTool");
+	//string $parent = `toolPropertyWindow -q -location`;
+	setParent $parent;
+
+	// Initialize settings
+	//
+
+	int $axis = `optionVar -q rotationalAlignAxis`;
+	switch ($axis)
+	{
+		case 0:
+			 radioButtonGrp -e -sl 1 rotationalAlignAxisRadio;
+			 //$manipMode = 1;
+		break;
+		case 1:
+			radioButtonGrp -e -sl 2  rotationalAlignAxisRadio;
+			 //$manipMode = 2;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 3 rotationalAlignAxisRadio;
+			 //$manipMode = 3;
+		break;
+	}
+
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv rotationalAlignAxis 1")
+		-on2 ("optionVar -iv rotationalAlignAxis 2")
+		-on3 ("optionVar -iv rotationalAlignAxis 3")
+		-select $axis
+		rotationalAlignAxisRadio;
+
+	string $helpTag = "orientToVertTool";
+	toolPropertySetCommon $toolName "orientToVert.xpm" $helpTag;
+	toolPropertySelect "orientToVertTool";
+}
+
+	
+global proc rotationalAlign(string $Selection1[], string $Selection2[], int $axis){
+	//string $vertices[];
+	//$vertices = `ls -sl`;
+	
+	string $shape[] = `listRelatives -f -parent $Selection1[0]`;  //added full path
+	string $transform[] = `listRelatives -f -parent $shape[0]`;  //added full path
+	string $moveObject = $transform[0];
+
+	float $point1[3];
+	float $point2[3];
+	float $point3[3];
+
+	$point1 = `pointPosition $Selection1[0]`;
+
+	$point2 = `xform -q -ws -scalePivot $moveObject`;
+
+	$point3 = `pointPosition $Selection2[0]`;
+
+	float $floatDirection1[3];
+	float $floatDirection2[3];
+
+	for ($i = 0; $i < 3; $i++ ){
+		$floatDirection1[$i] = $point1[$i] - $point2[$i];
+		$floatDirection2[$i] = $point3[$i] - $point2[$i];
+		if( $i == ($axis-1) ){
+			$floatDirection1[$i] = 0;
+			$floatDirection2[$i] = 0;
+		}
+	}
+
+	vector $vectorDirection1;
+	vector $vectorDirection2;
+
+	$vectorDirection1 = $floatDirection1;
+	$vectorDirection2 = $floatDirection2;
+
+	vector $cross;
+	$cross = `cross $vectorDirection1 $vectorDirection2`;
+
+	normalize($vectorDirection1);
+	normalize($vectorDirection2);
+
+
+	float $angle;
+	$angle = `angle $vectorDirection1 $vectorDirection2`;
+
+	switch ($axis){
+		case 1:
+			if ($cross.x < 0 ){
+				$angle = (-$angle);
+			}
+			break;
+		case 2:
+			if ($cross.y < 0 ){
+				$angle = (-$angle);
+			}
+			break;
+		case 3:
+			if ($cross.z < 0 ){
+				$angle = (-$angle);
+			}
+			break;
+	}
+	$degree = rad_to_deg($angle);
+	print $degree;
+
+	switch($axis){
+		case 1:
+			rotate -r -os $degree 0 0 $moveObject;
+			break;
+
+		case 2:
+			rotate -r -os 0 $degree 0 $moveObject;
+			break;
+
+		case 3:
+			rotate -r -os 0 0 $degree $moveObject;
+			break;
+	}
+	//select $vertices;
+}
+
+
+proc orientToVertToolCtx(){
+	
+	scriptCtx
+		-title "Orient To Vertex Tool"
+		//-image1 "polyWedgeFace.png"
+		-showManipulators false
+		-baseClassName "orientToVertTool"
+		-toolCursorType "tumble"
+		-totalSelectionSets 2
+		
+		-cumulativeLists false
+		-expandSelectionList true
+		//-fcs ("snapNearPoint $moveObject $axis")
+		//-fcs ("rotationalAlign $Selection1 $Selection2 $axis")
+		-fcs ("rotationalAlign $Selection1 $Selection2 `optionVar -q rotationalAlignAxis`")
+
+		-setNoSelectionPrompt "Select alignment vertex on object to rotate."
+		//-setSelectionPrompt ("Select additional vert " +
+		//	"and press Enter to complete")
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 1
+		-polymeshVertex true
+		
+		-setNoSelectionPrompt "Select alignment vertex on target object."
+		//-setSelectionPrompt ("Select additional vert " +
+		//	"about and press Enter to complete")
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 1
+		-polymeshVertex true		
+		
+		-exitUponCompletion false
+		//-toolFinish ("rotationalAlign $Selection1 $Selection2 2")
+		orientToVertTool;
+	
+}
+
+
+global proc orientToVertTool(){
+
+	if (!`contextInfo -exists orientToVertTool`)
+	{
+		orientToVertToolCtx;
+	}
+	setToolTo orientToVertTool;
+	
+}

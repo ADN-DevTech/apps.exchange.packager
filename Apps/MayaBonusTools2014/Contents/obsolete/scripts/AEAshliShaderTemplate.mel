@@ -1,0 +1,576 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//  Procedure Name:
+//		AEashliShaderTemplate
+//
+//  Description Name;
+//		Creates the attribute editor controls for the Ashli shader node
+//
+//  Input Value:
+//		nodeName 
+//
+//  Output Value:
+//		None
+// 
+
+//
+// File Reload / Edit / View functions
+//
+
+global proc AEashliShaderReloadEditView (string $ftn)
+{
+	rowLayout -nc 5  -cl5  "center" "center" "center" "center" "center";
+		text -label "";
+		button -label (uiRes("m_AEAshliShaderTemplate.kReload")) 
+			   -c ("AEashliShaderReloadCmd " + $ftn) fileReloadBtn;
+		button -label (uiRes("m_AEAshliShaderTemplate.kEdit")) 
+			   -c ("AEashliShaderEditCmd " + $ftn) fileEditBtn;
+		button -label (uiRes("m_AEAshliShaderTemplate.kView")) 
+			   -c ("AEashliShaderViewCmd " + $ftn) fileViewBtn;
+		text -label "";
+		setParent ..;
+}
+
+global proc AEashliShaderReloadReplace (string $ftn)
+{
+	button -e -c ("AEashliShaderReloadCmd " + $ftn) fileReloadBtn;
+}
+
+global proc AEashliShaderReloadCmd (string $shaderAttrName)
+{
+	// Reseting the attribute will cause a reload
+    string $currFile = `getAttr ($shaderAttrName+"Path")`;
+	if ($currFile != "") {	
+		setAttr $shaderAttrName -type "string" $currFile;
+	}
+}
+
+global proc AEashliShaderEditCmd (string $shaderAttrName)
+{
+    string $currFile = `getAttr ($shaderAttrName+"Path")`;
+	if ($currFile != "") {		
+	
+		string $editCommand = `optionVar -q ashliEditCommandOptionVar`;
+		if (`about -nt`)
+			system("start " + $editCommand + " " + $currFile);
+		else if (`about -li`)
+			system("xterm -e \"" + $editCommand + $currFile + "\" &");
+		else if (`about -mac`)
+			system($editCommand + " " + $currFile + " &");
+	
+		// Assume something changed and reload it.
+		setAttr $shaderAttrName -type "string" $currFile;
+	}
+}
+
+global proc AEashliShaderViewCmd (string $shaderAttrName)
+{
+    string $currFile = `getAttr ($shaderAttrName+"Path")`;
+	if ($currFile != "") {
+
+		string $viewCommand = `optionVar -q ashliViewCommandOptionVar`;
+		if (`about -nt`)
+			system("start " + $viewCommand + " " + $currFile);
+		else if (`about -li`)
+			system("xterm -e \"" + $viewCommand + $currFile + "\" &");
+		else if (`about -mac`)
+			system($viewCommand + " " + $currFile + " & ");
+	}
+}
+
+
+//
+//  Procedure Name:
+//		AEassignFilenameCB
+//
+
+global proc int AEassignFilenameCB( string $fileAttribute,
+                                 string $filename,
+                                 string $fileType )
+{
+	//
+	// Description:
+	//	This procedure is called when the user changes the file texture name in
+	//	the edit box in the file texture attribute editor (whether by manually
+	//	typing it in, or by using the file browser to choose a new file).
+	//
+	//	This procedure updates the file texture node file name attribute 
+	//
+
+	setAttr $fileAttribute -type "string" $filename;
+
+	string $currentDir = `workspace -q -dir`;
+    retainWorkingDirectory ($currentDir);
+
+	// Extract the name of the node from the node.attribute name
+	//
+	string $tokenArray[];
+	tokenize($fileAttribute, ".", $tokenArray);
+
+	string $node = $tokenArray[0];
+	
+	AEashliTechniqueLayout( $node );	
+
+	return true;
+}
+
+//
+//  Procedure Name:
+//		AEashliShaderBrowser
+//
+
+global proc AEashliShaderBrowser( string $cmd )
+{
+    string  $workspace = `workspace -q -fn`;
+    setWorkingDirectory $workspace "shaders" "shaders";
+	
+	fileBrowser ($cmd, "Open", "shaders", 0);
+}
+
+//
+//  Procedure Name:
+//		AEashliShaderNameNew 
+//
+
+global proc AEashliShaderNameNew (string $fileAttribute)
+{
+	setUITemplate -pst attributeEditorTemplate;
+	rowLayout -nc 3 shaderNameLayout;
+		text -label (uiRes("m_AEAshliShaderTemplate.kShaderNameNew"));
+		textField shaderNameField;
+			symbolButton -image "navButtonBrowse.png" browser;
+	setParent ..;
+
+	// Reload / Edit / View buttons
+	AEashliShaderReloadEditView $fileAttribute;
+
+    // Technique
+    separator;
+    columnLayout -adj 1 ashliTechniques;
+    setParent ..;
+
+	setUITemplate -ppt;
+	
+    AEashliShaderNameReplace $fileAttribute;
+}
+
+//
+//  Procedure Name:
+//		AEashliShaderNameReplace
+//
+
+global proc AEashliShaderNameReplace (string $fileAttribute)
+{
+	connectControl -fileName shaderNameField $fileAttribute;
+
+    string $command = "AEassignFilenameCB "+" "+$fileAttribute;
+
+    button -e -c
+		("AEashliShaderBrowser \"" + $command + "\"" ) browser;
+
+	button -e -c ("AEashliShaderReloadCmd " + $fileAttribute) fileReloadBtn;
+	button -e -c ("AEashliShaderEditCmd " + $fileAttribute) fileEditBtn;
+	button -e -c ("AEashliShaderViewCmd " + $fileAttribute) fileViewBtn;
+	
+    // Extract the name of the node from the node.attribute name
+	//
+	string $tokenArray[];
+	tokenize($fileAttribute, ".", $tokenArray);
+	string $node = $tokenArray[0];
+		
+	AEashliTechniqueLayout( $node );
+}
+
+//
+//  Procedure Name:
+//		AEashliNakedTextureNameNew 
+//
+
+global proc AEashliNakedTextureNameNew (string $texNameAttrib)
+{
+    // Extract the name of the node from the node.attribute name
+	//
+	string $tokenArray[];
+	tokenize($texNameAttrib, ".", $tokenArray);
+
+	string $node = $tokenArray[0];
+    string $attrib = $tokenArray[1];
+
+	setUITemplate -pst attributeEditorTemplate;
+	rowLayout -nc 2 texNameLayout;
+		text -label $attrib;
+		textField texNameField;
+			popupMenu ("texNamePopup"+$attrib);
+	setParent ..;
+	setUITemplate -ppt;
+	
+	connectControl texNameField $texNameAttrib;
+
+    AEashliNakedTextureNameReplace $texNameAttrib;
+}
+
+//
+//  Procedure Name:
+//		ashliGetObjectAttribsForShader
+//
+
+global proc string[] ashliGetObjectAttribsForShader( string $shader, string $attribType )
+{
+	string $uniqueAttribNames[];
+	string $attribNames[];
+
+	string $shadingEngines[] = `listConnections -d 1 -s 0 $shader`;
+	for ($i=0; $i< size($shadingEngines); $i++)
+	{
+		string $engineName = $shadingEngines[$i];
+		string $nType= `nodeType $engineName`;
+		if ($nType == "shadingEngine")
+		{
+			string $objs[] = `listConnections -type "mesh" $engineName`;
+			string $attribs;
+			if ($attribType == "all")
+			{
+				// Get uv sets
+				if( `exists polyUVSet` )	
+					$attribNames = `polyUVSet -q -auv $objs`;
+
+				// Get color sets
+				if( `exists polyColorSet` )	
+				{
+					string $attribNames1[] = `polyColorSet -q -acs $objs`;
+					int $sizeA = size($attribNames);
+					for ($x in $attribNames1)
+					{
+						$attribNames[ $sizeA ] = $x;
+						$sizeA++;
+					}
+				}
+			}
+			else if ($attribType == "uv")
+			{
+				if( `exists polyUVSet` )	
+					$attribNames = `polyUVSet -q -auv $objs`;
+			}
+			else if ($attribType == "color")
+			{
+				if( `exists polyColorSet` )	
+					$attribNames = `polyColorSet -q -acs $objs`;
+			}
+			break;
+		}
+	}	
+	
+	string $attribName;
+	for ( $attribName in $attribNames )
+	{
+		int $found = 0;
+		for ($existingName in $uniqueAttribNames)
+		{
+			if ($attribName == $existingName)
+			{
+				$found = 1;
+				break;
+			}
+		}
+		if ($found == 0)
+			$uniqueAttribNames[ size( $uniqueAttribNames ) ] = $attribName;			
+	}
+	
+	return $uniqueAttribNames;
+}
+
+//
+//  Procedure Name:
+//		ashliGetObjectAttribsForShaderHyper
+//  Description:
+//		Works much faster but upsets the selection list if components are displayed.
+//
+
+global proc string[] ashliGetObjectAttribsForShaderHyper( string $shader, string $attribType )
+{
+	string $attribNames[];
+
+	string $prevSel[] = `ls -sl`;
+
+	hyperShade -objects $shader;
+	string $objs[] = `ls -sl`;
+	
+	if ($attribType == "uv")
+	{
+		if( `exists polyUVSet` )	
+			$attribNames = `polyUVSet -q -auv $objs`;
+	}
+	else if ($attribType == "color")
+	{
+		if( `exists polyColorSet` )	
+			$attribNames = `polyColorSet -q -acs $objs`;
+	}
+	select $prevSel;
+	
+	return $attribNames;
+}
+
+
+//
+//  Procedure Name:
+//		AEashliNakedTextureNameReplace
+//
+
+global proc AEashliNakedTextureNameReplace (string $texNameAttrib)
+{
+	// We trace the attribute, so the popup
+	// menu does not require a scriptJob.
+	connectControl texNameField $texNameAttrib;
+
+    // Extract the name of the node from the node.attribute name
+	//
+	string $tokenArray[];
+	tokenize($texNameAttrib, ".", $tokenArray);
+
+	string $node = $tokenArray[0];
+    string $attrib = $tokenArray[1];
+
+
+	// Remove any old popup menu items, and add new ones
+	string $thePopupName = ("texNamePopup"+$attrib);
+	popupMenu -e -deleteAllItems  $thePopupName;
+	setParent -menu $thePopupName;
+
+	// Add in basic menu items
+	string $cmd = ("ashliUpdateTextureNamePopup " + $texNameAttrib);
+	int $includeTexCoords = 1;
+	if ($attrib == "Color0") 
+		$includeTexCoords = 0;
+	if ($attrib == "Color1")
+		$includeTexCoords = 0;
+	if ( $includeTexCoords  )		
+		menuItem -label (uiRes("m_AEAshliShaderTemplate.kDefaultUVSet")) -ec 1 -c ($cmd + " map1");
+	menuItem -label (uiRes("m_AEAshliShaderTemplate.kTangent")) -ec 1 -c ($cmd + " tangent");
+	menuItem -label (uiRes("m_AEAshliShaderTemplate.kBinomial")) -ec 1 -c ($cmd + " binormal"); 
+	menuItem -label (uiRes("m_AEAshliShaderTemplate.kNormal")) -ec 1 -c ($cmd + " normal");
+	
+	// Add in object specific menu items	
+	menuItem -divider 1;
+
+	string $objectItems[];
+	if ($includeTexCoords)
+		$objectItems = `ashliGetObjectAttribsForShader $node all`;
+	else
+		$objectItems = `ashliGetObjectAttribsForShader $node color`;
+	for ($objItem in $objectItems)
+	{
+		menuItem -label $objItem -ec 1 -c ($cmd + " " + $objItem);
+	}
+}
+
+global proc ashliUpdateTextureNamePopup( string $texNameAttrib, string $value )
+{
+	string $cmd = ("setAttr -type \"string\" " + $texNameAttrib + " " + $value);	
+	evalDeferred $cmd;
+}
+
+//
+//  Procedure Name:
+//		AEashliTechniqueLayout
+//
+global proc AEashliTechniqueLayout( string $shaderNode 
+)
+{                                      
+    // Get list of technique names 
+	string $techniqueListAttrib = ($shaderNode + ".techniqueList");
+	string $techniqueListAttribValue = `getAttr -as $techniqueListAttrib`;	
+	int $sizeTechniqueList = size($techniqueListAttribValue);
+
+	string $techniqueStrings[];
+	int $numTechniques = 0;
+	if ($sizeTechniqueList)
+	{		
+		// Extract the names of the techniques
+		tokenize($techniqueListAttribValue, " ", $techniqueStrings);
+	
+		$numTechniques = size($techniqueStrings);
+	}
+    
+    if ( $numTechniques == 0 )
+    {
+        $techniqueStrings[0] = "None defined";
+        $numTechniques = 1;
+    }
+
+    // Get list of existing controls.
+    string $saControls[] = `layout -q -childArray ashliTechniques`;
+    int    $nControl = size( $saControls );
+
+    setParent ashliTechniques;
+    setUITemplate -pst attributeEditorTemplate;
+
+    // Delete any surplus controls, in LIFO order to avoid crashing Maya.
+    while ( $nControl  )
+        deleteUI $saControls[ --$nControl ];
+
+    
+    string $updateCmd = "AEashli_chooseTechnique " + $shaderNode;        
+    
+    // Create or update a radio button per technique.
+    string $activeTechnique = `getAttr ( $shaderNode + ".technique" )`;
+    int    $i;
+    for ( $i=0; $i < $numTechniques; $i++ )
+    {
+        string $techButton = "radioTechnique" + $i;
+        if ( $i >= $nControl )
+        { 
+            if ( $i == 0 )
+                radioButtonGrp -numberOfRadioButtons 1
+                               -label (uiRes("m_AEAshliShaderTemplate.kTechnique"))
+                               $techButton;
+            else
+                radioButtonGrp -numberOfRadioButtons 1
+                               -shareCollection radioTechnique0
+                               $techButton;
+        }
+        string $techLabel = $techniqueStrings[$i];
+        radioButtonGrp -edit
+                       -label1  $techLabel
+                       -on1     ( $updateCmd + " \"" + $techLabel + "\"" )
+                       -select  ( $techLabel == $activeTechnique )
+                       -enable  ( $techLabel != "None defined" )
+                       $techButton;
+    }
+    setParent ..;
+    setUITemplate -ppt;
+}                                      
+
+
+//
+//  Procedure Name:
+//		AEashli_chooseTechnique
+//
+global proc AEashli_chooseTechnique( string $shaderNode, string $sChoice )
+{   
+	if ($sChoice == "None defined")
+		return;
+                                   
+    string $sCmd = "setAttr -type \"string\" " +
+                      $shaderNode + ".technique" +
+                      " \"" + $sChoice + "\"";
+    evalDeferred $sCmd;                                                       
+}                                      
+
+
+//
+//  Procedure Name:
+//		AEashliShaderTemplate
+//
+
+global proc AEAshliShaderTemplate ( string $nodeName )
+{
+	// Add option variables for "edit" and "view" commands,
+	// with a default value.
+	string $defaultShaderEditor;
+	if (`about -nt`)
+		$defaultShaderEditor = "notepad";
+	else if (`about -li`)
+		$defaultShaderEditor = "vi";
+	else if (`about -mac`)
+		// Use open -e to force using TextEdit 
+		$defaultShaderEditor = "open -e";
+	
+	if (!`optionVar -exists ashliEditCommandOptionVar`)
+		optionVar -stringValue ashliEditCommandOptionVar $defaultShaderEditor;
+	if (!`optionVar -exists ashliViewCommandOptionVar`)
+		optionVar -stringValue ashliViewCommandOptionVar $defaultShaderEditor;
+
+	AEswatchDisplay $nodeName;
+	editorTemplate -beginScrollLayout;
+		editorTemplate -beginLayout (uiRes("m_AEAshliShaderTemplate.kShader")) -collapse 0;
+			editorTemplate -callCustom "AEashliShaderNameNew" 
+						"AEashliShaderNameReplace" 
+						"shader";
+
+		editorTemplate -endLayout;
+
+        editorTemplate -beginLayout (uiRes("m_AEAshliShaderTemplate.kShaderMeshData")) -collapse 1;
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "Color0";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "Color1";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord0";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord1";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord2";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord3";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord4";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord5";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord6";
+            editorTemplate -callCustom "AEashliNakedTextureNameNew"
+                        "AEashliNakedTextureNameReplace"
+                        "TexCoord7";
+        editorTemplate -endLayout;
+
+	// suppressed attributes
+	editorTemplate -suppress "outColor";
+	editorTemplate -suppress "outTransparency";
+	editorTemplate -suppress "outMatteOpacity";
+	editorTemplate -suppress "outGlowColor";
+    editorTemplate -suppress "caching";
+    editorTemplate -suppress "nodeState";
+    editorTemplate -suppress "materialAlphaGain";
+	editorTemplate -suppress "enableHwShading";
+	editorTemplate -suppress "miDeriveFromMaya";
+    editorTemplate -suppress "miShinyness";
+    editorTemplate -suppress "miAngle"; 
+	editorTemplate -suppress "miSpreadX";
+    editorTemplate -suppress "miSpreadY";
+    editorTemplate -suppress "miWhiteness";
+    editorTemplate -suppress "miSpecularColor"; 
+	editorTemplate -suppress "miReflectivity";
+    editorTemplate -suppress "miRefractiveIndex";
+    editorTemplate -suppress "miRefractions"; 
+	editorTemplate -suppress "miAbsorbs";
+    editorTemplate -suppress "miDiffuse";
+    editorTemplate -suppress "miColor";
+    editorTemplate -suppress "miTransparency"; 
+	editorTemplate -suppress "miTranslucence";
+    editorTemplate -suppress "miTranslucenceFocus";
+    editorTemplate -suppress "miNormalCamera";
+    editorTemplate -suppress "technique";
+
+
+	editorTemplate -addExtraControls;
+	editorTemplate -endScrollLayout;
+}

@@ -1,0 +1,43 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+global proc string bt_spiral( float $ht, float $radius, float $numRounds )
+//
+//	Description:
+//		This proc creates a spiral centred about the origin, with a specific
+//		height, radius and number of rounds/turns/cycles.
+//
+//		This is done by creating a cylinder of the correct size, then
+//		creating a curve-on-surface on the cylinder (which is in
+//		the form of a spiral), then duplicating the curve-on-surface
+//		to get a 3D spiral.
+//
+{
+	string $cylinder[] = `cylinder -ch off -ax 0 1 0 -p 0 0 0 -r 1.0 -hr 1.0`;
+	scale $radius $ht $radius $cylinder[0];
+	string $cos = `curveOnSurface -d 1 -uv 0.0 0.0 -uv 1.0 ($numRounds*8.0) $cylinder[0]`;
+	string $duplicatedCrv[] = `duplicateCurve -ch off $cos`;
+
+	delete $cos;
+	delete $cylinder[0];
+
+	return $duplicatedCrv[0];
+}

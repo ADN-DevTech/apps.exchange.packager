@@ -1,0 +1,228 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//
+// bt_extrudeFaceAndPreserveUVs.mel
+//
+//
+// Creation Date:      ( 01/20/11 ) 
+
+
+
+global proc bt_extrudeFaceAndPreserveUVs () {
+
+	string $nodeName[] = `polyExtrudeFacet`;
+	string $face[] = `getFaces`;
+	//string $UVs[] = `getUVs`;
+	
+	bt_preserveUVs;
+	
+	select -replace $face;
+    select -add $nodeName[0];
+	//setAttr ($nodeName[0]+".offset") 0.1;
+
+
+	//select -add $face;
+	ShowManipulators;
+	
+
+}
+
+
+global proc bt_preserveUVs()
+
+{
+	string $histNode;
+	string $matchTest;
+	string $selectedObject[];
+	string $polyObject[];
+
+	//keep track of what is selected
+	$selected = `ls -sl`;
+	
+	//convert to object if components selected
+	$selectedObject = `selectedNodes -dagObjects`;
+	select -r $selectedObject[0];
+	
+	//Check selected for poly
+	$selectedObject = `filterExpand -sm 12`;
+
+	if (`size $selectedObject` != 1)
+		error "Preserve UVs requires that a single mesh or mesh component be selected.";
+
+	
+	tokenize $selectedObject[0] "|" $polyObject;
+		
+	//Get list of history nodes
+	$historyList = `listHistory $polyObject[0]`;
+	for ($histNode in $historyList)
+		{
+		//If a previous preserveUV node is found confirm to delete		
+		if (`gmatch $histNode "preserveUV*"`)
+			{
+			print ("Found existing preserveUVs node " + $histNode);
+			string $checkResponse = `confirmDialog -title "Confirm" -message "WARNING: A preserveUVs node is already connected to this object.  History will be collapsed up to the old preserveUVs node and a new one will be added.  Do you want to continue?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+			if ($checkResponse == "No") 
+				{
+				select -r $selected;
+				error "Operation  Cancelled";
+				}
+			else
+				{
+				//Delete history and remove any remaining UVPreserve meshes
+				//DeleteHistory;
+				collapseUpstreamHistory($histNode);
+				delete ($polyObject[0]+"_preserveUVObject*");
+				}
+			}
+		}
+
+	//Create duplicate of selected mesh as UV reference object
+	$dup = `duplicate -name ($polyObject[0]+"_preserveUVObject")`;
+	hide;
+
+
+	//Transfer UVs from dup object to original
+	transferAttributes -transferUVs 2 -sampleSpace 1 $dup $polyObject[0];
+
+	//Rename and modify attrs on transferAttributes node to act as preserveUVs node
+	$historyList = `listHistory $polyObject[0]` ;
+	$matchTest = $historyList[1];
+	
+	if (`gmatch $matchTest "transferAttributes*"`)
+		{
+		$lockNode = `rename $historyList[1] "preserveUVs#"`;
+
+		setAttr -cb true ($lockNode+".transferUVs");
+
+		setAttr -keyable false -channelBox false ($lockNode+".en");
+		setAttr -keyable false -channelBox false ($lockNode+".ssx");
+		setAttr -keyable false -channelBox false ($lockNode+".ssy");
+		setAttr -keyable false -channelBox false ($lockNode+".ssz");
+
+		setAttr -lock true ($lockNode+".cch");
+		setAttr -lock true ($lockNode+".nds");
+		setAttr -lock true ($lockNode+".en");
+		setAttr -lock true ($lockNode+".pos");
+		setAttr -lock true ($lockNode+".col");
+		setAttr -lock true ($lockNode+".mtd");
+		setAttr -lock true ($lockNode+".dis");
+		setAttr -lock true ($lockNode+".tol");
+		setAttr -lock true ($lockNode+".ssx");
+		setAttr -lock true ($lockNode+".ssy");
+		setAttr -lock true ($lockNode+".ssz");
+		setAttr -lock true ($lockNode+".fuv");
+		setAttr -lock true ($lockNode+".clb");
+		setAttr -lock true ($lockNode+".sampleSpace");
+		}
+	else
+		{
+		select -r $selected;	
+		error "transferAttributes node not found";
+		}
+		
+	warning "UVs will be preserved in their current state.  If any edits are made to the topology of the mesh then preserveUVs will need to be re-applied";
+
+	select -r $selected;
+
+}
+
+
+global proc collapseUpstreamHistory(string $historyNode)
+{	
+	// Works on a dependency node with a single output that produces
+	// a polygon shape.  All of the nodes upstream of $historyNode
+	// including the node itself will be deleted and their operations
+	// "collapsed".  The nodes following the selected one are not affected.
+	
+	string $toPlug[] = `listConnections -p on -d on -s off $historyNode`;
+	if( size($toPlug) < 1 ) {
+		error( "The node must be connected to another one" );
+		return;
+	}
+
+	string $fromPlug[] = `listConnections -p on -d off -s on $toPlug[0]`;
+	if( size($fromPlug) < 1 ) {
+		error( "Impossible: there is a previous node." );
+		return;
+	}
+
+	// So, we have to break a connection from fromPlug to toPlug.
+	// First, make a shape, and put it under the transform.
+
+	string $inTheFuture[] = `listHistory -f on $historyNode`;
+	if( size($fromPlug) < 1 ) {
+		error( "Impossible: there is future." );
+		return;
+	}
+
+	string $shape;
+	int $foundIt = false;
+	for ($shape in $inTheFuture) {
+		if( "mesh" == `nodeType $shape` ) {
+			$foundIt = true;
+			break;
+		}
+	}
+
+	if( !$foundIt ) {
+		error( "Cannot find the polygon shape in the future of this node.");
+		return;
+	}
+
+	string $trans[0] = `listRelatives -p $shape`;
+	if( size($trans) < 1 ) {
+		error( "Impossible: there must be a parent transform" );
+		return;
+	}
+
+	string $newShapeName = $shape + "Collapse#";
+	string $newShape = `createNode mesh -n $newShapeName -p $trans[0]`;
+
+	disconnectAttr $fromPlug[0] $toPlug[0];
+	connectAttr $fromPlug[0] ($newShape + ".i");
+	connectAttr ($newShape + ".o") $toPlug[0];
+
+	// Kick the evaluate, just in case:
+	getAttr ($shape + ".boundingBoxMinZ");
+	delete -ch $newShape;
+
+	// Kick the evaluate again:
+	getAttr ($shape + ".boundingBoxMinZ");
+
+	// Make the shape intermediate, and select the transform.
+	setAttr ($newShape + ".io") yes;
+	select -r $trans[0];
+
+	print "Upstream History collapsed\n";
+}
+
+
+
+
+
+

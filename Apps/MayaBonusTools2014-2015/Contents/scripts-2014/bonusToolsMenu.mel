@@ -1,0 +1,1430 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+//
+// international treaties.
+//
+
+
+//
+// bonusToolsMenu.mel
+//
+proc bonusToolsMenuGeneral(string $os){
+
+
+		
+	///////////////////////////////////
+	// Modify Menu
+	///////////////////////////////////
+	
+	menuItem -l "Modify"
+		-p bonusToolsMenu
+		-to 1
+		-subMenu true
+		-aob true
+		btModifyMenu;
+
+    	menuItem -l "Drag Move Tool"
+    		-ann "Click drag in the viewport to move selected object(s) on current XZ plane.  CTRL click to drag vertically along Y.  Hold v or c to snap.  Press y to reactivate for new selection"
+    		-echoCommand true
+    		-c "bt_clickDragObj"
+    		dragMoveItem;
+    		
+    	menuItem -l "Move Selected to Camera   Ctrl+f"
+    		-ann "Move the selected object(s) in front of active camera"
+    		-echoCommand true
+		    -c "python \"from bt_moveObjToCamera import *\";python \"bt_moveObjToCamera()\""
+    		moveToCamItem;    		
+
+       	menuItem -divider true; 
+    		
+      	menuItem -l "Proportional Transform"
+    		-ann "Transform selected objects proportionally"
+    		-echoCommand true
+    		-c "performPropMove 0"
+    		propMoveItem;
+    		
+		menuItem -optionBox true
+			-label "Proportional Transform Option Box"
+			-annotation "Proportional Transform Option Box"
+			-command "performPropMove 1"
+			propMoveOptItem;
+
+    	menuItem -l "Randomize Transforms..."
+    		-ann "Randomize the transform values of the seelcted objects or components"
+    		-echoCommand true
+		    -c "python \"import bt_randomizer\";python \"bt_randomizer.start()\""
+		    randomTransformItem;	
+
+    	menuItem -l "Store Transform Values..."
+    		-ann "Store the current transform values for the selected object(s) to the current shelf (same as storePose)"
+    		-echoCommand true
+    		-c "bt_storePose"
+    		storeAttributesItem;
+    		
+    	menuItem -l "Mirror Translate/Rotate Values..."
+    		-ann "Mirror the tranlate and rotate values for selected object(s) across the specified axis"
+    		-echoCommand true
+    		-c "bt_mirrorTranslateRotate"
+    		mirrorTranslateRotateItem;
+
+
+    	menuItem -l "Bounding Box Scale..."
+    		-ann "Adjust the scale and pivot of selected objects based on the bounding box."
+    		-echoCommand true
+    		-c "boundingBoxScaleWindow"
+    		;			
+
+		menuItem -l "Orient Mesh To Vert/Edge Tool"
+    		-ann "Rotate a mesh so that the selected vertex touches or points to the target vert/edge of another mesh."
+    		-echoCommand true
+    		-image "orientToEdge.xpm"
+    		-c "orientToTool"
+    		-dragDoubleClickCommand "orientToTool;toolPropertyWindow"
+    		;
+    		
+		menuItem -optionBox true
+			-label "Orient Mesh To Vert/Edge Tool Option Box"
+			-annotation "Orient To Vert/Edge Tool Option Box"
+			-image "orientToEdge.xpm"
+			-command "orientToTool;toolPropertyWindow"
+			;
+			
+       	menuItem -divider true; 
+    		
+       	menuItem -l "Mirror Soft Mod Node..."
+    		-ann "Mirror selected soft mod node"
+    		-echoCommand true
+    		-c "bt_mirrorSoftModUI"
+    		bt_mirrorSoftModItem;
+ 
+    	menuItem -divider true;  
+
+       	menuItem -l "Snap and Lock Curve Points"
+    		-ann "Lock one or more curve points or edit points to a locator (not for use with CVs)"
+    		-echoCommand true
+    		-c "bt_lockCurvePoints"
+    		lockCurvePointsItem;    		    		
+
+		
+    	menuItem -divider true;  
+		
+		menuItem -l "Move Pivot To Component Center"
+        	-ann "Move the pivot point of the object to the center of the selected components"
+        	-echoCommand true
+        	-c "moveObjectPivotToComponentCentre;"
+        	moveObjectPivotToComponentCentreItem;
+	
+		
+		menuItem -l "Copy Pivot From Last Selected"
+        	-ann "Copy the pivot location of the last selected object and paste to other selected objects"
+        	-echoCommand true
+        	-c "bt_copyPivotFromLastSelected;"
+        	copyPivotFromLastSelectedItem;
+        	
+		
+		menuItem -l "Align Pivot(s) To Bounding Box..."
+        	-ann "Align pivots of selected object to their bounding box(s)"
+        	-echoCommand true
+        	-c "bt_alignPivotToBoundingBoxWin;"
+        	alignPivotToBoundingBoxItem;
+                	
+       	menuItem -divider true;
+    
+    	menuItem -l "Paint Geometry Tool..."
+    		-ann "Paint specified geometry onto selected surface"
+    		-echoCommand true
+    		-c "ScriptPaintTool;artUserPaintCtx -e -tsc \"geometryPaint\" `currentCtx`;"
+    		geometryPaintItem;
+
+		
+	setParent -m ..;
+	
+	///////////////////////////////////
+	// Create Menu
+	///////////////////////////////////
+	
+	menuItem -l "Create"
+		-p bonusToolsMenu
+		-to 1
+		-subMenu true
+		-aob true
+		btCreateMenu;   		
+ 
+	menuItem -l "Create Spiral Curve"
+		-ann "Create a spiral curve"
+		-echoCommand true
+		-c "performSpiral 0"
+		spiralCurveItem;
+
+	menuItem -optionBox true
+		-label "Create Spiral Curve Option Box"
+		-annotation "Create Spiral Curve Option Box"
+		-command "performSpiral 1"
+		spiralCurveOptItem;
+
+	menuItem -l "Create Circle Under Transform"
+		-ann "Create a circle under the selected transform node"
+		-echoCommand true
+		-c "createCircleUnderTransform"
+		createCircleUnderTransformItem;
+
+
+	menuItem -divider true;
+
+	if (`pluginInfo -q -l "PolyTools"`){
+		menuItem -l "Create Digital Number Node"
+			-ann "Create polygonal geometry in the shape of a digital readout for displaying values in the viewport ."
+			-echoCommand true
+			-c "polyDigits -n polyReadout#"
+			polyDigitsItem;
+	}
+	else menuItem -l "Create Digital Number Node"  -en 0 -ann "Create polygonal geometry in the shape of a digital readout for displaying values in the viewport (PolyTools.mll must be loaded - see BonusTools section of the Plug-in Manager.)";
+	
+
+	if (`pluginInfo -q -l "stringFormatNode"`){
+		menuItem -l "Create Formatted Text Node"
+			-ann "Create a node that converts input values into various formats and displays in the viewport as 3d text."
+			-echoCommand true
+			-c "bt_createFormatedText"
+			stringFormatItem;
+	}
+	else menuItem -l "Create Formatted Text Node"  -en 0 -ann "Create a node that converts input values into various formats and displays in the viewport as 3d text (stringFormatNode.mll must be loaded - see BonusTools section of the Plug-in Manager.)";
+
+ 	menuItem -divider true;
+
+	if (`pluginInfo -q -l "sun"`){
+		menuItem -l "Create Sun Light"
+			-ann "Creates a sun light node with adjustible attributes for lattitude, day of year and time."
+			-c "sunLight" -i "directionallight.png"
+			sunItem;
+	}
+	else menuItem -l "Create Sun Light" -en 0 -ann "Creates a sun light node with adjustible attributes for lattitude, day of year and time. (sun.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+	   		
+	menuItem -divider true;
+	
+	menuItem -l "Utility Nodes"
+		-to 1
+		-subMenu true
+		utilityNodesMenu;
+	
+	if (`exists closestPointOnCurve`) {
+		menuItem -l "Create Closest Point on Curve Node"
+		-ann ("Create a node to return information about the closest point on a selected curve")
+		-echoCommand true
+		-c "closestPointOnCurve"
+		closestPointOnCurveItem;
+	}
+	else menuItem -l "Create Closest Point on Curve Node" -en 0-ann "Create a node to return information about the closest point on a selected curve (closestPointOnCurve.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+
+    
+	if (`exists pointOnMesh`) {
+		menuItem -l "Create Point on Mesh Info Node"
+		-ann "Create a node to return mesh info for the selected mesh."
+		-echoCommand true
+		-c "pointOnMesh"
+		pointOnMeshInfoItem;
+	}
+	else menuItem -l "Create Point on Mesh Info Node" -en 0 -ann "Create a node to return mesh info for the selected mesh (pointOnMesh.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+
+
+
+	if (`pluginInfo -q -l "audioWave"`){
+		menuItem -l "Create Audio Wave Node"
+			-ann "Create a node that can drive channels based on an audio signal"
+			-echoCommand true
+			-c "createNode audioWave"
+			audioWaveItem;
+	}
+	else menuItem -l "Create Audio Wave Node" -en 0 -ann "Create a node that can drive channels based on an audio signal (audioWave.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+	
+	setParent -m ..;
+		
+
+ 	menuItem -divider true;
+
+	menuItem -l "Create Scene Annotation..."
+		-ann "Create an annotation/note that will save with the scene and be displayed when reopened"
+		-echoCommand true
+		-c "bt_createSceneAnnotation"
+		shelfCreateSceneAnnotateItem;
+		   
+ 	menuItem -divider true;
+   		
+	menuItem -l "Create Menu from Shelf"
+		-ann "Create a pull-down menu for the specified shelf"
+		-echoCommand true
+		-c "performShelfToMenu 0"
+		shelfToMenuItem;
+
+	menuItem -optionBox true
+		-label "Create Menu From Shelf Option Box"
+		-annotation "Create Menu From Shelf Option Box"
+		-command "performShelfToMenu 1"
+		shelfToMenuOptItem;	
+						
+	setParent -m ..;
+	
+	
+	///////////////////////////////////
+	// Display
+	///////////////////////////////////
+	
+	menuItem -l "Display"
+		-p bonusToolsMenu
+		-to 1
+		-subMenu true
+		-aob true
+		btDisplayMenu;
+    
+
+    	menuItem -l "Adjust Clipping Planes..."
+    		-ann "Adjust clipping planes for camera in the active viewport"
+    		-echoCommand true
+    		-c "bt_adjustClipPlanes"
+    		adjustClipPlanesItem;
+
+    	menuItem -divider true;
+    		
+    	menuItem -l "Toggle Selected Faces Display"
+    		-ann "Toggle Selected Faces Display: Selected Faces will be hidden. If nothing is selected, hidden facces will be shown."
+    		-echoCommand true
+    		-c "toggleHideShowFaces"
+    		toggleFacesItem;
+		    
+    	menuItem -l "Toggle Single/Double Sided"
+    		-ann "Toggle Single/Double Sided display of selected objects.  If nothing selected then toggle for all."
+    		-echoCommand true
+    		-c "toggleSingleDoubleSided"
+    		toggleSidedItem;
+	    
+    	menuItem -l "Toggle XRay Per Mesh/Surface"
+    		-ann "Toggle XRay display mode for selected objects."
+    		-echoCommand true
+    		-c "bt_toggleXRay"
+    		toggleXrayItem;
+    		
+      	menuItem -divider true;
+    
+    	menuItem -l "Toggle Vertex Distance HUD"
+    		-ann "Toggle the display of the distance between selected vertices."
+    		-echoCommand true
+    		-c "toggleVertDistanceHUD"
+    		;
+    
+    	menuItem -l "Toggle Edge Length HUD"
+    		-ann "Toggle the display of the selected edge's length."
+    		-echoCommand true
+    		-c "toggleEdgeLengthHUD"
+    		;
+    	
+		if (`pluginInfo -q -l "measure"`){
+			menuItem -l "Toggle Poly Surface Area HUD"
+				-ann "Measure the surface area of the selected poly objects"
+				//-c "measure -s -ver"
+				-c "togglePolyAreaHUD"
+				-i "surface.xpm"
+				surfaceItem;
+
+			menuItem -l "Toggle Poly Volume HUD"
+				-ann "Measure the volume of the selected poly objects"
+				//-c "measure -v -ver" 
+				-c "togglePolyVolumeHUD"
+				-i "volume.xpm"
+				volumeItem;
+		}
+		else{
+			menuItem -l "Toggle Poly Surface Area HUD"  -en 0 -ann "Print object Surface Area (measure.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";;
+
+			menuItem -l "Toggle Poly Volume HUD"  -en 0 -ann "Print object Volume (measure.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";;
+		}
+
+    	menuItem -divider true;
+
+    	menuItem -l "Vertex Color Display..."
+    		-ann "Vertex Color: Toggle vertex color display modes in all panels"
+    		-echoCommand true
+    		-c "bgVertexColorDisplayUI"
+    		vertexColorItem;
+    		
+    	menuItem -divider true;
+
+        uvEditorDisplayMenu;  //in both texture and display menus
+
+	setParent -m ..;
+	
+	///////////////////////////////////
+	// Window Menu
+	///////////////////////////////////
+	
+	menuItem -l "Window"
+		-p bonusToolsMenu
+		-to 1
+		-subMenu true
+		-aob true
+		btWindowMenu;
+
+
+    	menuItem -l "Scene Annotation..."
+    		-ann "Show scene annotation window."
+    		-echoCommand true
+    		-c "bt_createSceneAnnotation"
+    		shelfSceneAnnotateItem;
+					
+    	menuItem -divider true;
+    	
+       	menuItem -l "Attribute Collection..."
+    		-ann "Build custom UI for indirectly driving object attributes"
+    		-echoCommand true
+    		-c "ac"
+    		acItem;
+			
+    	menuItem -l "Attribute Editor Template Builder..."
+    		-ann "Customize the attribute editor with templates"
+    		-echoCommand true
+    	    -c "python \"import bt_aeTemplateBuilder\"; python \"bt_aeTemplateBuilder.simpleTemplateEditorUI()\""
+    		AETemplateEditorItem;
+
+    	menuItem -l "Assembly Manager..."
+    		-ann "UI-based Scene Assembly Authoring system"
+    		-echoCommand true
+    	    -c "python \"import pipeAssemblyManager as PIPEAM\"; python \"PIPEAM.PAMAssetEditInitialize()\""
+    		AssemblyManagerItem;
+
+    		
+   		menuItem -l "List Attributes..."
+			-ann "List selected objects attributes in a scrollable window."
+			-echoCommand true
+			-c "attrListWin"
+			longListItem;
+			        		
+    	menuItem -divider true; 
+	
+			menuItem -l "Filter Objects..."
+			-ann "List all objects in the scene and filter based on type."
+			-echoCommand true
+			-c "bt_filterActionWindow"
+			filterObjectsItem;		
+			
+		menuItem -l "Pattern Rename..."
+			-ann "Find and rename recurring patterns in long object names."
+			-echoCommand true
+			-c "bt_patternRename"
+			patternRenameItem;
+
+					
+    	menuItem -divider true;
+
+    	menuItem -l "Layer Viewer..."
+    		-ann "Layer Viewer Window"
+    		-echoCommand true
+    		-c "layerViewer"
+    		layerViewerItem;
+
+    	menuItem -divider true;
+		
+    	if (`exists LT_UI`){
+    		menuItem -l "Layout Tools..."
+    			-ann "Open the Layout Tools UI"
+    			-echoCommand true
+    			-c "LT_UI"
+    			LayoutToolsItem;
+    
+    		menuItem -divider true;
+    	}
+        else menuItem -l "LayoutTools..."  -en 0 -ann "LayoutTools is a separate install which can found on The Area";
+    	    	
+        menuItem -divider true;
+
+		menuItem -l "Calculator..."
+		-ann "Calculator Window"
+		-echoCommand true
+		-c "calculator"
+		calculatorItem;
+			
+	menuItem -divider true;    	
+
+	menuItem -l "Script Editor"
+		-to 1
+		-subMenu true
+		scriptEditorMenu;
+
+		menuItem -l "Print Option Vars"
+			-ann "Print OptionVars in the Script Editor"
+			-echoCommand true
+			-c "bt_printOptionVars"
+			optionVarItem;
+
+		menuItem -l "Print Global Vars"
+			-ann "Print Global Variables in the Script Editor"
+			-echoCommand true
+			-c "bt_printGlobalVars"
+			globalVarItem;
+
+	setParent -m ..;
+	
+	
+		setParent -m ..;	
+	
+	menuItem -divider true;    	
+		 		
+
+		
+}
+
+
+	///////////////////////////////////
+	// MODELING TOOLS 
+	///////////////////////////////////
+	
+proc bonusToolsMenuModeling(string $os){
+
+
+
+	if (!`optionVar -exists "selectEveryNEdgeTool"`)
+		optionVar -intValue "selectEveryNEdgeTool" 0;
+		
+	menuItem -l "Select Every N-th Edge in Loop/Ring"
+		-ann "Propagate selection pattern of edge loops or rings (can be used as tool or action)"
+		-echoCommand true
+		-c ("int $state = `optionVar -query \"selectEveryNEdgeTool\"`;if ($state) selectEveryNEdgeTool; else selectEveryNEdge")
+		selectEveryNEdgeItem;
+
+		
+	menuItem -optionBox true
+		-label "Select Every N Edges Option Box"
+		-annotation "Select Every N Edges Option Box"
+		-command "performSelectEveryNEdge"
+		selectEveryNEdgeOptItem;
+
+    
+	menuItem -l "Convert Selection to Perimeter Edges"
+		-ann "Convert the current selection to only the edges on the outer perimeter (boundary)"
+		-echoCommand true
+		-c "bt_convertSelectionToPerimeterEdges"
+		bt_convertToPerimeterItem;
+		
+	menuItem -divider true;
+			
+	menuItem -l "Mirror Instance Mesh..."
+		-ann "Cut and make a mirrored instance of the selected mesh"
+		-echoCommand true
+		-c "bt_mirrorInstanceMesh"
+		bt_mirrorInstanceMeshItem;
+
+	menuItem -l "Combine and Merge"
+		-ann "Combine selected meshes and merge any coincident verts/edges"
+		-echoCommand true
+		-c "bt_mergeCombineMeshes"
+		bt_mergeCombineMeshesItem;
+
+	menuItem -l "Connect Border Edges"
+		-ann "Automatically build mesh between two selected edge borders"
+		-echoCommand true
+		-c "performPolyConnectBorders 0"
+		connectBordersItem;
+
+	menuItem -optionBox true
+		-label "Connect Border Edges Option Box"
+		-annotation "Connect Border Edges Option Box"
+		-command "performPolyConnectBorders 1"
+		connectBordersOptItem;
+
+	menuItem -divider true;
+
+	menuItem -l "Extrude Face(s) and Scale UVs"
+		-ann "Extrude faces and scale the resultant UVs"
+		-echoCommand true
+		-c "bt_extrudeFaceAndScaleUVs"
+		extrudeFaceAndScaleUVItem;
+
+	menuItem -l "Extrude Face(s) and Preserve UVs"
+		-ann "Extrude faces and enable preserve UVs node"
+		-echoCommand true
+		-c "bt_extrudeFaceAndPreserveUVs"
+		extrudeFaceAndPreserveUVsItem;
+						
+	menuItem -divider true;
+			
+	menuItem -l "Slide Components"
+		-ann "Turn on slide components mode for vertices, edges or faces"
+		-echoCommand true
+		-c "bt_slideComponents;"
+		bt_slideComponentItem;
+	
+	menuItem -l "Flatten Components"
+		-ann "Flatten selected vertices, edges or faces"
+		-echoCommand true
+	    -c "python \"from bt_flattenComponents import *\";python \"bt_flattenComponents()\""
+		bt_flattenComponentItem;
+    		
+	menuItem -divider true;	
+		
+		
+	menuItem -l "Delete Connected Edges Tool"
+		-ann "Enter tool and elect a vertex, edge or face and all connected edges will be deleted."
+		-echoCommand true
+		-i "polyDelEdgeVertex.png"
+		-c "bt_polyDeleteVertEdgeTool"
+		polyDeleteConnectedEdgeToolItem;	
+		
+	menuItem -l "Delete Edge Loop Tool"
+		-ann "Enter tool then select edge.  Corresponding loop will be deleted."
+		-echoCommand true
+		-i "polyDelEdgeVertex.png"
+		-c "bt_polyDeleteEdgeLoopTool"
+		polyDeleteEdgeLoopToolItem;	
+		
+	menuItem -l "Collapse Edge Ring Tool"
+		-ann "Enter tool then select edge.  Corresponding ring will be collapsed."
+		-echoCommand true
+		-i "polyDelEdgeVertex.png"
+		-c "bt_polyCollapseEdgeRingTool"
+		polyCollapseEdgeRingToolItem;		
+		
+	menuItem -l "Spin Edge Tool"
+		-ann "Enter tool then select edges to automatically spin"
+		-echoCommand true
+		-i "polySpinEdgeBackward.png"
+		-c "bt_polySpinEdgeTool"
+		polySpinEdgeToolItem;		
+		
+	menuItem -l "N-Sided to Quad Tool"
+		-ann "Enter tool, select an n-sided face to convert to quads."
+		-echoCommand true
+		-i "polyQuad.png"
+		-c "bt_polyNSidedToQuadTool"
+		polyNSidedToQuadToolItem;
+		
+
+	menuItem -divider true;
+
+		if (`pluginInfo -q -l "drawSplitTool"`){
+			menuItem -l "Draw Split Tool"
+				-ann "Split polygonal geometry by drawing on the mesh"
+				-echoCommand true
+				-image "drawSplitIcon.xpm"
+				-c "drawSplitSetup; drawSplitTool"
+				-dragDoubleClickCommand "drawSplitTool\;toolPropertyWindow"
+				drawSplitItem;
+
+			menuItem -optionBox true
+				-label "Draw Split Option Box"
+				-annotation "Draw Split Option Box"
+				-image "drawSplitIcon.xpm"
+				-command "drawSplitSetup; drawSplitTool\;toolPropertyWindow"
+				drawSplitOptItem;
+		}
+		else menuItem -l "Draw Split Tool"  -en 0 -ann "Split polygonal geometry by drawing on the mesh (drawSplitTool.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+
+		if (`pluginInfo -q -l "drawReduceTool"`){
+			menuItem -l "Draw Reduce Tool"
+				-ann "Reduce polygonal geometry by drawing on the mesh"
+				-echoCommand true
+				-image "drawReduceIcon.xpm"
+				-c "drawReduceSetup; drawReduceTool"
+				-dragDoubleClickCommand "drawReduceTool\;toolPropertyWindow"
+				drawReduceItem;
+
+			menuItem -optionBox true
+				-label "Draw Reduce Option Box"
+				-annotation "Draw Reduce Option Box"
+				-image "drawReduceIcon.xpm"
+				-command "drawReduceSetup; drawReduceTool\;toolPropertyWindow"
+				drawReduceOptItem;
+		}
+		else menuItem -l "Draw Reduce Tool"  -en 0 -ann "Reduce polygonal geometry by drawing on the mesh (drawReduceTool.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+
+	menuItem -divider true;
+
+	menuItem -l "Split Around Selection"
+		-ann "Split around the selection based on the edge ring that contains it"
+		-echoCommand true
+		-c "polyConvertToRingAndSplitAround"
+		polyConvertToRingAndSplitAroundItem;
+						
+	menuItem -l "Merge All Verts/Edges by Distance"
+		-ann "Select two vertices or one edge to specify a merge distance. All vertices/edges on the mesh that are under this distance threshold will be merged."
+		-echoCommand true
+		-c "bt_mergeAllVertsEdgesByDistance"
+		mergeVertsByDistanceItem;
+
+	menuItem -l "Delete Edge and Cut UVs"
+		-ann "Delete selected edge(s) and cut the surrounding UVs"
+		-echoCommand true
+		-c "polyDeleteEdgeSaveUVs"
+		deleteEdgeCutUVsItem;
+		
+	menuItem -divider true;
+
+	
+	menuItem -l "Normal Checker"
+		-ann "Highlight reversed normals in red."
+		-echoCommand true
+		-c "normalChecker"
+		;
+
+	menuItem -l "Adjust Vertex Normals..."
+		-ann "Adjust vertex normals interactively"
+		-echoCommand true
+		-c "bgAdjustVertexNormalsWin"
+		bgAdjustVertexNormalsItem;
+		
+	menuItem -divider true;
+
+
+	///////////////////////////////////
+	// Mesh History Edit Menu
+	///////////////////////////////////
+	
+    menuItem -l "Mesh History Edit"
+		-p btModeling
+		-to 1
+		-subMenu true
+		-aob true
+		btMeshHistoryEditMenu;
+
+	menuItem -l "Delete Upstream Mesh History"
+		-ann "Select a mesh and an input node in the channel box. History on the upstream nodes will be baked."
+		-echoCommand true
+		-c "polyDeleteUpstreamHistory"
+		polyDeleteUpstreamHistoryItem;
+
+	menuItem -l "Insert Intermediate Mesh Shape"
+		-ann "Select a mesh and an input node in the channel box. A new shape node will be added for adjusting intermediate history."
+		-echoCommand true
+		-c "insertIntermediatePolyShape"
+		insertIntermediatePolyShapeItem;
+
+	menuItem -divider true;
+	
+	menuItem -l "Copy Mesh History Nodes"
+		-ann "Select poly construction history nodes in order from first to last"
+		-echoCommand true
+		-c "string $nodesToCopy[] = `ls -sl`;"
+		nodesToCopyItem;
+
+	menuItem -l "Paste Mesh History Nodes"
+		-ann "Copy and paste history as defined by above menu item."
+		-echoCommand true
+		-c "string $targetMeshes[] = `ls -sl`;polyCopyPasteHistory $nodesToCopy $targetMeshes;"
+		polyCopyPasteHistoryItem;
+		
+	setParent -m ..;
+	
+	
+}
+	
+	///////////////////////////////////
+	// UV TOOLS 
+	///////////////////////////////////
+
+global proc uvEditorDisplayMenu (){
+
+
+	menuItem -l "UV Texture Editor Image Dimming..."
+		-ann "Control the dimming of the texture displayed in the UV Texture Editor"
+		-echoCommand true
+		-c "textureEditorDimImageWindow"
+		dimImageItem;
+	
+	menuItem -l "UV Texture Editor Wireframe Color..."
+		-ann "Change the wireframe color for all meshes in the UV Texture Editor"
+		-echoCommand true
+		-c "bgPolyColorWin"
+		wireColorItem;
+}	
+	
+	
+proc bonusToolsMenuUVs(string $os){
+
+
+	menuItem -l "Auto Unwrap UVs Tool..."
+		-ann "A tool for interactive UV unwrapping"
+		-echoCommand true
+		-c "bt_autoUnwrapUVTool"
+		bt_autoUnwrapUVToolItem;
+		
+	menuItem -l "Auto Map Multiple Meshes"
+		-ann "Create an automatic mapping projection node to control multiple meshes"
+		-echoCommand true
+		-c "bt_autoMapMultipleMeshes"
+		createAutoProjectionControllerItem;
+
+		
+	if (`pluginInfo -q -l "polyNurbsProjection"`){
+		menuItem -l "Poly NURBS Projection"
+		-ann ("Select destination poly mesh followed by source NURBS surface to transfer UVs and texture from.")
+		-echoCommand true
+		-c "polyNurbsProjection"
+		polyNurbsProjectionItem;
+		}
+	else menuItem -l "Poly NURBS Projection" -en 0 -ann "Select destination poly mesh followed by source NURBS surface to transfer UVs and texture from (polyNurbsProjection.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+
+	menuItem -divider true;
+	
+
+	menuItem -l "Nudge UVs..."
+		-ann "Nudge selected UVs by increment value along U or V"
+		-echoCommand true
+		-c "bt_nudgeUVs"
+	nudgeUVsItem;	
+
+	menuItem -l "Tile UVs..."
+		-ann "Quickly move selected UVs to different U or V tiles"
+		-echoCommand true
+		-c "bt_offsetUVTile"
+	tileUVsItem;
+			
+	menuItem -l "Align UV Shells..."
+		-ann "Align UV Shells in the Texture Editor"
+		-echoCommand true
+		-c "python \"from AlignUVShells import *\";python \"AlignUVShellsWindow()\""
+		alignUVShellsItem;	
+
+	menuItem -l "Rotate UVs Around Last Selected..."
+		-ann "Rotate all selected UVs around the last selected UV (last UV = pivot)"
+		-echoCommand true
+		-c "bt_rotateUVsAroundLastWin"
+		rotateUVsLastItem;
+		
+	menuItem -l "Flip UVs Horizontally Across Last"
+		-ann "Flip all selected UVs horizontally using the last selected UV as the pivot"
+		-echoCommand true
+		-c "bt_polyflipUVsAcrossLast 0"
+		flipUVHorizLastItem;
+		
+	menuItem -l "Flip UVs Vertically Across Last"
+		-ann "Flip all selected UVs Vertically using the last selected UV as the pivot"
+		-echoCommand true
+		-c "bt_polyflipUVsAcrossLast 1"
+		flipUVVertLastItem;				
+		
+
+	menuItem -l "Clamp UVs..."
+		-ann "Clamp the selected UVs to the specified bounding box"
+		-echoCommand true
+		-c "bgClampUVWin"
+		bgClampUVItem;
+		
+	menuItem -l "UV Precision..."
+		-ann "Set the number of decimal places for selected UV values"
+		-echoCommand true
+		-c "bgTruncateUVWin"
+		bgTruncateUVItem;
+
+	menuItem -divider true;
+
+	menuItem -l "UV Editor Display"
+		-to 1
+		-subMenu true
+		uvEdDisplayMenu;
+		
+    uvEditorDisplayMenu;  //in both texture and display menus
+
+    setParent -m ..;
+			
+}
+
+
+	//////////////////////////////////
+	// RENDERING/TEXTURE TOOLS//
+	//////////////////////////////////
+
+proc bonusToolsMenuRendering(string $os){
+
+
+
+	menuItem -l "Assign Checker Shader"
+		-ann "Assign a checkered shader to the selected mesh to test UV mapping"
+		-echoCommand true
+		-c "assignCheckerShader"
+		assignCheckerShaderItem;
+
+
+	menuItem -l "Add Transparency Attribute"
+		-ann "Create a transparency attribute for each selected object that will drive the assoicated shader's transparency"
+		-echoCommand true
+    	-c "python \"import bt_addTransparencyAttr \"; python \"bt_addTransparencyAttr.bt_addTransparencyAttr()\""
+		addTransparencyAttrItem;
+						
+
+						
+	menuItem -divider true;	
+
+
+
+	if (`pluginInfo -q -l "polyVariance"`){
+		menuItem -l "Adaptive Prelight (Maya Renderer)"
+		-ann "Bake vertex lighting and subdivide mesh based on results (uses Maya pre-lighting)"
+		-echoCommand true
+		-c "bgPerformPolyAdaptivePrelight 0"
+		adaptivePrelightItem;
+
+		menuItem -optionBox true
+		-label "Adaptive Prelight Option Box"
+		-annotation "Adaptive Prelight Option Box"
+		-command "bgPerformPolyAdaptivePrelight 1"
+		adaptivePrelightOptItem;
+	}
+	else menuItem -l "Adaptive Prelight (Maya Renderer)" -en 0 -ann "Bake vertex lighting and subdivide mesh based on results (polyVariance.mll must be loaded  - see BonusTools section of the Plug-in Manager.)";
+
+
+
+	menuItem -l "Auto Light Maps (Maya Renderer)"
+		-ann ("Automatically generate light maps, layered textures and auto create new UV sets (uses Maya Renderer)" +
+			"for scene geometry")
+		-echoCommand true
+		-c "bgPerformGenerateLightMaps 0"
+		generateLightMapsItem;
+
+			menuItem -optionBox true
+				-label "Generate Light Maps Option Box"
+				-annotation "Generate Light Maps Option Box"
+				-command "bgPerformGenerateLightMaps 1"
+				generateLightMapsOptItem;
+				
+
+	menuItem -divider true;
+	
+
+	menuItem -l "Auto Layer Texture(s)"
+		-ann ("Select one or more texture to layer (layer order is determined by selection order)")
+		-echoCommand true
+		-c "bt_layerTextures"
+		layerTexturesItem;
+		
+    	menuItem -optionBox true
+    		-label "Layer Texture(s) Option Box"
+    		-annotation "Select one or more texture to layer (layer order is determined by selection order)"
+    		-command "source bt_layerTextures.mel; bt_layerTexturesWin"
+    		layerTexturesItemOptItem;
+		
+		
+	menuItem -divider true;
+
+//    These are obsolete now as the functionality for both has been added to the new File Path Editor
+// 
+/*   
+	menuItem -l "Change Texture Paths..."
+		-ann ("Open the relocate textures window")
+		-echoCommand true
+		-c "relocateTexturesWin"
+		relocateTexturesItem;
+
+	menuItem -l "Organize Texture Files..."
+		-ann ("Open the organize files window")
+		-echoCommand true
+		-c "organizeFilesWindow"
+		organizeFilesItem;
+*/
+		
+    menuItem -l "Refresh/Create Texture Swatches"
+		-ann ("Refresh/Create selected or all file texture swatches/icons.")
+		-echoCommand true
+		-c "bt_refreshFileTextureSwatches"
+		refreshTextureFilesItem;  
+		
+    menuItem -l "Rename Texture(s) to Match Source"
+		-ann ("Rename selected or all file texture nodes to match the source file name.")
+		-echoCommand true
+		-c "bt_renameFileTextureNode"
+		renameTextureFilesItem;    
+		
+    menuItem -l "Rename SG to Match Selected Shader"
+		-ann ("Rename the associated ShadingGroup nodes for the selected Shaders.")
+		-echoCommand true
+		-c "bt_renameSGtoMatchShader"
+		renameSGItem;   
+    
+	menuItem -divider true;
+
+	menuItem -l "Isometric Render"
+		-to 1
+		-subMenu true
+		isometricRenderMenu;
+
+		menuItem -l "Render Current View"
+			-ann "Render the current view isometrically."
+			-echoCommand true
+			-c "bgIsometricRender render"
+			isometricRender;
+
+		menuItem -l "Preview"
+			-ann "Preview the isometric render in the viewports."
+			-echoCommand true
+			-c "bgIsometricRender preview"
+			isometricPreview;
+
+		menuItem -l "Reset"
+			-ann "Reset the viewports from isometric display."
+			-echoCommand true
+			-c "bgIsometricRender reset"
+			isometricReset;
+
+		setParent -m ..;
+  
+
+	menuItem -divider true;
+
+
+	if (`pluginInfo -q -l "Fur"`){
+	menuItem -l "Fur Blender"
+		-ann "Blend two selected fur descriptions onto the third selected fur target"
+		-c "furBlender"
+		furBlenderItem;
+	}
+	else menuItem -l "Fur Blender" -en 0 -ann "Blend two selected fur descriptions onto the third selected fur target (The Fur module/plugin must be loaded in order to use this tool)";
+	
+	menuItem -divider true;
+
+
+}
+
+
+	///////////////////////////////
+	// ANIMATION TOOLS//
+	///////////////////////////////
+	
+proc bonusToolsMenuAnimation(string $os){
+
+
+	///////////////////////////////
+	// Animation / Posing        //
+	///////////////////////////////
+		
+	menuItem -l "Walk Cycle Control..."
+		-ann "Walk Cycle Control Window helps create animation cycles."
+		-echoCommand true
+		-c "walkCycleControl"
+		walkCycleControlItem;
+
+	menuItem -l "Mirror Animation..."
+		-ann "Mirror Animation across an axis..."
+		-echoCommand true
+		-c "bgMirrorAnim"
+		mirrorAnimationItem;
+
+	menuItem -l "Reverse Animation..."
+		-ann "Reverse Animation for the selected hierarchy..."
+		-echoCommand true
+		-c "bgReverseAnim"
+		reverseAnimationItem;
+
+	menuItem -l "Time Warp Animation..."
+		-ann "Apply a Time Warp curve to the select object or hierarchy's animation"
+		-echoCommand true
+		-c "bt_timeWarpWin"
+		warpAnimationItem;
+		
+    // Removed - no longer working
+    /*
+	menuItem -l "FKIK Control Window"
+		-ann "A window for easier keying of fk ik animation"
+		-echoCommand true
+		-c "fkikControlWindow"
+		fkikControlWindowItem;
+	*/
+		
+	menuItem -divider true;
+
+	///////////////////////////////
+	// Animation copying/baking  //
+	///////////////////////////////
+	
+	menuItem -l "Copy Set Driven Key..."
+		-ann "UI to copy Set Driven Key curves between objects"
+		-echoCommand true
+		-c "copySDKWindow"
+		copySDKItem;
+	
+	menuItem -l "Bake IK to Clip"
+		-ann ("Bake the animation of the selected IK handle into a clip " +
+			"for the active character")
+		-echoCommand true
+		-c "bgBakeIKToClip 1"
+		bakeIKToClipItem;
+
+	menuItem -l "Bake Redirection"
+		-ann "Bake the motion from the redirection node onto selected nodes"
+		-echoCommand true
+		-c "performBakeRedirection 0"
+		bakeRedirectItem;
+
+			menuItem -optionBox true
+				-label "Bake Redirection Option Box"
+				-annotation "Bones on Curve Option Box"
+				-command "performBakeRedirection 1"
+				bakeRedirectOptItem;
+			
+	menuItem -divider true;
+
+	///////////////////////////////
+	// Pose Tools                //
+	///////////////////////////////
+	
+	
+	menuItem -l "Store Pose to Shelf..."
+		-ann "Store the current pose (attribute values) for the selected object to the current shelf"
+		-echoCommand true
+		-c "bt_storePose"
+		storePoseItem;
+		
+	menuItem -l "Pose Blend Shape Editor..."
+		-ann "Add corrective blend shapes for selected mesh and set selected joint as a set driven key driver"
+		-echoCommand true
+		-c "bt_poseBlendShapeUI"
+		poseBlendShapeEditorItem;	
+		
+	menuItem -divider true;
+
+	///////////////////////////////
+	// Deformers                 //
+	///////////////////////////////
+	
+	menuItem -label "Export Deformer Weights..."  
+			-annotation "Export the weight data from a deformer to an simple XML format" 
+			-command "ExportDeformerWeightsOptions" 
+			exportDefWeightItem;  
+
+	menuItem -label "Import Deformer Weights..."  
+			-annotation "Import the weight data from a deformer to an simple XML format" 
+			-command "ImportDeformerWeightsOptions" 
+			importDefWeightItem;  
+
+	menuItem -l "Select Cluster Members"
+		-ann "Convert selected cluster to contained components"
+		-echoCommand true
+		-c "bgSelectClusterMembers"
+		bgSelectClusterMembersItem;
+
+
+	menuItem -divider true;
+
+	///////////////////////////////
+	// Skinning                  //
+	///////////////////////////////
+	
+	menuItem -l "Nudge Vert Weights..."
+		-ann "Select verts and an influence objects to adjust weights for"
+		-echoCommand true
+		-c "nudgeVertWeightsWindow"
+		nudgeVertWeightsWindowItem;
+		
+	menuItem -l "Prune Influence Objects..."
+		-ann ("Select skinned geometry to prune a user specified number " +
+			"of influence objects from")
+		-echoCommand true
+		-c "pruneNumInfluenceWin"
+		pruneNumInfluenceWinItem;
+
+	menuItem -l "Remove Influence Objects..."
+		-ann "Select skinned geometry to remove influence objects from"
+		-echoCommand true
+		-c "removeInfluenceWin"
+		removeInfluenceWinItem;
+		
+	menuItem -divider true;
+
+	////////////////////////////////
+	// Skeleton, IK and Constrain //
+	////////////////////////////////
+
+
+	menuItem -l "Rename New Joints..."
+		-ann ("Window to control joint names as joints are created - " +
+			"Can also be applied to other objects")
+		-echoCommand true
+		-c "renameNewJointsWin"
+		renameNewJointsWinItem;
+
+	menuItem -l "Bones on Curve"
+		-ann "Create bones for selected curve"
+		-echoCommand true
+		-c "performBonesOnCurve 0"
+		bonesOnCurveItem;
+
+    	menuItem -optionBox true
+    		-label "Bones on Curve Option Box"
+    		-annotation "Bones on Curve Option Box"
+    		-command "performBonesOnCurve 1"
+    		bonesOnCurveOptItem;
+
+	menuItem -l "Stretchy IK..."
+		-ann "Add stretchy IK to the selected IK handles"
+		-echoCommand true
+		-c "stretchyIKWin"
+		stretchyIKItem;
+		
+	menuItem -l "Setup Arm"
+		-ann "Create an arm control for selected shoulder and wrist joint (arm should point in +Z)"
+		-echoCommand true
+		-c "performArmSetup 0"
+		armSetupItem;
+
+	menuItem -optionBox true
+		-label "Setup Arm Option Box"
+		-annotation "Setup Arm Option Box"
+		-command "performArmSetup 1"
+		armSetupOptItem;
+
+	menuItem -l "Setup Foot"
+		-ann "Create a foot control for selected hip and ankle joint (foot should point in +Z)"
+		-echoCommand true
+		-c "performFootSetup 0"
+		footSetupItem;
+
+    	menuItem -optionBox true
+    		-label "Setup Foot Option Box"
+    		-annotation "Setup Foot Option Box"
+    		-command "performFootSetup 1"
+    		footSetupOptItem;
+    		
+	menuItem -l "Setup Back..."
+		-ann "Create a back control for selected pelvis and neck joint (body should point in +Z)"
+		-echoCommand true
+		-c "backSetupWin"
+		backSetupItem;
+
+	menuItem -l "Make Joints Dynamic..."
+		-ann "Apply dynamic-driven secondary animation..."
+		-echoCommand true
+		-c "bt_makeJointsDynamicUI"
+		;
+
+}
+
+	///////////////////////////////
+	// DYNAMICS TOOLS//
+	///////////////////////////////
+	
+proc bonusToolsMenuDynamics(string $os){
+
+	menuItem -l "Paint Emitters Tool..."
+		-ann ("Paint particle emitters on selected surface")
+		-echoCommand true
+		-c "ScriptPaintTool;artUserPaintCtx -e -tsc \"emitterPaint\" `currentCtx`;"
+		emitterPaintItem;
+
+	menuItem -l "Make Joints Dynamic..."
+		-ann "Apply dynamic-driven secondary animation..."
+		-echoCommand true
+		-c "bt_makeJointsDynamicUI"
+		;
+
+}
+
+
+
+	///////////////////////////////
+	// BONUS TOOLS//
+	///////////////////////////////
+	
+proc bonusToolsMenuBonus(string $os){
+
+	menuItem -l "Bonus Tools Help"
+		-ann ("Bonus Tools Help")
+		-echoCommand true
+		//-c "bonusToolsHelp \"docs/bonusTools.html\""
+		-c "bonusToolsHelp \"/docs/MayaBonusTools-2014.pdf\""  // new doc format for 2012
+		;
+		
+
+	menuItem -l "Bonus Tools Online Resources"
+		-ann ("Bonus Tools Online Resources")
+		-echoCommand true
+		-c "showHelp -absolute \"http:\/\/area.autodesk.com\/blogs\/stevenr\/bonustools\""
+		;
+		
+	menuItem -divider true;
+
+	menuItem -l "Refresh Bonus Tools Menu"
+		-ann ("Refresh the BonusTools menu set so that recently loaded plugins will be available")
+		-echoCommand true
+		-c "evalDeferred(\"bonusToolsMenu;\");"
+		;
+		
+    // Removing menu style option for dynamic menus
+    /*
+	menuItem -l "Toggle Menu Style"
+		-ann ("Toggle menu style between a constant display and a mode based display")
+		-echoCommand true
+		-checkBox `optionVar -query bonusToolsMenuToggle`
+		-c "bonusToolsMenuToggle"
+		;
+	*/
+}
+
+proc bonusToolsMenuToggle(){
+
+	int $state = `optionVar -query "bonusToolsMenuToggle"`;
+	int $state = !($state);
+	optionVar -intValue "bonusToolsMenuToggle" $state;
+
+}
+
+
+proc bonusToolsSubMenuStyle(string $os){
+
+
+	menuItem -label "Animation"
+		-tearOff 1
+		-allowOptionBoxes true
+		-subMenu true
+		btAnimation;
+	setParent -m btAnimation;
+	bonusToolsMenuAnimation $os;
+	setParent -m bonusToolsMenu;
+
+	menuItem -label  "Modeling"
+		-tearOff 1
+		-allowOptionBoxes true
+		-subMenu true
+		btModeling;
+	setParent -m btModeling;
+	bonusToolsMenuModeling $os;
+	setParent -m bonusToolsMenu;
+
+	menuItem -label "UV Editing"
+		-tearOff 1
+		-allowOptionBoxes true
+		-subMenu true
+		btUVs;
+	setParent -m btUVs;
+	bonusToolsMenuUVs $os;
+	setParent -m bonusToolsMenu;
+
+	menuItem -label "Dynamics"
+		-tearOff 1
+		-allowOptionBoxes true
+		-subMenu true
+		btDynamics;
+	setParent -m btDynamics;
+	bonusToolsMenuDynamics $os;
+	setParent -m bonusToolsMenu;
+			
+	menuItem -label "Rendering"
+		-tearOff 1
+		-allowOptionBoxes true
+		-subMenu true
+		btRendering;
+	setParent -m btRendering;
+	bonusToolsMenuRendering $os;
+	setParent -m bonusToolsMenu;
+
+    menuItem -divider true;
+	
+	menuItem -label "Help"
+		-tearOff 1
+		-allowOptionBoxes true
+		-subMenu true
+		btBonus;
+	setParent -m btBonus;
+	bonusToolsMenuBonus $os;
+	setParent -m bonusToolsMenu;
+	
+}
+
+proc bonusToolsModeMenuStyle (string $os, string $mayaMode){
+
+	switch( $mayaMode ) {
+		case "animationMenuSet":	bonusToolsMenuAnimation $os; break;
+		case "polygonsMenuSet":		bonusToolsMenuModeling $os; bonusToolsMenuUVs $os;  break;  //bonusToolsMenuUVs $os;
+		case "renderingMenuSet":	bonusToolsMenuRendering $os; break;
+		case "dynamicsMenuSet":		bonusToolsMenuDynamics $os; break;
+		default:					bonusToolsMenuModeling $os; break;
+	}
+}
+
+global proc bonusToolsMenu(){
+
+	global string $gMainWindow;
+	global string $gMenuModeButton;
+	int $index = -1;
+
+	if(`menu -exists bonusToolsMenu`) {
+		// Find out the current index of menu
+		string $allMenus[] = `window -q -menuArray $gMainWindow`;
+		string $menu;
+		for($menu in $allMenus) {
+			$index++;
+			if($menu == "bonusToolsMenu") {
+				break;
+			}
+		}
+
+		deleteUI -menu bonusToolsMenu;
+	}
+
+	setParent $gMainWindow;
+
+	string $bonusMenu = `menu -label "Bonus Tools"
+		-parent $gMainWindow
+		-tearOff 1
+		-allowOptionBoxes true
+		-familyImage "bonusTools.png"
+		bonusToolsMenu`;
+	menu -e -pmc ("buildBonusToolsMenu " + $bonusMenu ) $bonusMenu;
+	if($index >= 0) {
+		// Move bonus tools menu to the previous position
+		window -edit -menuIndex bonusToolsMenu $index $gMainWindow;
+	}
+
+}
+
+global proc buildBonusToolsMenu( string $bonusMenu ){
+	
+	setParent -menu $bonusMenu;
+	if( `menu -q -ni $bonusMenu` != 0 ){
+		return;
+	}
+	global string $gMainWindow;
+
+	string $os = `about -operatingSystem`;
+	bonusToolsMenuGeneral $os;
+
+	if (!`optionVar -exists "bonusToolsMenuToggle"`)
+		optionVar -intValue "bonusToolsMenuToggle" 1;  // new default is to sub-menu layout = 1
+		
+
+	int $state = `optionVar -query "bonusToolsMenuToggle"`;
+	string $mayaMode = `setMenuMode`;
+
+    // Removing dyanmic menus
+    /*
+	if ($state)bonusToolsMenu
+		bonusToolsSubMenuStyle $os;
+	else
+		bonusToolsModeMenuStyle $os $mayaMode;
+	*/
+	
+	bonusToolsSubMenuStyle $os;
+	
+
+	hotBox -updateMenus;
+
+}
+
+
+//bonusToolsMenu;

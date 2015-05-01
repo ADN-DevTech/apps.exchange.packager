@@ -1,0 +1,95 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// removeInfluenceWin.mel
+// cpam aug 2001
+//
+// modified dec 2003
+// now selects influence object when highlighted in window
+//
+// This window removes influence objects from
+// a smooth skin. Use this for a multi mesh
+// character to remove specific influence 
+// objects.
+
+global proc selectInfluenceInRemoveInfluenceWin(){
+	
+	select -r `textScrollList -q -si influenceScrollList`;
+
+}
+
+global proc removeInfluence(){
+	string $influences[] = `textScrollList -q -si influenceScrollList`;
+	for ($influence in $influences){
+		textScrollList -e -ri $influence influenceScrollList;
+		skinCluster -e -ri $influence `textField -q -tx skinnedObjectTF`;
+		}
+
+}
+
+global proc loadNewSkin(){
+	string $skinnedObject[] = `ls -sl`;
+	string $influences[] = `skinCluster -q -inf $skinnedObject[0]`;
+
+	textField -e -tx $skinnedObject[0] skinnedObjectTF;
+
+	textScrollList -e -ra influenceScrollList;
+	for ($influence in $influences)
+		{textScrollList -e -a $influence influenceScrollList;}
+
+}
+
+global proc removeInfluenceWin(){
+
+	if (`window -exists removeInfluenceWin`)
+		{deleteUI -wnd removeInfluenceWin;}
+
+	window -t "Remove Influence Objects"
+		-w 260
+		-h 240
+		removeInfluenceWin;
+
+	columnLayout -adjustableColumn true;
+
+	text -label "Current Skin:"
+		-fn "boldLabelFont"
+		-al "left";
+
+	textField 
+		-ed 0
+		skinnedObjectTF;
+
+	textScrollList -nr 10
+		//-sc "select -r `textField -q -si influenceScrollList`"
+		-sc "selectInfluenceInRemoveInfluenceWin"
+		influenceScrollList;
+
+	button -l "Remove Influence"
+		-c "removeInfluence"
+		removeInfluenceButton;
+
+	button -l "Load New Skin"
+		-c "loadNewSkin"
+		loadNewSkinButton;
+
+	showWindow;
+
+}

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+	ProductType="Application"
+
+	AutodeskProduct="Maya"
+	Name="MathNode"
+	Description="Autodesk Maya MathNode"
+	AppVersion="1.0.0"
+	Author="Autodesk"
+	AppNameSpace="com.autodesk.exchange.maya.mathnode"
+	HelpFile="./Contents/docs/index.html"
+	OnlineDocumentation="http://www.autodesk.com/maya"
+
+	ProductCode="*"
+	UpgradeCode="{52c87085-07d5-4cfa-b76e-e348553c30ac}" >
+	
+	<CompanyDetails Name="Autodesk"
+		Phone=" "
+		Url="http://www.autodesk.com"
+		Email="labs.plugins@autodesk.com" />
+
+	<!-- Prevent to load in other version than Maya 2008 -->
+	<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2008"  />
+
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2008" />
+		<MayaEnv expr="MAYA_SCRIPT_PATH+:=shelves" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/asdkMathNode.py" AutoLoad="True" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEasdkMathNodeTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/MathNode_load.mel" />
+		<ComponentEntry ModuleName="./Contents/icons/MathNode.png" />
+		<ComponentEntry ModuleName="./Contents/shelves/MathNode_shelf.mel" />
+	</Components>
+	
+</ApplicationPackage>

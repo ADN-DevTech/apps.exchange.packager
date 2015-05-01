@@ -1,0 +1,73 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+// Created by Steven T. L. Roselle 
+// Based on original tool by cpam
+// Last updated:      ( 02/01/12 )
+
+proc bt_polyNSidedToQuadToolCtx(){
+
+		
+	scriptCtx
+		-title "Poly Subdivide"
+		-image1 "polySubdFacet.png"
+		-totalSelectionSets 1
+        -setSelectionCount	0
+		
+        -ts ("headsUpMessage -t 4 \"Select an n-sided face to convert to quads.\"")
+		
+		-expandSelectionList true
+		-finalCommandScript ("polyTriangulate -ch 1 ; polyQuad  -a 30 -kgb 1 -ktb 1 -khe 1 -ws 1 -ch 0; headsUpMessage -t 4 \"Select an n-sided face to convert to quads.\"")
+
+		-setNoSelectionPrompt "Select an n-sided face to convert to quads."
+		-setAutoComplete true
+		-polymeshFace true
+		-toolCursorType "create"
+		-exitUponCompletion false
+
+		
+		bt_polyNSidedToQuadTool;
+	
+}
+
+
+global proc bt_polyNSidedToQuadTool(){
+	
+	if (!`contextInfo -exists bt_polyNSidedToQuadTool`)
+	{
+	    bt_polyNSidedToQuadToolCtx;
+	}
+    setSelectMode components Components; selectType -smp 0 -sme 1 -smf 0 -smu 0 -pv 0 -pe 0 -pf 1 -puv 0;
+	select -cl;
+	setToolTo bt_polyNSidedToQuadTool;
+    print ("Select an n-sided face to convert to quads.\n");
+	
+}
+
+
+/*
+deleteUI bt_polyNSidedToQuadTool;
+*/
+

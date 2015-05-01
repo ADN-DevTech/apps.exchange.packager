@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+	ProductType="Application"
+
+	AutodeskProduct="Maya"
+	Name="MayaBonusTools"
+	Description="Autodesk Maya 2014/2015 Bonus Tools"
+	AppVersion="15.0.1"
+	Author="Autodesk"
+	AppNameSpace="com.autodesk.exchange.maya.bonustools"
+	HelpFile="./Contents/docs/MayaBonusTools-2015.pdf"
+	OnlineDocumentation="http://www.autodesk.com/maya/"
+
+	ProductCode="*"
+	UpgradeCode="{42BEF01A-459B-21BE-162A-2559D30C9BFF}" >
+	
+	<CompanyDetails Name="Autodesk, Inc."
+		Phone=" "
+		Url="http://www.autodesk,com/"
+		Email="adn.apps@autodesk.com" />
+
+	<!-- Prevent to load in other version than Maya 2014 -->
+	<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2015" />
+
+	<!-- docs -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2015" />
+		<ComponentEntry ModuleName="./Contents/docs/MayaBonusTools-2014.pdf" />
+		<ComponentEntry ModuleName="./Contents/docs/MayaBonusTools-2015.pdf" />
+	</Components>
+	
+	<!-- icons -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2015" />
+		<ComponentEntry ModuleName="./Contents/icons/MayaBonusTools.png" />
+	</Components>
+	
+	<!-- Plug-ins -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=plug-ins/win64-2014" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/audioWave.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/closestPointOnCurve.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/corrosionTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/cvColorShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/denimTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/diffractionShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/drawReduceTool.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/drawSplitTool.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/frecklesTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/gameInputDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/hwColorPerVertexShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/hwManagedTextureShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/measure.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/nodeCreatedCBCmd.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/pointOnMeshInfo.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/polyNurbsProjection.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/PolyTools.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/polyVariance.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/randomizerDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/ringsTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/scallopTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/skinShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/splatterTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/streaksTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/stringFormatNode.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/sun.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/treeBarkTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/udpDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/veiningTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2014/woodGrainTexture.mll" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64" Platform="Maya" SeriesMin="2015" SeriesMax="2015" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=plug-ins/win64-2015" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/audioWave.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/closestPointOnCurve.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/corrosionTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/cvColorShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/denimTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/diffractionShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/drawReduceTool.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/drawSplitTool.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/frecklesTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/gameInputDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/hwColorPerVertexShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/hwManagedTextureShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/measure.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/nodeCreatedCBCmd.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/pointOnMeshInfo.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/polyNurbsProjection.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/PolyTools.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/polyVariance.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/randomizerDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/ringsTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/scallopTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/skinShader.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/splatterTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/streaksTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/stringFormatNode.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/sun.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/treeBarkTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/udpDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/veiningTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/win64-2015/woodGrainTexture.mll" />
+	</Components>	
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="macOS" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=plug-ins/macOS-2014" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/audioWave.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/closestPointOnCurve.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/corrosionTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/cvColorShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/denimTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/diffractionShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/drawReduceTool.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/drawSplitTool.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/frecklesTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/gameInputDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/hwColorPerVertexShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/hwManagedTextureShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/measure.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/nodeCreatedCBCmd.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/pointOnMeshInfo.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/polyNurbsProjection.bundle" />
+		<!-- ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/PolyTools.bundle" / -->
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/polyVariance.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/randomizerDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/ringsTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/scallopTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/skinShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/splatterTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/streaksTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/stringFormatNode.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/sun.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/treeBarkTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/udpDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/veiningTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2014/woodGrainTexture.bundle" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="macOS" Platform="Maya" SeriesMin="2015" SeriesMax="2015" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=plug-ins/macOS-2015" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/audioWave.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/closestPointOnCurve.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/corrosionTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/cvColorShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/denimTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/diffractionShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/drawReduceTool.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/drawSplitTool.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/frecklesTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/gameInputDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/hwColorPerVertexShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/hwManagedTextureShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/measure.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/nodeCreatedCBCmd.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/pointOnMeshInfo.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/polyNurbsProjection.bundle" />
+		<!-- ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/PolyTools.bundle" / -->
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/polyVariance.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/randomizerDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/ringsTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/scallopTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/skinShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/splatterTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/streaksTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/stringFormatNode.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/sun.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/treeBarkTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/udpDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/veiningTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/macOS-2015/woodGrainTexture.bundle" />
+	</Components>	
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=plug-ins/linux-2014" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/audioWave.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/closestPointOnCurve.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/corrosionTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/cvColorShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/denimTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/diffractionShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/drawReduceTool.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/drawSplitTool.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/frecklesTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/gameInputDevice.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/hwColorPerVertexShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/hwManagedTextureShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/measure.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/nodeCreatedCBCmd.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/pointOnMeshInfo.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/polyNurbsProjection.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/PolyTools.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/polyVariance.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/randomizerDevice.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/ringsTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/scallopTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/skinShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/splatterTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/streaksTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/stringFormatNode.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/sun.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/treeBarkTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/udpDevice.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/veiningTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2014/woodGrainTexture.so" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="linux" Platform="Maya" SeriesMin="2015" SeriesMax="2015" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=plug-ins/linux-2015" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/audioWave.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/closestPointOnCurve.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/corrosionTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/cvColorShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/denimTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/diffractionShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/drawReduceTool.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/drawSplitTool.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/frecklesTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/gameInputDevice.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/hwColorPerVertexShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/hwManagedTextureShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/measure.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/nodeCreatedCBCmd.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/pointOnMeshInfo.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/polyNurbsProjection.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/PolyTools.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/polyVariance.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/randomizerDevice.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/ringsTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/scallopTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/skinShader.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/splatterTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/streaksTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/stringFormatNode.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/sun.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/treeBarkTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/udpDevice.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/veiningTexture.so" />
+		<ComponentEntry ModuleName="./Contents/plug-ins/linux-2015/woodGrainTexture.so" />
+	</Components>	
+	
+	<!-- Python Scripts -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2015" />
+		<ComponentEntry ModuleName="./Contents/python/AlignUVShells.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_addTransparencyAttr.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_aeTemplateBuilder.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_flattenComponents.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_moveObjToCamera.py" />
+		<!-- ComponentEntry ModuleName="./Contents/python/userSetup.py" / -->
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/python-2014/bt_randomizer.py" />
+		<ComponentEntry ModuleName="./Contents/python-2014/pipe.py" />
+		<ComponentEntry ModuleName="./Contents/python-2014/pipeAssemblyManager.py" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2015" SeriesMax="2015" />
+		<ComponentEntry ModuleName="./Contents/python-2015/bt_findMissingTextures.py" />
+		<ComponentEntry ModuleName="./Contents/python-2015/bt_randomizer.py" />
+		<ComponentEntry ModuleName="./Contents/python-2015/bt_zeroTransforms.py" />
+		<ComponentEntry ModuleName="./Contents/python-2015/pipe.py" />
+		<ComponentEntry ModuleName="./Contents/python-2015/pipeAssemblyManager.py" />
+	</Components>
+	
+	<!-- MEL Scripts -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2015" />
+		<ComponentEntry ModuleName="./Contents/MayaBonusTools_load.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bonusToolsHelp.mel" />
+		<!-- ComponentEntry ModuleName="./Contents/scripts/userSetup.mel" / -->
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_SCRIPT_PATH+:=scripts-2014" />
+		<ComponentEntry ModuleName="./Contents/scripts-2014/bonusToolsMenu.mel" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2015" SeriesMax="2015" />
+		<MayaEnv expr="MAYA_SCRIPT_PATH+:=scripts-2015" />
+		<ComponentEntry ModuleName="./Contents/scripts-2015/bonusToolsMenu.mel" />
+	</Components>
+	
+</ApplicationPackage>

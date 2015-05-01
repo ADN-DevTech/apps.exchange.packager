@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+	ProductType="Application"
+
+	AutodeskProduct="Maya"
+	Name="{{AppName}}"
+	Description="{{AppName}}"
+	AppVersion="1.0.0"
+	Author="Autodesk"
+	AppNameSpace="appstore.exchange.autodesk.com"
+	HelpFile="./Contents/docs/index.html"
+	OnlineDocumentation="http://www.XXX.com/help/index.html"
+
+	ProductCode="*"
+	UpgradeCode="{{GUID}}" >
+	
+	<CompanyDetails Name="MyCompany"
+		Phone=" "
+		Url="http://www.MyCompany.com"
+		Email="contact@MyCompany.com" />
+
+	<!-- Prevent to load in other version than Maya 2014 -->
+	<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+{{FILES}}
+	</Components>
+	
+</ApplicationPackage>

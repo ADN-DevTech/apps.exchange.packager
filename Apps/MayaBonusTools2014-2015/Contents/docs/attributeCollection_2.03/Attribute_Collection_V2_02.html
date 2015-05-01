@@ -1,0 +1,491 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><title>Attribute Collection V2.0</title>
+
+
+
+
+  
+  <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head><body style="color: rgb(0, 0, 0);" alink="#ee0000" link="#0000ee" vlink="#551a8b">
+<div style="font-family: Helvetica,Arial,sans-serif;" align="center">
+<h1><b>Attribute Collection V2.0x</b></h1>
+</div>
+<div style="font-family: Helvetica,Arial,sans-serif;" align="center">by Roland Reyer, Autodesk<br>December 2010<br>
+</div>
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<div style="text-align: center; font-family: Helvetica,Arial,sans-serif;"><img src="images/anatomySmall.JPG" title="" alt="" style="width: 400px; height: 441px;"><br>
+</div>
+<p style="font-family: Helvetica,Arial,sans-serif;"> Attribute Collection is a Maya script that helps you create your
+own user interface (UI). It lets you select channels (attributes) in
+the <b>Channel Box</b> and creates fields and sliders for these
+channels in a new panel or window.</p>
+<p style="font-family: Helvetica,Arial,sans-serif;"> &nbsp;</p>
+<p style="font-family: Helvetica,Arial,sans-serif;"> You can then interactively:</p>
+<ul style="font-family: Helvetica,Arial,sans-serif;">
+  <li> sort, rename, regroup and delete fields/sliders </li>
+  <li> set min/max values for sliders </li>
+  <li>insert UI elements like separators, buttons, icons, text, etc. </li>
+  <li>use these fields/sliders/buttons to easily adjust and keyframe
+your objects </li>
+  <li style="background-color: white;"><span style="background-color: yellow;">save the new UI with the scene</span><span style="font-weight: bold;">.</span> When you load that scene the UI will open automatically.<br>
+ </li>
+</ul>
+<p style="font-family: Helvetica,Arial,sans-serif;"> &nbsp;<br>
+</p>
+<hr style="font-family: Helvetica,Arial,sans-serif;" noshade="noshade">
+<blockquote style="font-family: Helvetica,Arial,sans-serif;"><b>Important Note</b>: This script is <b>NOT</b> an
+"official" product of Autodesk.<br>
+The hotline will <b>NOT</b> give you support if you have trouble with
+it.<br>
+If you are having problems with this script, please feel free to mail
+me directly (<a href="mailto:roland.reyer@autodesk.com">roland.reyer@autodesk.com</a>).<br>
+Since this script is just a hobby, I cannot guarantee to answer within
+a certain time.<br>
+I hope you find it useful and I appreciate any comments, suggestions
+and bug reports.</blockquote>
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<hr style="font-family: Helvetica,Arial,sans-serif;" noshade="noshade">
+<div style="margin-left: 40px; font-family: Helvetica,Arial,sans-serif;"><span style="font-weight: bold;">Note:</span> Please check the <a style="font-weight: bold;" href="www.the-area.com">The Area</a> for updates.<br>
+</div>
+<hr style="font-family: Helvetica,Arial,sans-serif;" noshade="noshade"><br style="font-family: Helvetica,Arial,sans-serif;">
+<h4 style="font-family: Helvetica,Arial,sans-serif;"><big><a name="Contents"></a>Contents</big></h4>
+<blockquote style="font-family: Helvetica,Arial,sans-serif;"> <a href="#First_steps">First Steps</a><br>
+  <a href="#The_Default_UI">The Default UI</a><br>
+  <a href="#Edit_a_Group">Edit a "Group"</a><br>
+  <a href="#Direct_Editing">Direct Editing</a><br>
+  <a href="#Buttons_and_Icons">Buttons and Icons</a><br>
+  <a href="#The_Preferences">The Preferences</a><br>
+  <a href="#The_UI_Tree_and_the_Hierarchy_Window">The UI Tree and the
+Hierarchy Window</a><br>
+  <a href="#Anatomy_of_the_UI">Anatomy of the UI</a><br>
+  <a href="#Node_Name_Substitution_for_ButtonIcon">Node Name
+Substitution for Button/Icon Scripts</a><br>
+  <a href="#Problems_loading_files_with_UI">Problems loading files with
+UI?</a><br>
+  <p><a href="#Compatibility_Notes"> Compatibility Notes</a><br>
+  <a href="#Notes_for_TDs_and_Developers">Notes for TDs/Developers<br>
+  </a></p>
+  <p><a href="#Move_Entries_from_one_Group_to_Another"><br>
+  </a></p>
+  <p><br>
+  </p>
+</blockquote>
+<hr style="font-family: Helvetica,Arial,sans-serif;" size="2" width="100%">
+<p style="font-family: Helvetica,Arial,sans-serif;"><br>
+</p>
+<h4 style="font-family: Helvetica,Arial,sans-serif;"><a name="First_steps"></a><big><b>First steps</b></big></h4><span style="font-family: Helvetica,Arial,sans-serif;">
+Copy the script </span><b style="font-family: Helvetica,Arial,sans-serif;">ac.mel</b><span style="font-family: Helvetica,Arial,sans-serif;"> to your scripts folder (usualy "</span><small style="font-family: Helvetica,Arial,sans-serif;">My Documents\maya\scripts</small><span style="font-family: Helvetica,Arial,sans-serif;">").</span><br style="font-family: Helvetica,Arial,sans-serif;">
+<font style="font-family: Helvetica,Arial,sans-serif;" color="#ff0000">(if you are also using the old attrCollection.mel
+script, then <b>source ac.mel</b> before you begin)</font><br style="font-family: Helvetica,Arial,sans-serif;">
+<ol style="font-family: Helvetica,Arial,sans-serif;">
+  <li>In Maya select some channels (attributes) in the <b>Channel Box</b></li>
+  <li>In the Bonus Tools Menu select <span style="font-weight: bold;">Attribute
+Collection<br>
+    </span>...or...<br>
+In the Commandline type "<big>ac</big>" and hit Enter<br>
+    <br>
+</li>
+
+  
+  <li>The Attribute Collection Panel appears.<br>
+Input fields and sliders
+/ checkboxes have been created for the selected channels.<br>
+It is no
+longer nessessary to have the object selected to access these channels.</li>
+
+</ol>
+
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<div style="font-family: Helvetica,Arial,sans-serif;" align="center"><img src="images/firstSteps.jpg" alt="First Steps" style="width: 966px; height: 792px;"> <br>
+</div>
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<hr style="font-family: Helvetica,Arial,sans-serif;" size="2" width="100%"><br style="font-family: Helvetica,Arial,sans-serif;">
+<h4 style="font-family: Helvetica,Arial,sans-serif;"><big><a name="The_Default_UI"></a>The Default UI</big></h4>
+
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<div style="text-align: center; font-family: Helvetica,Arial,sans-serif;"><br>
+<div style="text-align: left;">
+<table style="text-align: left; width: 876px;" border="0" cellpadding="0" cellspacing="0">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top; text-align: justify; width: 411px;">What
+you see now is the default UI of Attribute Collection. It is a
+panel with two pulldown menus, a tabLayout with one tab ("Tab1") and
+then a "Group" layout with an entry for each selected channel.<br>
+      <br>
+A <span style="font-weight: bold;">Group </span>is a collapsable
+frame layout with a title and six default buttons at its bottom.<br>
+      <br>
+The default buttons apply to the channels in this group.<br>
+      <br>
+By default the channels are labeled with their object.attribute name.
+You can change the default label type in <span style="font-weight: bold;">AC2.0-&gt;Preferences</span>.<br>
+      <br>
+Under the frame of the first Group there is a button "<span style="font-weight: bold;">Add to new Group</span>". Select&nbsp; some
+more channels in the Channelbox and click this button to create a new
+group.<br>
+      </td>
+      <td style="vertical-align: top; width: 9px;"><br>
+      </td>
+      <td style="vertical-align: top; width: 448px;"><img src="images/whatIsThis.jpg" alt="" style="width: 441px; height: 469px;"></td>
+    </tr>
+  </tbody>
+</table>
+<br>
+</div>
+</div>
+<hr style="font-family: Helvetica,Arial,sans-serif;" size="2" width="100%"><br style="font-family: Helvetica,Arial,sans-serif;">
+<h4 style="font-family: Helvetica,Arial,sans-serif;"><big><a name="Edit_a_Group"></a>Edit a "Group"</big></h4>
+<ol style="font-family: Helvetica,Arial,sans-serif;">
+  <li>To edit a Group click its "Edit..." button</li>
+</ol>
+<ol style="font-family: Helvetica,Arial,sans-serif;">
+</ol>
+<ul style="font-family: Helvetica,Arial,sans-serif;">
+  <li>The Edit Window appears.</li>
+  <ol type="a">
+    <li>Click the orange "Parent" button to get to the parent's
+properties</li>
+    <li>Double-click an entry to get to its properties</li>
+    <li>Select entries and click Move Up/Move Down to change the order</li>
+    <li>Click/hold the "Insert &gt;&gt;" button to insert new UI
+elements</li>
+  </ol>
+</ul>
+<ul style="font-family: Helvetica,Arial,sans-serif;">
+  <li>The changes will immediately appear in the Attribute Collection
+Window</li>
+</ul>
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<div style="font-family: Helvetica,Arial,sans-serif;" align="center"><img src="images/editGroup.jpg" alt="Edit a Group" style="width: 925px; height: 792px;"> <br>
+<br>
+<div align="left"><br>
+<hr size="2" width="100%">
+<h4><big><a name="Direct_Editing"></a>Direct Editing</big></h4>
+There are several ways to edit and modify the UI.<br>
+<br>
+<ul>
+  <li>You can use the middle mousebutton (MMB) for Drag&amp;Drop
+directly in the UI.</li>
+  <li>The right mousebutton (RMB) opens a popup menu for Edit, Insert
+and Delete for this entry<br>
+(<span style="font-weight: bold;">NOT</span> on the label or the input
+field of the entry - the RMB menu there is the default menu).<br>
+  </li>
+</ul>
+<br>
+<div style="text-align: center;"><img src="images/editDirect.jpg" alt="" style="width: 922px; height: 578px;"><br>
+<div style="text-align: left;"><br>
+<br>
+<ul>
+  
+  <li>you can also use MMB Drag&amp;Drop <span style="background-color: white; text-decoration: line-through;">between different Edit Windows</span><br>
+and between Edit Windows and the UI<span style="font-weight: bold;"><br>
+NOTE</span>:&nbsp; the Drag operation FROM the Edit window is currently not working because of a limitation in Qt<br>
+  </li>
+
+</ul>
+<div style="text-align: center;"><img src="images/moreDragDrop.jpg" alt="" style="width: 884px; height: 857px;"><br>
+<div style="text-align: left;"><br>
+<br>
+<br>
+Limitations and Exceptions for Drag &amp; Drop:<br>
+
+  
+  <br>
+<ul>
+  <li>You can't drag a parent (i.e. a Group) onto one of
+its children.
+  </li>
+  <li>Button Rows can be dragged by grabbing one of the buttons.
+  </li>
+  <li>If you drag an entry onto an <b>empty</b> Group or Grid, then
+the entry will become a <b>Child</b> of that Group/Grid (will not be
+inserted before the Group/Grid)</li>
+  <ul>
+
+  </ul>
+</ul>
+
+<br>
+<br>
+</div>
+</div>
+</div>
+</div>
+<br>
+<hr size="2" width="100%">
+<h4><big><a name="Buttons_and_Icons"></a>Buttons and Icons</big></h4>
+Buttons and Icons let you execute MEL-scripts from within your custom
+UI. The scripts are even persistent to name changes of the referred
+objects.<br>
+<br>
+To create a ButtonRow or an Icon use the Edit Window of a group or use
+the RMB menu directly in the UI:<br>
+<br>
+<ol>
+
+  
+  <li>RMB on an entry to insert a ButtonRow <span style="font-weight: bold;">before</span> this entry</li>
+
+  
+  <li>then RMB on the ButtonRow entry. Select the name of the entry to
+open it's Edit Window<br>
+  </li>
+
+</ol>
+
+<br>
+<div style="text-align: center;"><img src="images/buttonRowInsertBoth.jpg" alt="" style="width: 883px; height: 595px;" vspace="0"><br>
+<div style="text-align: left;"><br>
+<br>
+An easy way to create MEL-scripts for buttons and icons is to copy
+commands from the Script Editor. The Script Editor echoes the commands
+that are executed while you are using Maya.<br>
+<br>Example:<br>
+To create a "Reset" button for an object:<br>
+<ol>
+  <li>In the <span style="font-weight: bold;">Channel Box</span> set values for channels and objects.</li>
+  <li>The commands for these settings are echoed in the History section
+of the <span style="font-weight: bold;">Script Editor</span>.</li>
+  <li>Drag &amp; Drop these commands to the Input Section and edit them
+(if needed)</li>
+  <li>Drag &amp; Drop the script text to the <span style="font-weight: bold;">Edit Window</span> of the <span style="font-weight: bold;">ButtonRow</span>
+(or Icon)</li>
+</ol>
+You can even Drag &amp; Drop icons from the <span style="font-weight: bold;">Shelf</span> into the Edit Window of
+a ButtonRow/Icon.<br>
+<br>
+</div>
+</div>
+<br>
+<div style="text-align: center;"><img src="images/createButtonScript.jpg" alt="" style="width: 1111px; height: 429px;"><br>
+<div style="text-align: left;"><br>
+<br>
+</div>
+</div>
+<br>
+<hr size="2" width="100%">
+<div align="center">
+<div style="text-align: left;">
+<h4 style="font-weight: bold;"><big><a name="The_Preferences"></a>The Preferences</big></h4>
+
+
+<h4 style="font-weight: normal;">In the menu AC2.0 you can find
+the <span style="font-weight: bold;">Preferences:</span></h4>
+<div style="text-align: center;"><img style="width: 545px; height: 828px;" alt="" src="images/preferences.jpg"><br>
+<div style="text-align: left;"><br>
+<h4 style="margin-left: 36pt; text-indent: -18pt; font-family: Helvetica,Arial,sans-serif;"><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><span style="">·<span style="font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span></span><span style="color: windowtext; text-decoration: none;" lang="EN-GB"><span style="color: windowtext; text-decoration: none;">Appearance</span><span style="color: windowtext; font-weight: normal; text-decoration: none;"><br>
+When the Attribute Collection is called to create a new UI then this setting
+defines whether it appears in a panel (can be configured using Panel Layouts)
+or in a separate window.</span></span><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><o:p></o:p></span></h4>
+
+
+<h4 style="margin-left: 36pt; text-indent: -18pt; font-family: Helvetica,Arial,sans-serif;"><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><span style="">·<span style="font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span></span><span style="color: windowtext; text-decoration: none;" lang="EN-GB"><span style="color: windowtext; text-decoration: none;">Sizes</span><span style="color: windowtext; font-weight: normal; text-decoration: none;"><br>
+Sets the sizes of all labels, fields and sliders of controls. These values are
+also used to calculate the total width of the UI.</span></span><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><o:p></o:p></span></h4>
+
+
+<h4 style="margin-left: 36pt; text-indent: -18pt; font-family: Helvetica,Arial,sans-serif;"><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><span style="">·<span style="font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span></span><span style="color: windowtext; text-decoration: none;" lang="EN-GB"><span style="color: windowtext; text-decoration: none;">Initial Attribute
+Label</span><span style="color: windowtext; font-weight: normal; text-decoration: none;"><br>
+<span class="GramE">Sets</span> the initial naming of attribute controls. The
+names can be changed in the edit window of the control.</span></span><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><o:p></o:p></span></h4>
+
+
+<h4 style="margin-left: 36pt; text-indent: -18pt; font-family: Helvetica,Arial,sans-serif;"><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><span style="">·<span style="font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span></span><span style="color: windowtext; text-decoration: none;" lang="EN-GB"><span style="color: windowtext; text-decoration: none;">Buttons</span><span style="color: windowtext; font-weight: normal; text-decoration: none;"><br>
+Any of the six default buttons can be disabled.</span></span><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><o:p></o:p></span></h4>
+
+
+<h4 style="margin-left: 36pt; text-indent: -18pt; font-family: Helvetica,Arial,sans-serif;"><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><span style="">·<span style="font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span></span><span style="color: windowtext; text-decoration: none;" lang="EN-GB"><span style="color: windowtext; text-decoration: none;">Lock UI</span><span style="color: windowtext; font-weight: normal; text-decoration: none;"><br>
+<span class="GramE">This</span> removes all menus/buttons to edit the UI and the
+preferences to protect users from accidental changes.<br>
+The only way to get back to full control is the command &#8220;</span><span class="SpellE"><span style="background: yellow none repeat scroll 0% 50%; color: windowtext; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial; text-decoration: none;">acUnlockUI</span></span><span style="color: windowtext; font-weight: normal; text-decoration: none;">&#8221; (type that in the command line).<br>
+</span><span style="color: windowtext; text-decoration: none;">ATTENTION</span><span style="color: windowtext; font-weight: normal; text-decoration: none;">: If you switch this on and save the
+preferences there will be </span><span style="color: windowtext; text-decoration: none;">no interactive way (menus)</span><span style="color: windowtext; font-weight: normal; text-decoration: none;"> to switch it back.</span></span><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><o:p></o:p></span></h4>
+
+
+<h4 style="margin-left: 36pt; text-indent: -18pt; font-family: Helvetica,Arial,sans-serif;"><span style="font-size: 16pt; color: windowtext; font-weight: normal; text-decoration: none;" lang="EN-GB"><span style="">·<span style="font-style: normal; font-variant: normal; font-weight: normal; font-size: 7pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span></span><span style="color: windowtext; text-decoration: none;" lang="EN-GB"><span style="color: windowtext; text-decoration: none;">Save
+Collection with <span class="SpellE">Prefs</span><br>
+</span><span class="GramE"><span style="color: windowtext; font-weight: normal; text-decoration: none;">Saves</span></span><span style="color: windowtext; font-weight: normal; text-decoration: none;"> the</span><span style="color: windowtext; text-decoration: none;"> </span><span style="color: windowtext; font-weight: normal; text-decoration: none;">preferences into the file rather than just into Maya´s preferences.</span></span></h4>
+<br>
+</div>
+</div>
+<br>
+<hr style="width: 100%; height: 2px;">
+<h4><big><a name="The_UI_Tree_and_the_Hierarchy_Window"></a>The UI Tree and
+the Hierarchy Window</big><br>
+</h4>
+
+There are two useful views at the database of Attribute Collection:<br>
+<br>
+For a look at nodes that are created by Attribute Collection choose <span style="font-weight: bold;">Edit-&gt;UI Tree<br>
+</span>The Hypergraph window shows the contruction history that is
+saved with the scene. The script node on the right is executed when the
+scene is loaded and it draws the UI.<br>
+You see that the "leaf" entries are connected to the controlled
+objects/attributes. This way the custom UI (incl. scripts on buttons
+and icons) is insensitive to name changes of the objects (e.g. when the
+whole thing is loaded as a reference).<br>
+<br>
+With the "Edit Window" of Attribute Collection you can walk up and down
+in
+this hierarchy.<br>
+<br>
+<span style="font-weight: bold;"><br>
+</span>
+<div style="text-align: center;"><span style="font-weight: bold;"><img src="images/uiTree.jpg" alt="" style="width: 791px; height: 778px;"></span><br>
+</div>
+&nbsp;<br>
+</div>
+<div align="left"><br>
+<br>
+<br>
+For the <span style="font-weight: bold;">Hierarchy Window</span>
+choose <span style="font-weight: bold;">Edit-&gt;Hierarchy Win.<br>
+</span>This window is a "rough" representation of the node-hierarchy.<br>
+In this window you can also use MMB Drag&amp;Drop and RMB Popup menus.<br><br>
+<div style="text-align: center;"><img src="images/hierarchyWin.jpg" alt="" style="width: 587px; height: 544px;"><br>
+</div>
+<br>
+<span style="font-weight: bold;"></span>
+<hr size="2" width="100%"><br>
+<br>
+<div align="center">&nbsp;<br>
+<br>
+<br>
+<div align="left">
+<hr size="2" width="100%"><br>
+<h4><big><a name="Anatomy_of_the_UI"></a>Anatomy of the UI</big></h4>
+<br>
+The UI in Maya is a <b>hierarchy</b>.<br>
+This hierarchy is shown in the Edit Window. You can explore the
+branches of the hierarchy by double-clicking an entry - or click
+"Parent" go up
+in the hierarchy to the parent of the shown UI elements.<br>
+<br>
+</div>
+</div>
+<br>
+The following two images illustrate the anatomy of the UI in Maya.<br>
+<br>
+<ul>
+  <li>This UI (built in Attribute Collection) ......(old color scheme)<br>
+</li>
+</ul>
+<div align="center"><br>
+</div>
+</div>
+<div align="center"><img style="width: 408px; height: 454px;" src="images/anatomyExample.jpg" alt="Anatomy Example"> <br>
+<div align="left"><br>
+<ul>
+  <li>... has this anatomy ...(old color scheme)</li>
+</ul>
+<br>
+<div align="center"><img style="width: 777px; height: 574px;" src="images/UIanatomy.jpg" alt="anatomy"> <br>
+<div align="left"><br>
+<br>
+... and this is the Hierarchy View of the UI:<br>
+<br>
+<div style="text-align: center;"><img src="images/sampleUIHWin.jpg" alt="" style="width: 536px; height: 428px;"><br>
+</div>
+<div align="center">
+<div align="left"><br>
+<hr size="2" width="100%"><br>
+<h4><big><a name="Node_Name_Substitution_for_ButtonIcon"></a>Node Name
+Substitution for Button/Icon-Scripts</big></h4>The script in the entry types "Button", "ButtonRow" and "Icon" will be updated on node/attribute name changes.<br>
+<br>
+All the "node.attribute" names that are properly enclosed in double quotes will be connected to the entry.<br>
+<br>
+Example: all these attribute names are recognized:<br>
+<br>
+<span style="font-family: Courier New,Courier,monospace; font-weight: bold;">"pShere1.tx"</span><br style="font-family: Courier New,Courier,monospace; font-weight: bold;">
+<span style="font-family: Courier New,Courier,monospace; font-weight: bold;">"blendshape.weight[0]"</span><br style="font-family: Courier New,Courier,monospace; font-weight: bold;">
+<span style="font-family: Courier New,Courier,monospace; font-weight: bold;">"ref:loaded.visibility"</span><br>
+<br>
+<br>
+And these names will NOT be recognized:<br>
+<br>
+<span style="font-family: Courier New,Courier,monospace; font-weight: bold;">pShere1.tx&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; (no
+quotes)</span><br style="font-family: Courier New,Courier,monospace; font-weight: bold;">
+<span style="font-family: Courier New,Courier,monospace; font-weight: bold;">"blendshape.weight[" + $i + "]"&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; (no varables allowed)</span><br style="font-family: Courier New,Courier,monospace; font-weight: bold;">
+<br>
+You can test this by entering a script for a button (like "<span style="font-weight: bold;">setAttr "pSphere1.tx" 5,</span>") in the Edit Window.<br>
+<br>
+Then close the Edit Window, rename pSphere1 to something else, and re-open the Edit Window.<br>
+The Script shows the new object name.<br style="font-family: Helvetica,Arial,sans-serif;">
+<br>
+<div align="left"><br>
+</div>
+<br>
+<br>
+<hr size="2" width="100%">
+<h4><big><a name="Problems_loading_files_with_UI"></a>Problems loading files
+with UI?</big></h4>
+There might be an error message when you try to load a file with
+custion UI.<br>
+<br>
+To get rid of these error messages you should include the line "<b>source
+ac.mel;</b>" in the file <b>userSetup.mel</b> which
+resides in the <b>scripts</b> directory (create the file if
+nessesary).
+<br>
+<br>
+<hr size="2" width="100%">
+<h4><big><a name="Compatibility_Notes"></a>Compatibility Notes</big></h4>
+If you have used the "old" Attribute Collection (Version 1.7) you could
+try to load the files with the new version.<br>
+<ul>
+  <li>Please remove the old <span style="font-weight: bold;">attributeCollection.mel</span>
+from your scripts directory.</li>
+  <li>Then create a new (empty) <span style="font-weight: bold;">attributeCollection.mel</span>
+with the content: <span style="font-weight: bold;">source ac.mel</span></li>
+  <li>In Maya <span style="font-weight: bold;">source ac.mel<br>
+    </span>(if you get errors or warnings then repeat this step a few
+times).</li>
+  <li>Then load the scene with the old Attribute Cillection UI.<br>
+  </li>
+</ul>
+AC2.0 will try to convert the old script nodes. A window lets you then
+delete the old script node.<br>
+<br>
+<br>
+<br>
+<hr size="2" width="100%"></div>
+<div style="text-align: left;">
+<h4><big><a name="Notes_for_TDs_and_Developers"></a>Notes for TDs and
+Developers</big></h4>
+You can integrate your own UI-types in Attribute Collection.<br>
+There are hooks that let you define a new type that will then be
+managed by Attribute Collection.<br>
+For more information please send me a mail: <a href="mailto:roland.reyer@autodesk.com"><span style="text-decoration: underline;">roland.reyer@autodesk.com</span></a><a href="mailto:roland@alias.com"><br>
+</a><br>
+<br>
+You can load the <span style="font-weight: bold;">same </span>UI as a
+reference into different scenes. In this case the UI node are
+disconnected and Attribute Collection finds the objects just <span style="font-weight: bold;">by name</span> in a certain namespace.<br>
+For more information please send me a mail:<span style="text-decoration: underline;"> <a href="mailto:roland.reyer@autodesk.com">roland.reyer@autodesk.com</a></span><a href="mailto:roland@alias.com"><br>
+</a><br>
+<br>
+<br>
+<br>
+</div>
+</div>
+<br>
+</div>
+</div>
+</div>
+</div>
+</div>
+<br>
+<br>
+</div>
+</div>
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<br style="font-family: Helvetica,Arial,sans-serif;">
+<br style="font-family: Helvetica,Arial,sans-serif;">
+</body></html>

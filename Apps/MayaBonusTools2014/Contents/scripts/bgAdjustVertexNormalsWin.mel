@@ -1,0 +1,218 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//
+//      bgAdjustVertexNormalsWin.mel (was adjustNormalUI.mel): creates UI 
+//			for interactively adjusting vertex normals
+//
+//
+//
+// Fixed undo problem and added slider for vertex normal length.
+//
+//
+// Input Arguments: NONE
+//
+// works with Maya Versions: 4.5
+
+
+
+global proc changeNormal()
+{		
+//	called by the sliders in bgAdjustVertexNormalsWin to edit the 
+//	normal as the slider value changes
+
+	polyNormalPerVertex -xyz `floatSliderGrp -q -v adjustNormalX` 
+		`floatSliderGrp -q -v adjustNormalY`
+		`floatSliderGrp -q -v adjustNormalZ`; 
+
+	//Set undo off temporarily while dragging slider (do not flush queue)
+	//so that undo will come back to starting point
+	undoInfo -swf 0;
+}
+
+//	a scriptJob is created in bgAdjustVertexNormalsWin and calls this
+//	everytime the selection changes. The scriptJob is parented to
+//	bgAdjustVertexNormalsWin so it will be killed when the window
+//	is deleted.
+
+global proc updateNormal()
+{
+	string $selection[] = `filterExpand -ex true -sm 31 -sm 70`;
+	if ( size($selection) > 0 ){
+		float $values[] = `polyNormalPerVertex -q -xyz`;
+		floatSliderGrp -e -v $values[0] adjustNormalX;
+		floatSliderGrp -e -v $values[1] adjustNormalY;
+		floatSliderGrp -e -v $values[2] adjustNormalZ;
+	}
+
+}
+
+
+global proc changeNormalLength()
+{		
+	global string $normSliderName;
+	polyOptions -sn `floatSliderGrp -q -v $normSliderName`;
+}
+
+
+global proc bgAdjustVertexNormalsWin()
+{
+	//global int $g_ui_example_on_sel_changed = 0 ;
+	//$g_ui_example_on_sel_changed = `scriptJob -e "SelectionChanged" bgAdjustVertexNormalsWin` ;
+	
+	global string $normSliderName;
+	string $selection;	
+
+	//make sure undo queue is on to start with
+	undoInfo -swf 1;
+
+	//Isolate Vertex
+	//
+	string $names[] = `filterExpand -sm 31` ;
+	int $size = size( $names ) ;
+
+	$selection = $names[0];	
+	
+	if( (`window -exists bgAdjustVertexNormalsWin`) == true )	
+	{
+		deleteUI bgAdjustVertexNormalsWin;	
+	}
+	
+	window -width 385 -height 175 
+		-title ("Adjust Normals "+$names[0]) 
+		bgAdjustVertexNormalsWin;
+	
+	columnLayout;
+			
+	separator -style none;
+
+	text -label "  Move sliders to interactively adjust normals" 
+		-align left 
+		-fn boldLabelFont;		
+	
+	separator -style none;
+			
+	floatSliderGrp -adj 1 
+		-columnAlign 1 "center" 
+		-label "X  Vertex  Normal" 
+		-field true
+		-min -1
+		-max 1 
+		-fmn -1 
+		-fmx 1 
+		-pre 3 
+		-value 0
+		adjustNormalX ;
+	
+	floatSliderGrp -adj 1 
+		-columnAlign 1 "center" 
+		-label "Y  Vertex  Normal" 
+		-field true
+		-min -1 
+		-max 1 
+		-fmn -1 
+		-fmx 1 
+		-pre 3 
+		-value 0
+		adjustNormalY;
+	
+	floatSliderGrp -adj 1 
+		-columnAlign 1 "center" 
+		-label "Z  Vertex  Normal" 
+		-field true
+		-min -1 
+		-max 1 
+		-fmn -1 
+		-fmx 1 
+		-pre 3 
+		-value 0
+		adjustNormalZ;
+
+	separator -style none;
+	separator -style none;
+
+	$normSliderName = `floatSliderGrp -adj 1 
+		-label "Normal Length" -columnAlign 1 "center" 
+ 		-field true -min 0 -max 3  -value .25 -pre 2
+		-dc "changeNormalLength"` ;	
+
+	separator -style none;
+
+
+	rowColumnLayout  -numberOfColumns 3 
+		-columnWidth 1 125 
+		-columnWidth 2 125 
+		-columnWidth 3  125;
+	
+	separator -style single; 
+	separator -style single; 
+	separator -style single;
+	
+	separator -style none; 
+	separator -style none; 
+	separator -style none;
+	
+	button -label "Vertex Normal Display" 
+		-ann "Toggle display of vertex normals on selected objects" 
+		-command "polyOptions -r -pt -dn on;polyOptions -sn 0.25";
+	
+	button -label "Average Vertex Normals" 
+		-ann "Average vertex normals on selected vertices" 
+		-command "polyAverageNormal -prenormalize 1 -allowZeroNormal 0 -postnormalize 0 -distance 0.1 -replaceNormalXYZ 1 0 0";
+	
+	button -label "Set Normals to Face" 
+		-ann "Set vertex normals on selected vertices" 
+		-command "polySetToFaceNormal -setUserNormal";
+	
+	separator -style none; 
+	separator -style none; 
+	separator -style none;
+	
+	showWindow bgAdjustVertexNormalsWin ;
+	
+	//setup slider drag for adjusting normals (undo turned off in proc)
+	//turn undo back on after releasing slider
+
+	floatSliderGrp -e 
+		-dc "changeNormal" -cc "undoInfo -swf 1"
+		adjustNormalX ; 
+	
+	floatSliderGrp -e 
+		-dc "changeNormal" -cc "undoInfo -swf 1"
+		adjustNormalY ; 
+	
+	floatSliderGrp -e 
+		-dc "changeNormal" -cc "undoInfo -swf 1"
+		adjustNormalZ ; 
+
+
+		
+	if( !$size )
+	{		
+		warning ("Select a single shared vertex, multiple vertices or a vertex per face\n");	
+	}
+	
+
+	scriptJob -p "bgAdjustVertexNormalsWin" 
+		-e "SelectionChanged" "updateNormal" ;
+	
+}

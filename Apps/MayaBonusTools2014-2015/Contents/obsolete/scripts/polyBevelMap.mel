@@ -1,0 +1,92 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//	polyBevelMap.mel
+//
+//	Fix the mapping (or lack of) resulting from a poly bevel op
+//
+
+global proc polyBevelMap(){
+	
+	
+	
+	// get object
+	string $bevelledMesh[] = `ls -sl`;
+	
+	// get unmapped faces
+	polySelectConstraint -m 3 -t 8 -tx 2;
+	string $unmappedFaces[] = `ls -sl`;
+	
+	// turn selection constraints off
+	polySelectConstraint -tx 0;	
+	
+	
+	// make UVs by camera projection
+	//polyForceUV -cp $unmappedFaces;
+	polyProjection -ch 1 -type Planar -ibd on -icx 0.5 -icy 0.5 -ra 0 -isu 1 -isv 1 -md b $unmappedFaces;
+	
+	//polyAutoProjection -ibd 1 -cm 0 -l 2 -sc 1 -o 1 -p 6 -ps 0.2 -ch 1 $unmappedFaces;
+
+	
+	select -r $unmappedFaces;
+	ConvertSelectionToUVs;
+	polySelectBorderShell 1;
+	ConvertSelectionToVertices;
+	string $verts[] = `ls -sl`;
+	$verts = `filterExpand -sm 31 $verts`;
+	for ($vert in $verts){
+		//print "\nvert ";
+		//print $vert;
+		string $uvs[] = `polyListComponentConversion -toUV $vert`;
+		$uvs = `filterExpand -sm 35 $uvs`;
+		//print "\nuvs ";print $uvs;
+		float $coords[] = `polyEditUV -query $uvs`;
+		int $numCoords = `size $coords`;
+		int $numUVs = `size $uvs`;
+		
+		//print "\nnum uvs ";
+		//print $numUVs;
+		
+		polyEditUV -relative false
+			-uValue $coords[0]
+			-vValue $coords[1]
+			$uvs[($numUVs-1)];
+		
+	}
+	
+	// move and sew
+	//polyMapSewMove -nf 10 -lps 0 -ch 1 $unmappedFaces;
+
+	//polyLayoutUV -l 0 -sc 0 -se 1 -rbf 0 -fr 0 -ps 0.2 -ch 1 $unmappedFaces;
+	
+	//relax UVs
+	select -r $unmappedFaces;
+	
+	ConvertSelectionToUVs;
+
+	untangleUV -r harmonic -pb 1 -ps 0 -pu 0 -rt 0 -mri 15;
+
+	select -replace $bevelledMesh;
+	
+	
+	
+}

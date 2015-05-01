@@ -1,0 +1,191 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// bgReverseAnim.mel
+//
+//
+// Reverses all animation curves for selected objects (including hierarchies)
+// For mocap skeleton just select root and apply.  For rig, select node(s)
+// containing controls.  You can reverse around specific frame, the mid point,
+// start or end of the animation.
+//
+//
+//                     
+//
+// Creation Date:      ( 04/26/04 )
+
+
+
+global proc applyReverseAnim(int $pivot, int $frame)
+{
+	float $val;
+	float $min;
+	float $max;
+	float $mid;
+	float $keyVals[];
+
+	$selected = `ls -sl`;
+	$hier	= `select -r -hi $selected`;
+	
+	$keys = `selectKey`;
+
+	$keyVals = `keyframe -q -sl`;
+
+	$min = $keyVals[0]; $max = $keyVals[0];
+
+	for ($val in $keyVals)
+		{
+		if ($val < $min) $min = $val;
+		if ($val > $max) $max = $val;
+		}
+
+	//$mid = (($min + $max) / 2);
+	$mid = (($max - $min) / 2 + $min);
+	
+	print ("Start frame : " + $min + "\n");
+	print ("End frame : " + $max + "\n");
+	print ("Mid Point : " + $mid + "\n");
+			
+	switch ($pivot)
+	{
+		case 0:
+				scaleKey -scaleSpecifiedKeys 1 -timeScale -1 -timePivot $mid;
+				print ("Reversing all keys for selected objects and below at frame : " + $mid + "\n");
+				break;
+		case 1:
+				scaleKey -scaleSpecifiedKeys 1 -timeScale -1 -timePivot $min;
+				print ("Reversing all keys for selected objects and below at frame : " + $min + "\n");
+				break;
+		case 2:
+				scaleKey -scaleSpecifiedKeys 1 -timeScale -1 -timePivot $max;
+				print ("Reversing all keys for selected objects and below at frame : " + $max + "\n");
+				break;
+		case 3:
+				scaleKey -scaleSpecifiedKeys 1 -timeScale -1 -timePivot $frame;
+				print ("Reversing all keys for selected objects and below at frame : " + $frame + "\n");
+				break;
+	}
+
+	select -r $selected;
+}
+
+
+global proc setReverseAnimOptionVars()
+{
+	if (`optionVar -ex bgReversePivot` == 0)
+		optionVar -intValue bgReversePivot 0;   // 0=mid : 1:Start : 2:End : 3:Frame
+	if (`optionVar -ex bgReverseFrameNumber` == 0)
+		optionVar -intValue bgReverseFrameNumber 0;
+}
+
+global proc deleteReverseAnimOptionVars()
+{
+	optionVar -rm bgReversePivot;
+	optionVar -rm bgReverseFrameNumber;
+}
+
+global proc float setReverseFrameValue(string $id)
+{
+	// Return number from integer field change
+	//
+
+	float $val = `intField -q -value $id` ;
+	optionVar -fv bgReverseFrameNumber $val;
+	return $val;
+}
+
+	
+global proc bgReverseAnim()
+
+{
+	global string $bgReverseFrameID;
+	global string $bgReversePivotID;
+	
+	if( `window -exists reverseAnimWin` )
+		{
+		deleteUI reverseAnimWin;
+		//windowPref -remove reverseAnimWin;
+		}
+
+	window -w 340 -h 125 -menuBar true -title "Reverse Animation" reverseAnimWin;
+	
+	menu -tearOff 0 -l "Edit";
+	    menuItem -l "Reset Settings" -ann "Reset all setting to default values." -c "deleteReverseAnimOptionVars ; bgReverseAnim";
+
+
+	columnLayout -adjustableColumn 1;
+	
+	rowColumnLayout  -numberOfColumns 4
+		-columnWidth 1 100 
+		-columnWidth 2 80 
+		-columnWidth 3 80 
+		-columnWidth 4 80;
+
+		separator -style none;separator -style none;separator -style none;separator -style none;
+		
+		text -label "Reverse Pivot" -align center;
+			
+		$bgReversePivotID = `radioCollection`;
+		radioButton -label "Mid Point"
+			-onc "optionVar -intValue bgReversePivot 0";
+		
+		radioButton -label "Start" 
+			-onc "optionVar -intValue bgReversePivot 1";
+	
+		radioButton -label "End"
+			-onc "optionVar -intValue bgReversePivot 2";
+		
+		separator -style none;	
+		radioButton -label "Frame" 
+			-onc "intField -e -en 1 $bgReverseFrameID ; optionVar -intValue bgReversePivot 3" 
+			-ofc "intField -e -en 0 $bgReverseFrameID";	
+		
+		
+		//select correct radio button for stored pivot
+		$buttonList = `radioCollection -q -collectionItemArray $bgReversePivotID`;
+		int $buttonNumber = (`optionVar -q bgReversePivot`);
+		radioCollection -e -sl $buttonList[$buttonNumber] $bgReversePivotID;
+
+		
+		$reverseFrameValue = `optionVar -q bgReverseFrameNumber`;
+		$enableIntField = 0;
+		if (`optionVar -q bgReversePivot` == 3) $enableIntField = 1;
+		$bgReverseFrameID = `intField -v $reverseFrameValue -en  $enableIntField -cc "setReverseFrameValue $bgReverseFrameID"`;
+		separator -style none;	
+	
+		setParent ..;
+
+	separator -style none;separator -style none;separator -style none;	separator -style none;
+	
+	rowColumnLayout  -numberOfColumns 3
+		-columnWidth 1 110 
+		-columnWidth 2 110 
+		-columnWidth 3 110;
+	
+		button -label "Reverse" -c "applyReverseAnim (`optionVar -q bgReversePivot` , `optionVar -q bgReverseFrameNumber`) ; deleteUI reverseAnimWin";
+		button -label "Apply" -c "applyReverseAnim (`optionVar -q bgReversePivot` , `optionVar -q bgReverseFrameNumber`)";
+		button -label "Close" -c "deleteUI reverseAnimWin";
+	
+	
+	showWindow;
+	
+}

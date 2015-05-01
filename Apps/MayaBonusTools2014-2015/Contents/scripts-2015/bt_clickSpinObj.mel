@@ -1,0 +1,181 @@
+// Author:		Steven T. L. Roselle
+//
+// Last Update:        ( 04/01/14 )
+//
+// Tool for click dragging in order to rotate selected objects in the scene.
+// Rotation will happen based on the existing horizontal plane of each object.
+// If multiple objects are selected they will be spun around their average center point
+// CTRL will rotate each objec indvidually.
+// Shift will rotate around last selected object
+
+
+
+global proc bt_buildSpinContextDrag()
+{
+	//Rotate selected objects with cursor
+	//
+
+	float  $dragPosition[] = `draggerContext -query   -dragPoint buildSpinContext`;
+	float  $startPosition[] = `draggerContext -query   -anchorPoint buildSpinContext`;
+	float  $dragDirection[];
+	string $modifier   = `draggerContext -query   -modifier buildSpinContext`;
+	string $message;
+	string $unit;
+	string $tmp;	
+    float $xcenter;
+    float $ycenter;
+    float $zcenter;
+    float $spinFactor;
+	float $boundingBox[];	
+	
+	string $Objects[] = `ls -sl -type transform`;
+	string $Obj;
+	
+	//Make sure only transforms are effected
+	select -r $Objects;
+	
+	$dragDirection[0] = $dragPosition[0] - $startPosition[0];
+
+	$size = `size $Objects`;
+	$lastObj = $Objects[$size-1];
+	
+	$absX = `getAttr ($lastObj+".tx")`;
+	$absY = `getAttr ($lastObj+".ty")`;
+	$absZ = `getAttr ($lastObj+".tz")`;
+	
+	
+	int $useUpAxisY = (`upAxis -q -axis` == "y");
+		
+	//convert value from cm to current units because draggerContext always returns cm
+	$unit = `currentUnit -q -linear`;
+	if ($unit != "cm") 
+		{
+		$tmp = $dragPosition[0];
+		$dragPosition[0] = `convertUnit -fromUnit "cm" -toUnit $unit $tmp`;
+		$tmp = $dragPosition[1];
+		$dragPosition[1] = `convertUnit -fromUnit "cm" -toUnit $unit $tmp`;
+		$tmp = $dragPosition[2];
+		$dragPosition[2] = `convertUnit -fromUnit "cm" -toUnit $unit $tmp`;
+		}
+
+	if ( $modifier == "ctrl")
+		{
+		//Rotate around last object
+		$boundingBox = `exactWorldBoundingBox $lastObj`;
+		$spinFactor = (($boundingBox[0] - $boundingBox[3]) + ($boundingBox[1] - $boundingBox[4]));
+    	$xcenter = (($boundingBox[0] + $boundingBox[3]) / 2);
+    	$ycenter = (($boundingBox[1] + $boundingBox[4]) / 2);
+    	$zcenter = (($boundingBox[2] + $boundingBox[5]) / 2);
+    	
+    	if ($useUpAxisY)
+            rotate -r -ws -pivot $xcenter $ycenter $zcenter  -x 0 -y ($dragDirection[0]/$spinFactor) -z 0;
+        else //Z
+            rotate -r -ws -pivot $xcenter $ycenter $zcenter  -x 0 -y 0 -z ($dragDirection[0]/$spinFactor);
+        
+		}
+	else if ($modifier == "shift")
+		{
+		for ($Obj in $Objects)
+		    {
+    		//Rotate around center of bounding box for each object independantly
+    	    $boundingBox = `exactWorldBoundingBox $Obj`;
+    		$spinFactor = (($boundingBox[0] - $boundingBox[3]) + ($boundingBox[1] - $boundingBox[4]));
+        	$xcenter = (($boundingBox[0] + $boundingBox[3]) / 2);
+        	$ycenter = (($boundingBox[1] + $boundingBox[4]) / 2);
+        	$zcenter = (($boundingBox[2] + $boundingBox[5]) / 2);
+        	 
+        	if ($useUpAxisY)
+            	rotate -r -ws -pivot $xcenter $ycenter $zcenter  -x 0 -y ($dragDirection[0]/$spinFactor) -z 0 $Obj;
+            else //Z
+                rotate -r -ws -pivot $xcenter $ycenter $zcenter  -x 0 -y 0 -z ($dragDirection[0]/$spinFactor) $Obj;
+
+        	}
+		}
+	else
+		{
+		//Rotate around center of bounding box for all selected objects
+	    $boundingBox = `exactWorldBoundingBox`;
+		$spinFactor = (($boundingBox[0] - $boundingBox[3]) + ($boundingBox[1] - $boundingBox[4]));
+    	$xcenter = (($boundingBox[0] + $boundingBox[3]) / 2);
+    	$ycenter = (($boundingBox[1] + $boundingBox[4]) / 2);
+    	$zcenter = (($boundingBox[2] + $boundingBox[5]) / 2);
+
+       	if ($useUpAxisY)
+            rotate -r -ws -pivot $xcenter $ycenter $zcenter -x 0 -y ($dragDirection[0]/$spinFactor) -z 0;	
+	    else //Z
+            rotate -r -ws -pivot $xcenter $ycenter $zcenter -x 0 -y 0 -z ($dragDirection[0]/$spinFactor);	
+	    
+		}
+
+	refresh -currentView;
+}
+
+
+proc bt_checkCtrEHotkey()
+{
+    string $hotkeyExists = `hotkey -q -ctl -name "E"`;
+    
+    if ($hotkeyExists == "bt_clickDragRotateNamedCommand")
+        print "CTRL + Shift E hotkey already setup for Click Drag Rotate Tool\n";
+    else if (`size $hotkeyExists` > 0)
+        print "CTRL + Shift E hotkey is already being used.  If you\'d like CTRL + Shift E to be associated with this tool simply delete the existing hotkey and rerun the tool to auto create.\n";       
+    else if ($hotkeyExists != "bt_clickDragRotateNamedCommand")
+        {
+        print "Automatically setting CTRL + Shift E as hotkey for this tool\n";
+        nameCommand
+            -annotation "Click Drag Rotate"
+            -command "bt_clickSpinObj"
+            bt_clickDragRotateNamedCommand;
+        hotkey -k "E" -ctl -name "bt_clickDragRotateNamedCommand";
+        }
+        
+}
+
+
+global proc bt_clickSpinObj()
+{
+
+	//Create and enable the Spin dragger Context for interactively rotating objects
+	//
+
+	global string $bt_buildSpinContextName;
+	global string $bt_currentObj;
+	global string $bt_objects[];
+	global string $gSelect;
+
+    //check for hotkey setup
+    bt_checkCtrEHotkey;
+    	
+	$bt_objects = `ls -sl -type transform`;
+	
+	if (`size $bt_objects` == 0)
+		{
+		setToolTo $gSelect;
+		warning ("No objects selected to spin");
+		return;
+		}
+
+
+	if ( `draggerContext -exists $bt_buildSpinContextName` )
+	{
+		deleteUI $bt_buildSpinContextName;
+	}
+
+    $bt_buildSpinContextName  = `draggerContext  -snp 1
+	        -pressCommand "rotate -r 0 0 0"  //only needed for undoing
+			-dragCommand  ("undoInfo -swf 0; bt_buildSpinContextDrag(); undoInfo -swf 1")   // turn off undo first & turn on undo after
+			-cursor	 "tumble"
+			-space screen
+			buildSpinContext`;
+
+	// set the current tool to the Spin dragger Context
+	setToolTo buildSpinContext;
+	
+	headsUpMessage -time 6.0 "Click drag in the viewport to spin selected object(s) around an shared center.  CTRL click to spin all around last object's center.  SHIFT click to spin each object independantly.  ";
+
+
+}
+
+
+
+

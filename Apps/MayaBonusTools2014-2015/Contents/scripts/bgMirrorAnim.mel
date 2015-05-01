@@ -1,0 +1,479 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+
+
+//
+//	bgMirrorAnim.mel - (used for mirroring/inverting animation across a given axis)
+//
+//
+// This tool allows you to take an existing animation and mirror it along a given axis.  
+// For example, if you have a character that is walking from left to right, and you want 
+// the identical walk from right to left.  This script can be used to invert the animation.
+// This script addresses two different situations where you would want to mirror/invert
+// animation on a character.
+//
+// Between - Swapping animation from the left side to the right side or vice versa (eg... IK 
+// handles, constraints for hands and feet, shoulder and elbow joints).  This requires 
+// swapping all anim curves from side to side, as well as inverting certain curves based 
+// on the axis you want to mirror across.  In this case you would select one pair at a time  
+// and then apply the mirror.  For an entire character you would need to select each pair that 
+// required mirroring (eg... hands, elbows, feet, knees, etc...)
+//
+// Individual - mirroring animation on single joints/controls (eg... backs, neck, tails).  This 
+// only requires inverting certain curves based on the plane you want to mirror across.  For 
+// example, mirroring along the YZ plane requires inverting the X translate channel as well
+// as the Y and Z rotate channels.  In this case you could select all center joints/controls
+// and mirror them simultaneously, or you could do them one at a time.
+//
+// By default the tool will mirror Translate, Rotate and Scale, but you can also choose 
+// to mirror only selected transforms.  
+//
+// Custom Attributes - this allows you to also include user defined attributes such as set
+// driven key.  This is on by default.  If a user defined attribute exists on one side
+// but not the other then it will be ignored.
+//
+// IgnoreLockedAttributes - this allows you to skip over any attributes that have been locked 
+// from the channel box.  This is on by default.
+//
+// NOTE: the local axis is used, so be sure to check orientation of joints before setting
+// the mirror plane if you are unsure which direction to mirror. 
+//
+//
+//
+//
+// Creation Date:      ( 4/26/04 )
+
+
+global proc bt_applyMirrorAnim(int $axis, int $method, int $xforms[], int $ignore, int $custom)
+
+{
+	
+	string $trans; 
+	string $rot1; 
+	string $rot2;
+	string $connection[];
+	string $lockCheck1[];
+	string $lockCheck2[];
+	string $attrListOrig[];
+	string $attrListFinal[];
+
+	// bt_getAnim list of selected objects
+	$objList = `ls -sl -ap`;
+
+	//////////////////////////////////////
+	//
+	// define attributes to use when mirroring
+	//
+	//string $attrListOrig[] = {".tx", ".ty", ".tz", ".rx", ".ry", ".rz", ".sx", ".sy", ".sz"};
+
+	$attrCount = 0;
+	if ($xforms[0])
+		{
+		$attrListOrig[$attrCount] = ".tx";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".ty";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".tz";
+		$attrCount ++;			
+		}
+	if ($xforms[1])
+		{
+		$attrListOrig[$attrCount] = ".rx";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".ry";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".rz";
+		$attrCount ++;			
+		}
+	if ($xforms[2])
+		{
+		$attrListOrig[$attrCount] = ".sx";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".sy";
+		$attrCount ++;			
+		$attrListOrig[$attrCount] = ".sz";
+		$attrCount ++;			
+		}
+		
+	if (($custom == 1) && (`size $objList` == 2))
+		{
+		$userAttrList = `listAttr -userDefined $objList[0]`;  //Look for custom attrs on first object
+		for ($uAttr in $userAttrList)
+			{
+			if (`attributeExists $uAttr $objList[1]`)  //Check for same attr on second
+				{
+				$attrListOrig[$attrCount] = ("."+$uAttr);
+				$attrCount ++;
+				}
+			}
+		}
+	
+	//////////////////////////////////////
+	//
+	// define translate and rotate axis to mirror
+	//
+	if ($axis == 1)
+		{$trans = ".tx"; $rot1 = ".ry"; $rot2 = ".rz";}
+	else if ($axis == 2)
+		{$trans = ".ty"; $rot1 = ".rx"; $rot2 = ".rz";}
+	else if ($axis == 3)
+		{$trans = ".tz"; $rot1 = ".rx"; $rot2 = ".ry";}
+	
+	
+	
+	//////////////////////////////////////
+	//
+	// Invert individually
+	//
+	if ($method == 2)
+		{
+		if (`size $objList` != 2) warning ("Nothing selected");
+		for ($obj in $objList)
+			{
+	
+			// invert appropriate attrs and/or curves for objects
+			
+			if ($xforms[0]) //Translate
+				{	
+				$lockCheck1 = `listAttr -l ($obj+$trans)`;
+				if (`size $lockCheck1` == 0)					
+					{
+					print ("Inverting static value and/or animation for "+ $obj+$trans + "\n");
+					setAttr ($obj+$trans) (`getAttr ($obj+$trans)` * -1);			
+					scaleKey -scaleSpecifiedKeys 1 -time ":" -float ":" -timeScale 1 -timePivot 0 
+						-floatScale 1 -floatPivot 0 -valueScale -1 -valuePivot 0 -hierarchy none -controlPoints 0 -shape 1 {$obj+$trans};
+					}
+				}
+			if ($xforms[1])  //Rotate
+				{
+				$lockCheck1 = `listAttr -l ($obj+$rot1)`;
+				if (`size $lockCheck1` == 0)
+					{	
+					print ("Inverting static values and/or animation for " + $obj+$rot1 + "\n");					
+					setAttr ($obj+$rot1) (`getAttr ($obj+$rot1)` * -1);
+					scaleKey -scaleSpecifiedKeys 1 -time ":" -float ":" -timeScale 1 -timePivot 0 
+						-floatScale 1 -floatPivot 0 -valueScale -1 -valuePivot 0 -hierarchy none -controlPoints 0 -shape 1 {$obj+$rot1};
+					}
+		
+				$lockCheck1 = `listAttr -l ($obj+$rot2)`;
+				if (`size $lockCheck1` == 0)
+					{									
+					print ("Inverting static values and/or animation for " + $obj+$rot2 + "\n");					
+
+					setAttr ($obj+$rot2) (`getAttr ($obj+$rot2)` * -1);
+					scaleKey -scaleSpecifiedKeys 1 -time ":" -float ":" -timeScale 1 -timePivot 0 
+						-floatScale 1 -floatPivot 0 -valueScale -1 -valuePivot 0 -hierarchy none -controlPoints 0 -shape 1 {$obj+$rot2};
+					}
+				}
+			} 
+		}
+	//////////////////////////////////////
+	//
+	// Mirror between two selected objects
+	//
+	else if (($method == 1) && (`size $objList` == 2))
+		{
+		$first = $objList[0];
+		$second = $objList[1];
+	
+		print ("Mirroring static values and animation for " + $trans + ", " + $rot1 + " and " + $rot2 + " animation for " + $first + " and " + $second + "\n");
+
+		//Check attrs for editability
+		$count = 0;
+		for ($attr in $attrListOrig)
+			{	
+			$lockCheck1 = `listAttr -l ($first+$attr)`;
+			$lockCheck2 = `listAttr -l ($second+$attr)`;
+			
+			if ((`size $lockCheck1` != 0) && ($ignore == 1))
+				{
+				warning ("Ignoring " + $first+$attr + " because it is locked.");
+				continue;
+				}
+			else if ((`size $lockCheck1` != 0) && ($ignore == 0))
+				error ("Aborting : " + $first+$attr + " is locked.  Either unlock attributes or turn on IgnoreLockedAttributs in mirror options");
+			else if ((`size $lockCheck2` != 0) && ($ignore == 1))
+				{
+				warning ("Ignoring " + $second+$attr + " because it is locked.");
+				continue;
+				}
+			else if ((`size $lockCheck2` != 0) && ($ignore == 0))
+				error ("Aborting : " + $second+$attr + " is locked.  Either unlock attributes or turn on IgnoreLockedAttributs in mirror options");
+			else		
+				{
+				$attrListFinal[$count] = $attr;
+				$count ++;
+				}		
+			}
+		
+			
+		//Create dummy node for storing xforms				
+		//$tmpObj = `createNode transform -n tmp_transfer_obj`;
+		select -r $first;
+		duplicatePreset(1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1);
+		$dup = `ls -sl`;
+		$tmpObj = `rename $dup[0] tmp_transfer_obj`;
+	
+						
+				
+		//Copy first to temp object	
+		for ($attr in $attrListFinal)
+			{	
+			$connection = `listConnections  -d off -s on ($first + $attr)`;
+			if (`isAnimCurve $connection[0]`)
+				{
+				copyKey -time ":" -float ":" -hierarchy none -controlPoints 0 -shape 1  ($first+$attr);
+				cutKey -cl -t ":" -f ":" ($tmpObj+$attr);
+				pasteKey -option replace -copies 1 -connect 1 -timeOffset 0 -floatOffset 0 -valueOffset 0 ($tmpObj+$attr);
+				}
+				
+			else 
+				{
+				$val = `getAttr ($first + $attr)`;
+				setAttr ($tmpObj + $attr) $val;
+				}
+			}
+				
+		//Transfer from second to first
+		for ($attr in $attrListFinal)
+			{	
+			$connection = `listConnections  -d off -s on ($second + $attr)`;
+			if (`isAnimCurve $connection[0]`)
+				{
+				copyKey -time ":" -float ":" -hierarchy none -controlPoints 0 -shape 1  ($second+$attr);
+				cutKey -cl -t ":" -f ":" ($first+$attr);
+				pasteKey -option replace -copies 1 -connect 1 -timeOffset 0 -floatOffset 0 -valueOffset 0 ($first+$attr);	
+				}
+				
+			else 
+				{
+				$val = `getAttr ($second + $attr)`;
+				setAttr ($first + $attr) $val;
+				}
+			}
+				
+		//Transfer from tmp to second	
+		for ($attr in $attrListFinal)
+			{	
+			$connection = `listConnections  -d off -s on ($tmpObj + $attr)`;
+			if (`isAnimCurve $connection[0]`)
+				{
+				copyKey -time ":" -float ":" -hierarchy none -controlPoints 0 -shape 1  ($tmpObj+$attr);
+				cutKey -cl -t ":" -f ":" ($second+$attr);
+				pasteKey -option replace -copies 1 -connect 1 -timeOffset 0 -floatOffset 0 -valueOffset 0 ($second+$attr);
+				}
+				
+			else 
+				{
+				$val = `getAttr ($tmpObj + $attr)`;
+				setAttr ($second + $attr) $val;
+				}
+			}
+		
+			
+		// invert appropriate attrs and/or curves for objects
+			
+			if ($xforms[0]) //if translate is on
+			{	
+				$lockCheck1 = `listAttr -l ($first+$trans)`;
+				if (`size $lockCheck1` == 0)
+				{
+					setAttr ($first+$trans) (`getAttr ($first+$trans)` * -1);	
+					scaleKey -scaleSpecifiedKeys 1 -valueScale -1 -valuePivot 0 
+						{$first+$trans};
+
+				}
+				$lockCheck1 = `listAttr -l ($second+$trans)`;
+				if (`size $lockCheck1` == 0)	
+				{					
+					setAttr ($second+$trans) (`getAttr ($second+$trans)` * -1);	
+					scaleKey -scaleSpecifiedKeys 1 -valueScale -1 -valuePivot 0 
+							{$second+$trans};	
+				}				
+			}
+				
+			if ($xforms[1]) //if rotate is on
+			{
+				$lockCheck1 = `listAttr -l ($first+$rot1)`;
+				if (`size $lockCheck1` == 0)
+				{					
+					setAttr ($first+$rot1) (`getAttr ($first+$rot1)` * -1);
+					scaleKey -scaleSpecifiedKeys 1 -valueScale -1 -valuePivot 0 
+							{$first+$rot1};
+				}
+
+				$lockCheck1 = `listAttr -l ($first+$rot2)`;
+				if (`size $lockCheck1` == 0)	
+				{								
+					setAttr ($first+$rot2) (`getAttr ($first+$rot2)` * -1);
+					scaleKey -scaleSpecifiedKeys 1 -valueScale -1 -valuePivot 0 
+							{$first+$rot2};
+				}
+					
+				$lockCheck1 = `listAttr -l ($second+$rot1)`;
+				if (`size $lockCheck1` == 0)
+				{
+					setAttr ($second+$rot1) (`getAttr ($second+$rot1)` * -1);
+					scaleKey -scaleSpecifiedKeys 1 -valueScale -1 -valuePivot 0 
+							{$second+$rot1};
+				}
+					
+				$lockCheck1 = `listAttr -l ($second+$rot2)`;
+				if (`size $lockCheck1` == 0)
+				{
+					setAttr ($second+$rot2) (`getAttr ($second+$rot2)` * -1);
+					scaleKey -scaleSpecifiedKeys 1 -valueScale -1 -valuePivot 0 
+							{$second+$rot2};
+				}
+			}
+			
+				
+				
+		delete $tmpObj;
+		select -r $objList;
+	
+		// Reset frame to current time so that changes are visually updated
+		$t = `currentTime -query`;
+		currentTime -e $t ;
+		}
+		
+	//////////////////////////////////////
+	//
+	// Quit if too many objects are selected	
+	//	
+	else if (($method == 1) && (`size $objList` != 2))
+		{
+		error "Wrong number of objects.  Select 2 transfroms to mirror between";
+		}
+	
+	
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+//
+//		UI procs....
+
+
+global proc int bt_getAnimMirrorAxes(string $id)
+{
+	// Return axis from radio button change
+	//
+	int $axes= `radioButtonGrp -q  -sl $id` ;
+	return $axes;
+}
+
+global proc int bt_getAnimMirrorMethod(string $id)
+{
+	// Return method from radio button change
+	//
+	int $method = `radioButtonGrp -q  -sl $id` ;
+	return $method;
+}
+
+global proc int[] bt_getAnimMirrorXforms(string $id)
+{
+	// Return tranforms to use from checkboxes
+	//
+	int $xforms[] = {1,1,1};
+	int $T = `checkBoxGrp -q  -v1 $id` ;	
+	int $R = `checkBoxGrp -q  -v2 $id` ;	
+	int $S = `checkBoxGrp -q  -v3 $id` ;	
+	
+	int $xforms[] = {$T, $R, $S};
+	return $xforms;
+}	
+
+global proc int bt_getAnimIgnoreLocked(string $id)
+{
+	// Return method from radio button change
+	//
+	int $ignore = `checkBoxGrp -q  -v1 $id` ;
+	return $ignore;
+}
+
+global proc int bt_getAnimIncludeCustom(string $id)
+{
+	// Return method from radio button change
+	//
+	int $custom = `checkBoxGrp -q  -v1 $id` ;
+	return $custom;
+}
+
+global proc bgMirrorAnim()
+{
+	//Create UI and prompt user for mirrorping axis
+	//
+
+	global string $bt_mirrorMethodName;
+	global string $bt_mirrorAxesName;
+	global string $bt_mirrorXformName;
+	global string $bt_ignoreLockedName;
+	global string $bt_includeCustomName;
+	
+	if( (`window -exists bt_applyMirrorAnim`) == true )
+			{
+			deleteUI bt_applyMirrorAnim;
+ 			windowPref -remove bt_applyMirrorAnim;
+			}
+
+	window  -sizeable true   -width 300 -height 170 -t "Mirror Animation" bt_applyMirrorAnim;
+			rowColumnLayout -numberOfColumns 1;
+			int $num = 0;
+			
+			$bt_mirrorMethodName = `radioButtonGrp  -numberOfRadioButtons 2 -cat 1 left 5 -cw3 100 100 100 -sl 1 -label "Method:" -labelArray2 "Between" "Individual"`;
+
+			setParent..;
+			rowColumnLayout -numberOfColumns 3 -cw 1 100 -cw 2 100 -cw 3 100;
+			
+			separator -style "none";
+		    text -label "    (Two objects)" -align left;
+			text -label "     (One object)" -align left;
+			setParent..;
+			
+			$bt_mirrorAxesName = `radioButtonGrp  -numberOfRadioButtons 3 -cat 1 left 5 -cw4 100 70 70 70 -sl 1 -label "Mirror Local Axis:" -labelArray3 "X" "Y" "Z"`;
+			$bt_mirrorXformName = `checkBoxGrp -numberOfCheckBoxes 3 -cat 1 left 5 -cw4 100 70 70 70 -v1 1 -v2 1 -v3 1 -label "Include Attributes:" -labelArray3 "Translate" "Rotate" "Scale"`;			
+			$bt_includeCustomName = `checkBoxGrp  -numberOfCheckBoxes 1 -cat 1 left 5 -cw2 100 180  -v1 1 -label "" -labelArray2 "Custom Attributes" ""`;
+			$bt_ignoreLockedName = `checkBoxGrp  -numberOfCheckBoxes 1 -cat 1 left 5 -cw2 100 180  -v1 1 -label "" -labelArray2 "Ignore Locked Attributes" ""`;
+			
+			setParent..;
+			rowColumnLayout -numberOfColumns 3 -cw 1 100 -cw 2 100 -cw 3 100;
+
+				text -label " Local Axis Display:" -align left;
+				button -label "Toggle" -command ("ToggleLocalRotationAxes");
+				separator -style none;	
+				separator -style none ; separator -style none ; separator -style none;
+		
+
+				separator -style single ; separator -style single ; separator -style single;
+				button -label "Mirror" -command ("bt_applyMirrorAnim(`bt_getAnimMirrorAxes($bt_mirrorAxesName)`, `bt_getAnimMirrorMethod($bt_mirrorMethodName)`, `bt_getAnimMirrorXforms($bt_mirrorXformName)`, `bt_getAnimIgnoreLocked($bt_ignoreLockedName)`, `bt_getAnimIncludeCustom($bt_includeCustomName)`) ; deleteUI bt_applyMirrorAnim; windowPref -remove bt_applyMirrorAnim"); 
+				button -label "Apply" -command ("bt_applyMirrorAnim(`bt_getAnimMirrorAxes($bt_mirrorAxesName)`, `bt_getAnimMirrorMethod($bt_mirrorMethodName)`, `bt_getAnimMirrorXforms($bt_mirrorXformName)`, `bt_getAnimIgnoreLocked($bt_ignoreLockedName)`, `bt_getAnimIncludeCustom($bt_includeCustomName)`) "); 
+				button -label "Close" -command ("deleteUI bt_applyMirrorAnim; windowPref -remove bt_applyMirrorAnim");
+			setParent..;
+	
+	showWindow bt_applyMirrorAnim;
+}

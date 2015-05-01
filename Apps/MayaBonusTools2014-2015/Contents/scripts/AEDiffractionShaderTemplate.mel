@@ -1,0 +1,117 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Procedure Name:
+// AEDiffraction
+//
+// Description Name;
+// Creates the attribute editor controls for the skin shader plug-in
+//
+// Input Value:
+// nodeName
+//
+// Output Value:
+// None
+//
+
+
+//----------------------------------------------------------
+
+//
+//  Procedure Name:
+//  AEshaderBumpNew
+//
+
+global proc AEshaderBumpNew (string $attrName)
+{
+   setUITemplate -pst attributeEditorTemplate;
+
+   attrNavigationControlGrp
+      -l "Bump Mapping"
+      -at $attrName
+      bumpControl;
+
+   setUITemplate -ppt;
+}
+
+
+//
+//  Procedure Name:
+// AEshaderBumpReplace
+//
+
+global proc AEshaderBumpReplace (string $attrName)
+{
+   attrNavigationControlGrp -edit
+      -at $attrName
+      bumpControl;
+}
+
+global proc AEDiffractionShaderTemplate ( string $nodeName )
+{
+	editorTemplate -beginNoOptimize;
+
+	AEswatchDisplay $nodeName;
+
+	editorTemplate -beginScrollLayout;
+	editorTemplate -addControl "color";
+	editorTemplate -addControl "ambient";
+	editorTemplate -addControl "method";
+	editorTemplate -addControl "index";
+	editorTemplate -addControl "height";
+	editorTemplate -addControl "width";
+	editorTemplate -addControl "length";
+	editorTemplate -addControl "separation";
+	editorTemplate -addControl "twist";
+	editorTemplate -addControl "brightness";
+	editorTemplate -addControl "highlight";
+	editorTemplate -addControl "glow";
+	editorTemplate -addControl "transparency";
+	editorTemplate -addControl "reflectivity";
+	editorTemplate -addControl "reflectedColor";
+
+	editorTemplate -callCustom "AEshaderBumpNew" "AEshaderBumpReplace"
+               "normalCamera";
+
+	// include/call base class/node attributes
+	AEdependNodeTemplate $nodeName;
+
+	editorTemplate -addExtraControls;
+	
+	// supress photon attributes inherited from TdnLambert which are not
+	// used by TdnDiffractionShader.
+	editorTemplate -suppress "miRefractionBlurLimit";
+	editorTemplate -suppress "miScatterRadius";
+	editorTemplate -suppress "miScatterColor";
+	editorTemplate -suppress "miScatterColorR";
+	editorTemplate -suppress "miScatterColorG";
+	editorTemplate -suppress "miScatterColorB";
+	editorTemplate -suppress "miScatterAccuracy";
+	editorTemplate -suppress "miScatterFalloff";
+	editorTemplate -suppress "miScatterLimit";
+	editorTemplate -suppress "miScatterCache";
+	
+	editorTemplate -endScrollLayout;
+
+	editorTemplate -endNoOptimize;
+}
+//----------------------------------------------------

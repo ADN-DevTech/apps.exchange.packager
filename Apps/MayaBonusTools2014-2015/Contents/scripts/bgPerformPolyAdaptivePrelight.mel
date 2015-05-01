@@ -1,0 +1,248 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//  Creation Date:  Oct 14, 2002
+//
+//  Procedure Name:
+//      bgPerformPolyAdaptivePrelight
+//
+//  Description:
+//        
+//         
+//  Input Arguments:
+//        $option : Whether to set the options to default values.
+//  Return Value:
+//        None
+//
+
+proc setOptionVars (int	$forceFactorySettings)
+{
+	if ($forceFactorySettings || !`optionVar -exists "adaptivePrelightIterations"`)
+		optionVar -intValue "adaptivePrelightIterations" 2;
+
+	if ($forceFactorySettings || !`optionVar -exists "adaptivePrelightTolerance"`)
+		optionVar -floatValue "adaptivePrelightTolerance" 0.5;
+
+	if ($forceFactorySettings || !`optionVar -exists "adaptivePrelightSmooth"`)
+		optionVar -intValue "adaptivePrelightSmooth" 1;
+
+	if ($forceFactorySettings || !`optionVar -exists "adaptivePrelightShadows"`)
+		optionVar -intValue "adaptivePrelightShadows" 1;
+
+}
+
+global proc polyAdaptivePrelightSetup (string $parent, int $forceFactorySettings)
+{
+	setOptionVars($forceFactorySettings);
+	setParent $parent;
+
+    intSliderGrp 
+		-edit 
+		-value `optionVar -query adaptivePrelightIterations`
+		adaptivePrelightIterations;
+
+	floatSliderGrp 
+		-edit
+		-value `optionVar -query adaptivePrelightTolerance`
+		adaptivePrelightTolerance;
+
+	radioButtonGrp
+		-edit
+		-select `optionVar -query adaptivePrelightSmooth`
+		adaptivePrelightSmooth;
+
+	checkBoxGrp
+		-edit
+		-value1 `optionVar -query adaptivePrelightShadows`
+		adaptivePrelightShadows;
+
+}
+
+global proc polyAdaptivePrelightCallback (string $parent, int $doIt)
+{
+	//string $prefix = "polyAdaptivePrelight";
+	
+	setParent $parent;
+
+	optionVar -intValue "adaptivePrelightIterations"
+		`intSliderGrp -query -value	adaptivePrelightIterations`;
+	
+	optionVar -floatValue "adaptivePrelightTolerance"
+		`floatSliderGrp -query -value adaptivePrelightTolerance`;
+
+	optionVar -intValue "adaptivePrelightSmooth"
+		`radioButtonGrp -query -select adaptivePrelightSmooth`;
+
+	optionVar -intValue "adaptivePrelightShadows" 
+		`checkBoxGrp -query -value1 adaptivePrelightShadows`;
+
+	if ($doIt) 
+	{
+		bgPerformPolyAdaptivePrelight 0;
+		string $tmpCmd = "bgPerformPolyAdaptivePrelight 0 ";
+		addToRecentCommandQueue $tmpCmd "Poly Adaptive Prelight";
+	}
+}
+
+proc polyAdaptivePrelightOptions ()
+{
+	string $commandName = "polyAdaptivePrelight";
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	setOptionBoxCommandName($commandName);
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//
+	waitCursor -state 1;
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	intSliderGrp
+		-label "Iterations"
+		-minValue 1
+		-maxValue 5
+		adaptivePrelightIterations;
+
+	floatSliderGrp 
+		-label "Tolerance"
+		-minValue 0.0
+		-maxValue 1.0
+		adaptivePrelightTolerance;
+
+	//checkBoxGrp
+	//	-numberOfCheckBoxes 1
+	//	-label "Smooth"
+	//	-label1 "On"
+	//	adaptivePrelightSmooth;
+
+	radioButtonGrp -numberOfRadioButtons 3
+         -label "Faces" 
+		 -labelArray3 "Smooth" "Quad Divide" "Tri Divide" 
+		 adaptivePrelightSmooth;
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "Shadows"
+		-label1 "On"
+		adaptivePrelightShadows;
+	
+	setParent -menu ..;
+
+	waitCursor -state 0;
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit 
+		-label "Apply"
+		-command ($callback + " " + $parent + " " + 1) 
+		$applyBtn;
+	
+	string $applyAndCloseBtn = getOptionBoxApplyAndCloseBtn();
+	button -edit 
+		-label "Adaptive Prelight"
+		$applyAndCloseBtn;
+
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + " " +"; hideOptionBox")
+		$saveBtn;
+
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Step 7: Set the option box title.
+	//	=================================
+	//
+	setOptionBoxTitle("Polygon Adaptive Prelight Options");
+	//	Step 8: Customize the 'Help' menu item text.
+	//	============================================
+	//
+	//setOptionBoxHelpTag("AdaptivePrelight");
+	//	Step 9: Set the current values of the option box.
+	//	=================================================
+	//
+	eval (($setup + " " + $parent + " " + 0));
+	//	Step 10: Show the option box.
+	//	=============================
+	//
+	showOptionBox();
+}
+
+
+proc string assembleCmd()
+{
+	setOptionVars (false);
+
+	int $doHistory = `constructionHistory -q -toggle`;
+
+	string $cmd = "bgPolyAdaptivePrelight ";
+	$cmd += `optionVar -query "adaptivePrelightIterations"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "adaptivePrelightTolerance"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "adaptivePrelightSmooth"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "adaptivePrelightShadows"`;
+
+	return $cmd;	
+}
+
+
+global proc string bgPerformPolyAdaptivePrelight (int $option)
+{
+	//string $prefix = "bgPolyAdaptivePrelight";
+	string $cmd="";
+
+	switch ($option) 
+	{
+		case 0:
+			$cmd = `assembleCmd`;
+			eval($cmd);
+			break;
+		case 1:
+			polyAdaptivePrelightOptions;
+			break;
+		case 2:
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}

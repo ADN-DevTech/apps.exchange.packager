@@ -1,0 +1,46 @@
+// Author:		Steven T. L. Roselle
+//
+// Last Update:        ( 04/01/14 )
+
+
+global proc float bt_polyVolumeCalc()
+{
+    float $area = 0;
+       
+    $meshes = `filterExpand -sm 12`;
+
+    if (`size $meshes` > 0)
+     	{
+     	$tmp = `measure -v -ver $meshes`;
+     	$area = $tmp[0];
+     	}
+    return $area;
+}
+
+
+proc bt_createPolyVolumeHUD (){
+
+	headsUpDisplay
+		-section          0
+		//-block            11
+		-b `headsUpDisplay -nfb  0`
+		-blockSize        "small"
+		-label            "Poly Volume (^3):"
+		-labelFontSize    "small"
+		-dataFontSize	  "small"
+		-command          "bt_polyVolumeCalc"
+		-event            "SelectionChanged"
+		-nodeChanges      "attributeChange"
+		-dp		4
+	HUDPolyVolume;
+}
+
+
+global proc bt_togglePolyVolumeHUD (){
+
+    if (`headsUpDisplay -ex HUDPolyVolume`)
+	headsUpDisplay -rem HUDPolyVolume;
+    else 
+        bt_createPolyVolumeHUD;
+     	
+}

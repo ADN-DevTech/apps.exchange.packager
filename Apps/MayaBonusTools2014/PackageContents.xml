@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+	ProductType="Application"
+
+	AutodeskProduct="Maya"
+	Name="MayaBonusTools2014"
+	Description="Autodesk Maya 2014 Bonus Tools"
+	AppVersion="14.0.1"
+	Author="Autodesk"
+	AppNameSpace="com.autodesk.exchange.maya.bonustools"
+	HelpFile="./Contents/docs/MayaBonusTools.pdf"
+	OnlineDocumentation="http://www.autodesk.com/maya/"
+
+	ProductCode="*"
+	UpgradeCode="{42BEF01A-459B-21BE-162A-2559D30C9BFF}" >
+	
+	<CompanyDetails Name="Autodesk, Inc."
+		Phone=" "
+		Url="http://www.autodesk,com/"
+		Email="support.me@autodesk.com" />
+
+	<!-- Prevent to load in other version than Maya 2014 -->
+	<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+
+	<!-- docs -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/docs/closestPointOnCurve.txt" />
+		<ComponentEntry ModuleName="./Contents/docs/drawReduce.pdf" />
+		<ComponentEntry ModuleName="./Contents/docs/drawSplit.pdf" />
+		<ComponentEntry ModuleName="./Contents/docs/MayaBonusTools.pdf" />
+		<ComponentEntry ModuleName="./Contents/docs/pipeAssemblyManager_ReadMe.txt" />
+		<ComponentEntry ModuleName="./Contents/docs/pointOnMeshInfo.txt" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/Attribute_Collection_V2_02.html" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/anatomyExample.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/anatomySmall.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/buttonRowInsertBoth.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/complexUI.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/createButtonScript.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/editDirect.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/editGroup.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/firstSteps.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/hierarchyWin.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/moreDragDrop.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/preferences.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/sampleUIHWin.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/UIanatomy.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/uiTree.jpg" />
+		<ComponentEntry ModuleName="./Contents/docs/attributeCollection_2.03/images/whatIsThis.jpg" />
+	</Components>
+	
+	<!-- icons -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/icons/Add-Type.png" />
+		<ComponentEntry ModuleName="./Contents/icons/Assemblify.png" />
+		<ComponentEntry ModuleName="./Contents/icons/awesome.png" />
+		<ComponentEntry ModuleName="./Contents/icons/bonusTools.png" />
+		<ComponentEntry ModuleName="./Contents/icons/Build-Asset.png" />
+		<ComponentEntry ModuleName="./Contents/icons/drawReduceIcon.xpm" />
+		<ComponentEntry ModuleName="./Contents/icons/drawSplitIcon.xpm" />
+		<ComponentEntry ModuleName="./Contents/icons/edgePathIcon.xpm" />
+		<ComponentEntry ModuleName="./Contents/icons/Edit-Asset.png" />
+		<ComponentEntry ModuleName="./Contents/icons/facePathIcon.xpm" />
+		<ComponentEntry ModuleName="./Contents/icons/facePathSplitIcon.xpm" />
+		<ComponentEntry ModuleName="./Contents/icons/New-Asset.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_AshliShader.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_corrosion.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_denim.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_freckles.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_rings.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_scallop.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_splatter.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_streaks.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_swColorPerVertex.xpm" />
+		<ComponentEntry ModuleName="./Contents/icons/render_treeBark.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_veining.png" />
+		<ComponentEntry ModuleName="./Contents/icons/render_woodGrain.png" />
+		<ComponentEntry ModuleName="./Contents/icons/Save-Rep.png" />
+		<ComponentEntry ModuleName="./Contents/icons/storeXform.png" />
+	</Components>
+	
+	<!-- Obsolete stuff -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/obsolete/win64/AshliShader.mll" />
+		<ComponentEntry ModuleName="./Contents/obsolete/win64/convertEdgesToFacesCmd.mll" />
+		<ComponentEntry ModuleName="./Contents/obsolete/win64/convertVerticesToEdgesCmd.mll" />
+		<ComponentEntry ModuleName="./Contents/obsolete/win64/convertVerticesToFacesCmd.mll" />
+		<ComponentEntry ModuleName="./Contents/obsolete/win64/ftiExport.mll" />
+		<ComponentEntry ModuleName="./Contents/obsolete/win64/polyAttributeMap.mll" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="macOS" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/obsolete/macOS/AshliShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/obsolete/macOS/convertEdgesToFacesCmd.bundle" />
+		<ComponentEntry ModuleName="./Contents/obsolete/macOS/convertVerticesToEdgesCmd.bundle" />
+		<ComponentEntry ModuleName="./Contents/obsolete/macOS/convertVerticesToFacesCmd.bundle" />
+		<!-- ComponentEntry ModuleName="./Contents/obsolete/macOS/ftiExport.bundle" / -->
+		<ComponentEntry ModuleName="./Contents/obsolete/macOS/polyAttributeMap.bundle" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/obsolete/linux/AshliShader.so" />
+		<ComponentEntry ModuleName="./Contents/obsolete/linux/convertEdgesToFacesCmd.so" />
+		<ComponentEntry ModuleName="./Contents/obsolete/linux/convertVerticesToEdgesCmd.so" />
+		<ComponentEntry ModuleName="./Contents/obsolete/linux/convertVerticesToFacesCmd.so" />
+		<ComponentEntry ModuleName="./Contents/obsolete/linux/ftiExport.so" />
+		<ComponentEntry ModuleName="./Contents/obsolete/linux/polyAttributeMap.so" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/obsolete/obsolete/scripts/ftiExportCreateUI.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/obsolete/scripts/performExportFti.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/obsolete/scripts/performExportFti.res.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/AEAshliShaderTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/AEAshliShaderTemplate.res.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/AshliShaderInitStrings.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgAutomaticTrackMapWin.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgComponentTransformManip.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgCreateCurveFromEdges.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgGetComponentShader.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgGetProjectedFaces.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgLayeredBlendMode.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgLayerTextures.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgMakeSelectedLayered.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgPerforceMaya.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgPerformPolyAttributeMap.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgShowRenderView.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgSplitTextureUV.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgTextureResolution.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgToggleManips.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgTransmogrifierWin.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bgTurnTextureIntoLayeredTexture.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bonusToolsMenuToggle.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bt_distance2Pts.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bt_polyPokeFaceTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bt_polySubdivideFaceTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/bt_preserveUVsUI.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/circleJoints.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/clothPanelToFaces.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/clothThicken.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/copyNamespace.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/createAutoProjectionController.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/curvesMeshConstraints.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/curvesToClothPanels.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/cutTilesForImage.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/distance2Pts.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/duplicateEdges.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/edgeLength.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/fixMissingReferences.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/fkikControlWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/getVertFaces.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/make_chain_dangly.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/milliped.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/mipmapOff.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/organizeFilesWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/perforceMaya.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/perforceMayaWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/performPolyAttributeMap.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyAdjustCPV.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyBevelMap.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyChamferVertexTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyCleanLamina.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyExtrudeVertexTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyFixAppendMap.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyFlipEdgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyMergeAllVertsUnderSelectedDistance.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyMergeVertsTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyNormalManipTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyPokeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polySplitSelectedEdges.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polySubdivideTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/polyWedgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/poseBlendShapeCreate.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/poseBlendShapeEditor.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/publish.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/relocateTexturesWin.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/rpr2ns.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/skeletonWorks.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/tcPolyBridge.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/teapotBrush.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/TextureToolsCreateUI.mel" />
+		<ComponentEntry ModuleName="./Contents/obsolete/scripts/toggle.mel" />
+	</Components>
+	
+	<!-- Plug-ins -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=win64" />
+		<ComponentEntry ModuleName="./Contents/win64/audioWave.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/closestPointOnCurve.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/corrosionTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/cvColorShader.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/denimTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/diffractionShader.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/drawReduceTool.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/drawSplitTool.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/frecklesTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/gameInputDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/hwColorPerVertexShader.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/hwManagedTextureShader.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/measure.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/nodeCreatedCBCmd.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/pointOnMeshInfo.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/polyNurbsProjection.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/PolyTools.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/polyVariance.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/randomizerDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/ringsTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/scallopTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/skinShader.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/splatterTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/streaksTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/stringFormatNode.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/sun.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/treeBarkTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/udpDevice.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/veiningTexture.mll" />
+		<ComponentEntry ModuleName="./Contents/win64/woodGrainTexture.mll" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="macOS" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=macOS" />
+		<ComponentEntry ModuleName="./Contents/macOS/audioWave.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/closestPointOnCurve.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/corrosionTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/cvColorShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/denimTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/diffractionShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/drawReduceTool.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/drawSplitTool.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/frecklesTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/gameInputDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/hwColorPerVertexShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/hwManagedTextureShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/measure.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/nodeCreatedCBCmd.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/pointOnMeshInfo.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/polyNurbsProjection.bundle" />
+		<!-- ComponentEntry ModuleName="./Contents/macOS/PolyTools.bundle" / -->
+		<ComponentEntry ModuleName="./Contents/macOS/polyVariance.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/randomizerDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/ringsTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/scallopTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/skinShader.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/splatterTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/streaksTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/stringFormatNode.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/sun.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/treeBarkTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/udpDevice.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/veiningTexture.bundle" />
+		<ComponentEntry ModuleName="./Contents/macOS/woodGrainTexture.bundle" />
+	</Components>
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<MayaEnv expr="MAYA_PLUG_IN_PATH+:=linux" />
+		<ComponentEntry ModuleName="./Contents/linux/audioWave.so" />
+		<ComponentEntry ModuleName="./Contents/linux/closestPointOnCurve.so" />
+		<ComponentEntry ModuleName="./Contents/linux/corrosionTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/cvColorShader.so" />
+		<ComponentEntry ModuleName="./Contents/linux/denimTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/diffractionShader.so" />
+		<ComponentEntry ModuleName="./Contents/linux/drawReduceTool.so" />
+		<ComponentEntry ModuleName="./Contents/linux/drawSplitTool.so" />
+		<ComponentEntry ModuleName="./Contents/linux/frecklesTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/gameInputDevice.so" />
+		<ComponentEntry ModuleName="./Contents/linux/hwColorPerVertexShader.so" />
+		<ComponentEntry ModuleName="./Contents/linux/hwManagedTextureShader.so" />
+		<ComponentEntry ModuleName="./Contents/linux/measure.so" />
+		<ComponentEntry ModuleName="./Contents/linux/nodeCreatedCBCmd.so" />
+		<ComponentEntry ModuleName="./Contents/linux/pointOnMeshInfo.so" />
+		<ComponentEntry ModuleName="./Contents/linux/polyNurbsProjection.so" />
+		<ComponentEntry ModuleName="./Contents/linux/PolyTools.so" />
+		<ComponentEntry ModuleName="./Contents/linux/polyVariance.so" />
+		<ComponentEntry ModuleName="./Contents/linux/randomizerDevice.so" />
+		<ComponentEntry ModuleName="./Contents/linux/ringsTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/scallopTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/skinShader.so" />
+		<ComponentEntry ModuleName="./Contents/linux/splatterTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/streaksTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/stringFormatNode.so" />
+		<ComponentEntry ModuleName="./Contents/linux/sun.so" />
+		<ComponentEntry ModuleName="./Contents/linux/treeBarkTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/udpDevice.so" />
+		<ComponentEntry ModuleName="./Contents/linux/veiningTexture.so" />
+		<ComponentEntry ModuleName="./Contents/linux/woodGrainTexture.so" />
+	</Components>
+	
+	<!-- Python Scripts -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+		<ComponentEntry ModuleName="./Contents/python/AlignUVShells.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_addTransparencyAttr.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_aeTemplateBuilder.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_flattenComponents.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_moveObjToCamera.py" />
+		<ComponentEntry ModuleName="./Contents/python/bt_randomizer.py" />
+		<ComponentEntry ModuleName="./Contents/python/pipe.py" />
+		<ComponentEntry ModuleName="./Contents/python/pipeAssemblyManager.py" />
+		<!-- ComponentEntry ModuleName="./Contents/python/userSetup.py" / -->
+	</Components>
+	
+	<!-- MEL Scripts -->
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents/docs" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014" SeriesMax="2014" />
+
+		<ComponentEntry ModuleName="./Contents/MayaBonusTools2014_load.mel" />
+		<!-- ComponentEntry ModuleName="./Contents/scripts/userSetup.mel" / -->
+		
+		<ComponentEntry ModuleName="./Contents/scripts/ac.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEclosestPointOnCurveTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEcvColorShaderTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEDiffractionShaderTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEhwColorPerVertexShaderTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEpointOnMeshInfoTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEpolyDigitsTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AESkinShaderTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/AEstringFormatTemplate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/armSetup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/assignCheckerShader.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/attrListWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/backSetupWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/back_setup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgAdjustVertexNormalsWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgBakeIKToClip.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgClampUVWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgGenerateLightMaps.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgIsometricRender.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgMirrorAnim.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgPerformGenerateLightMaps.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgPerformPolyAdaptivePrelight.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgPolyAdaptivePrelight.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgPolyColorWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgReverseAnim.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgSelectClusterMembers.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgTruncateUVWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bgVertexColorDisplayUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bonesOnCurve.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bonusToolsHelp.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bonusToolsMenu.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/boundingBoxScaleWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_addTextureToShaderLayered.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_addToLayeredTx.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_adjustClipPlanes.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_alignPivotToBoundingBoxWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_autoMapMultipleMeshes.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_autoUnwrapUVTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_clickDragObj.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_convertSelectionToPerimeterEdges.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_copyPivotFromLastSelected.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_createFormatedText.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_createSceneAnnotation.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_extrudeFaceAndPreserveUVs.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_extrudeFaceAndScaleUVs.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_filterActionWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_layerTextures.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_lockCurvePoints.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_makeJointsDynamicUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_mergeAllVertsEdgesByDistance.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_mergeCombineMeshes.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_midPoint2Pts.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_mirrorInstanceMesh.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_mirrorSoftModUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_mirrorTranslateRotate.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_nudgeUVs.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_offsetUVTile.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_patternRename.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polyCollapseEdgeRingTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polyDeleteEdgeLoopTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polyDeleteEdgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polyDeleteVertEdgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polyflipUVsAcrossLast.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polyNSidedToQuadTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_polySpinEdgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_poseBlendShapeUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_printGlobalVars.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_printOptionVars.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_refreshFileTextureSwatches.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_renameFileTextureNode.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_renameSGtoMatchShader.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_rotateUVsAroundLastWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_slideComponents.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_spiral.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_storePose.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_tileUVs.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_timeWarpWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/bt_toggleXRay.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/calculator.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/closestPointOnCurveInitStrings.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/copySDKWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/createCircleUnderTransform.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/doBakeRedirectionArgList.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawReduceProperties.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawReduceSetup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawReduceTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawReduceValues.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawSplitProperties.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawSplitSetup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawSplitTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/drawSplitValues.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/footSetup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/furBlender.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/insertIntermediatePolyShape.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/layerViewer.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/layerViewerLayersMenuItems.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/longListAttrScrollWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/measureCreateUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/moveObjectPivotToComponentCentre.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/multiSliceSplit.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/normalChecker.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/nudgeVertWeights.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/nudgeVertWeightsWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/orientToEdgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/orientToTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/orientToVertTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performArmSetup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performBakeRedirection.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performBonesOnCurve.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performFootSetup.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performNurbsToPolyUV.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performPolyConnectBorders.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performPropMove.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performSelectEveryNEdge.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performShelfToMenu.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/performSpiral.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/polyConvertToRingAndSplitAround.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/polyCopyPasteHistory.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/polyDeleteEdgeSaveUVs.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/polyDeleteUpstreamHistory.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/polyNurbsProjection.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/pruneNumInfluenceWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/removeInfluenceWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/renameNewJointsWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/selectEveryNEdge.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/selectEveryNEdgeTool.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/shelfToMenu.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/stretchyIK.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/stretchyIKWin.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/stringFormatCreateUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/sunCreateUI.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/sunLight.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/textureEditorDimImageWindow.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/toggleEdgeLengthHUD.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/toggleHideShowFaces.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/togglePolyAreaHUD.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/togglePolyVolumeHUD.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/toggleSingleDoubleSided.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/toggleVertDistanceHUD.mel" />
+		<ComponentEntry ModuleName="./Contents/scripts/walkCycleControl.mel" />
+	</Components>
+	
+</ApplicationPackage>

@@ -1,0 +1,126 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//  Procedure Name:
+//      polyConvertToRingAndSplitAround
+//
+//  Description:
+//      This procedure selects the ring surrounding the selected components
+//      and then splits the ring.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+
+global proc polyConvertToRingAndSplitAround(){
+
+	// convert to verts and get contained edges
+	ConvertSelectionToVertices;
+	string $originalVerts[] = `getVerts`;
+	ConvertSelectionToContainedEdges;
+	string $originalEdges[] = `ls -sl`;
+
+	// convert to edges to expand and to edges to grow it
+	// get these edges
+	ConvertSelectionToVertices;
+	ConvertSelectionToEdges;
+	string $expandedEdges[] = `ls -sl`;
+
+	// check to see if there are groups of components in the selection
+	// eg 2 distinct sets of verts that are separated by edges they do not 
+	// contain
+
+	// first remove original edges
+	select -d $originalEdges;
+
+	// then convert to contained faces
+	// if there are any faces selected we have a problem because
+	// polySplitRing will fail
+	select -r `polyListComponentConversion -tf -in`;
+	string $containedFaces[] = `ls -sl`;
+	
+	if (`size $containedFaces`){
+
+		// get verts from the contained face
+		string $containedFacesVerts[] = `getVerts`;
+
+		// intersect string to find overlap between original verts
+		// and contained face verts
+		string $vertIntersector = `stringArrayIntersector`;
+		string $intersectingVerts[];
+
+		stringArrayIntersector -edit -intersect $originalVerts $vertIntersector;
+		stringArrayIntersector -edit -intersect $containedFacesVerts $vertIntersector;
+
+		$intersectingVerts = `stringArrayIntersector -query $vertIntersector`;
+
+		// reselect the original verts
+		select -r $originalVerts;
+
+		// deselect the contained face verts
+		select -d $containedFacesVerts;
+
+		// reselect the first vert common to both sets
+		select -tgl $intersectingVerts[0];
+
+		// convert to edges to expand and to edges to grow it
+		// get these edges
+		ConvertSelectionToVertices;
+		ConvertSelectionToEdges;
+		$expandedEdges = `ls -sl`;
+
+	} else {
+
+		// return to the previous edge selection
+		select -r $expandedEdges;
+
+	}
+
+	// remove original edges
+	select -d $originalEdges;
+
+	// get one of the edges from the ring
+	string $edge[] = `ls -sl -head 1`;
+
+	// split the ring if one is selected
+	if (`gmatch $edge[0] "*.e*"`){
+
+		string $buffer[];
+		int $numTokens = `tokenize $edge[0] "[:]" $buffer`;
+
+		string $cmd = "polySplitRing -re ";
+		$cmd += $buffer[1];
+		//$cmd += " -ab 0 -wt 0.5";
+		$cmd += " -wt 0.5";
+
+		eval ($cmd);
+
+	} else {
+
+		warning "Select an edge to split the ring it is a member of.";
+
+	}
+
+}
+

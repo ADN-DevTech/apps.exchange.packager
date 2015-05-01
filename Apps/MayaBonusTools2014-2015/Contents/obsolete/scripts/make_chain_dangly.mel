@@ -1,0 +1,74 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+/*make the joint chain dangly.mel
+start with bones parented into hierarchy
+bonesOnCurve might be useful from bonus tools
+makeCurvesDynamicHairs
+Make dynamic curve first and use it for spline.
+The dynamic hair from the spline ik is in the wrong order.*/
+global proc make_chain_dangly(){
+	/*user selects top and bottom of chain*/
+	string $joints[] = `ls -sl`;
+	string $splin[] = `ikHandle -sol ikSplineSolver`; //create spline ik for curve only
+	select -cl ;
+	select -r $splin[0] $splin[1]; //delete handle and effector.
+	delete;
+	select -r $splin[2]; //selects old spline ik curve
+	makeCurvesDynamicHairs 0 0; //make curve dynamic creates new curve, get name:
+	pickWalk -d down; //for hair system shape
+	string $hsys[] = `ls -sl`; //hair system name, to find follicle
+	string $foltrans[] = `listConnections -type follicle $hsys[0]`;
+	select -cl;
+	select -r $foltrans[0];
+	pickWalk -d down;
+	string $fol[] = `ls -sl`; //odd that connection above is to transform, not shape.
+	setAttr ($fol[0]+ ".pointLock") 1; //lock base end of curve.
+	setAttr ($hsys[0]+".gravity") 50;
+	string $dyncurv[] = `listConnections -s off -d on $fol[0]`; //to get output curve shape
+	//assign dynamic curve as spline ik. Could also assign as wire as a variation.
+	ikHandle -sol ikSplineSolver -ccv false -snc true -startJoint $joints[0] -endEffector $joints[1] -pcv on -curve $dyncurv[1];
+	parent -w $dyncurv[1]; //unparents original curve to avoid double transform.
+	
+	//create attributes on hair that go to stiffness and gravity on hair system.
+	addAttr -ln stiffness -at double  -min -0 -max 1 -dv 0.15 $dyncurv[1];
+	addAttr -ln gravity -at double -min -10 -max 100 -dv 50 $dyncurv[1];
+	addAttr -ln damp -at double -min 0 -max 1 -dv 0 $dyncurv[1];
+	addAttr -ln friction -at double -min 0 -max 1 -dv 0 $dyncurv[1];
+	addAttr -ln weight -at double -min 0 -max 100 -dv 1 $dyncurv[1];
+	setAttr -e -keyable true ($dyncurv[1] + ".stiffness");
+	setAttr -e -keyable true ($dyncurv[1] + ".gravity");
+	setAttr -e -keyable true ($dyncurv[1] + ".damp");
+	setAttr -e -keyable true ($dyncurv[1] + ".friction");
+	setAttr -e -keyable true ($dyncurv[1] + ".weight");
+	
+	//connect attrs to hair system
+	connectAttr -f ($dyncurv[1] + ".stiffness") ($hsys[0]+".stiffness");
+	connectAttr -f ($dyncurv[1] + ".gravity") ($hsys[0]+".gravity");
+	connectAttr -f ($dyncurv[1] + ".damp") ($hsys[0]+".damp");
+	connectAttr -f ($dyncurv[1] + ".friction") ($hsys[0]+".friction");
+	connectAttr -f ($dyncurv[1] + ".weight") ($hsys[0]+".dynamicsWeight");
+	
+	//really should hide the hair system and original curve. Leave handle for spline ik controls.
+	setAttr ($hsys[0]+ ".visibility") 0;
+	setAttr ($splin[2]+ ".visibility") 0;
+}

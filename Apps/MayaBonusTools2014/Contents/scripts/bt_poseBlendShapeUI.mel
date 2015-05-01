@@ -1,0 +1,577 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+//  Procedure Name:
+//		bt_poseBlendShapeUI
+//
+//  Description:
+//		Creates the bt_poseBlendShapeUI for creating and adding
+//		corrective blendShapes to smooth skinned meshes
+//
+//   Updated: 01/25/12 - Revamped UI and fixed various bugs
+//
+
+global proc bt_poseBlendShapeSelectBlendShape(){
+
+	    string $target[] = `textScrollList -q -ai bt_poseBlendShapeList`;
+	    if (($target[0] == "No Pose Blend Shapes Found") || (`size $target` == 0))
+            error "Nothing to select Blend Shape node for";		
+        else
+            select -r $target[0];
+	            
+	    string $shape[] = `listRelatives -children`;
+		if (`size $shape` == 0){
+			
+			$shape = `listRelatives -children $target[0]`;
+		}
+		string $blendShape[] = `listConnections -type blendShape $shape[0]`;
+    	if (`size $blendShape` == 0)
+	        error "No Blend Shape node to select.";
+	    
+		select -replace $blendShape[0];
+}
+
+
+global proc string[] bt_poseBlendShapeGetPoses(){
+	string $poses[] = `listConnections -type transform`;
+	return $poses;
+}
+
+
+global proc bt_poseBlendShapeShowPose(){
+
+	string $text;
+ 	string $result = `promptDialog 
+ 		-title "Show Blend Shape Pose"
+ 		-message "Enter Pose Name:"
+ 		-button "OK" -button "Cancel"
+ 		-defaultButton "OK" -cancelButton "Cancel"
+ 		-dismissString "Cancel"`;
+ 
+ 	if ($result == "OK") {
+ 		$text = `promptDialog -query -text`;
+		
+		hide;
+		showHidden $text;
+ 	}
+}
+
+
+global proc bt_poseBlendShapeShowPoseFromEditor (){
+	
+	string $target[] = `textScrollList -q -ai bt_poseBlendShapeList`;
+	if (`size $target` == 0)
+	    error "No Pose Blend Shape to show.";
+	string $connections[] = `listConnections $target[0]`;
+	//hide $connections[0];
+	hide $connections;
+	hide `textScrollList -q -ai bt_poseBlendShapeList`;
+	showHidden `textScrollList -q -si bt_poseBlendShapeList`;
+	
+}
+
+
+global proc bt_poseBlendShapeDelete (){
+	
+	//first check full list
+	string $target[] = `textScrollList -q -ai bt_poseBlendShapeList`;
+	if (`size $target` == 0)
+	    error "No Pose Blend Shapes to delete.";
+	    
+	//the check selected from list
+	string $target[] = `textScrollList -q -si bt_poseBlendShapeList`;
+	if (`size $target` > 1)
+	    error "You can only delete 1 Pose Blend Shape at a time.";
+	else 
+	    select -r $target[0];
+	    	    
+    string $shape[] = `listRelatives -children`;
+	if (`size $shape` == 0)
+	    $shape = `listRelatives -children $target[0]`;
+	    
+	    
+	$node = "annotation1";
+	
+	for ($node in $shape)
+	    if (`gmatch $node "annotation*"` == 1)
+	        delete $node;
+		
+    string $blendShape[] = `listConnections -type blendShape $shape[0]`;
+    if (`size $blendShape` == 0)
+	    error "No Blend Shape node to delete from.";
+	        
+	string $connections[] = `listConnections $target[0]`;
+	showHidden $connections;
+	hide `textScrollList -q -ai bt_poseBlendShapeList`;
+    
+    //find shader
+    select -r $target[0];
+    hyperShade -smn "";
+    delete;
+    
+    //print $target;
+    //print $connections;
+    //print $blendShape;
+    
+    //delete blend shape target
+    if (`nodeType $connections[0]` == "transform")
+        blendShape -e  -tc 0 -rm -t $target[0] 1 $connections[0] 1 -t $target[0] 1 $target[0] 1 $target[0];
+    else if (`nodeType $connections[1]` == "transform")
+        blendShape -e  -tc 0 -rm -t $target[0] 1 $connections[1] 1 -t $target[0] 1 $target[0] 1 $target[0];
+    else
+        warning "No valid blendShape to delete.";
+
+    //delete acutal mesh
+	delete $target[0];
+	
+	//deleteAttr -attribute "b" "blendShape1"
+	
+    if (`nodeType $connections[0]` == "transform")
+    	select -r $connections[0];
+    else if (`nodeType $connections[1]` == "transform")
+    	select -r $connections[1];
+
+	bt_updatePoseBlendShapeEditor;
+	
+	////
+
+	
+
+}
+
+
+global proc string[] bt_poseBlendShapeListConnections(string $connections[]){
+// for a list of connections
+// strip out connections that are not made to "isHistoricallyInteresting"
+	string $blendShapeConnections[];
+	int $i = 0;
+	for ($connection in $connections){
+		string $buffer[];
+		tokenize $connection "." $buffer;
+		//print "\nbu ";print $buffer[1];
+		if ($buffer[1] == "message"){
+			$blendShapeConnections[$i] = $buffer[0];
+			$i++;
+		}
+	}
+
+	//print "\nc ";print $blendShapeConnections;
+	return $blendShapeConnections;
+
+}
+
+
+global proc bt_poseBlendShapeShowOriginal(){
+
+	string $target[] = `textScrollList -q -ai bt_poseBlendShapeList`;
+	if (($target[0] == "No Pose Blend Shapes Found") || (`size $target` == 0))
+        error "Nothing to show/hide.";		
+        
+    string $connections[] = `listConnections $target[0]`;
+	//showHidden $connections[0];
+	showHidden $connections;
+
+	hide `textScrollList -q -ai bt_poseBlendShapeList`;
+
+}
+
+
+global proc bt_poseBlendShapeCreatePrompt(){
+
+    //check selection
+    $jointSelection = `ls -sl -type joint`;
+    $meshSelection = `filterExpand -sm 12`;
+    
+    if ((`size $meshSelection` != 1) || (`size $jointSelection` != 1))
+        error ("You must select 1 mesh and 1 corresponding driver joint in order to create a Pose Blend Shape for the selected mesh.");
+    
+	string $text;
+ 	string $result = `promptDialog 
+ 		-title "Blend Shape Pose"
+ 		-message "Enter Pose Name:"
+ 		-button "OK" -button "Cancel"
+ 		-defaultButton "OK" -cancelButton "Cancel"
+ 		-dismissString "Cancel"`;
+ 
+ 	if ($result == "OK") {
+ 		$text = `promptDialog -query -text`;
+		bt_poseBlendShapeCreate $text;
+
+ 	}
+
+}
+
+
+global proc bt_poseBlendShapeDeletePrompt(){
+    
+	string $target[] = `textScrollList -q -si bt_poseBlendShapeList`;
+	if (($target[0] == "No Pose Blend Shapes Found") || (`size $target` == 0))
+        error "Nothing to show/hide.";		
+        
+	string $message = ("Are you sure you want to delete the selected Pose Blend Shape -> " + $target[0] + " ?");
+	
+ 	string $result = `confirmDialog -title "Confirm" -message $message
+    -button "Yes" -button "No" -defaultButton "Yes"
+    -cancelButton "No" -dismissString "No"`;
+ 
+ 	if ($result == "Yes") 
+		bt_poseBlendShapeDelete;
+    else
+        warning "Cancelled Pose Blend Shape delete";
+
+}
+
+
+global proc bt_poseBlendShapeCreate(string $poseName){
+
+
+   	string $joint[] = `ls -sl -type joint`;
+	string $transform[] = `ls -sl -exactType transform`;
+
+    //check for skinCluster first
+    $skin = `listConnections -type skinCluster`;
+    if (`size $skin` == 0)
+        error ("Can't create Pose Blend Shape because no skin exists for " + $transform[0]);
+
+	//find shape and check for existing blendShape
+	string $shapes[] = `listRelatives -c $transform[0]`;
+	string $blendShape[];
+	$blendShape = `listConnections -type blendShape $shapes[0]`;
+	//print "\nbs ";print $blendShape;
+
+	//store a dagPose - skeleton goes back to this pose at end of proc
+	string $dagPose = `dagPose -save $joint[0]`;
+	float $rotationDP[2] = `getAttr ($joint[0] + ".rotate")`;
+	string $rootJoint[] = `dagPose -q -m $dagPose`;
+	//need to remove any non-Joints from the list $rootJoint list
+	$rootJoint = `ls -type joint $rootJoint`;
+	//print "\ndp ";print $rotationDP;
+	print "\nroot ";print $rootJoint[0];
+
+	select -r $joint[0];
+	gotoBindPose;
+    float $rotationBP[2] = `getAttr ($joint[0] + ".rotate")`;
+    
+    //old method - pick any rotation value that has changed... defaults to last if all change even with small values    
+	//print "\nbp ";print $rotationBP;
+	//int $match;
+	//for ($i = 0;$i<3;$i++){
+	//	if ($rotationDP[$i] != $rotationBP[$i])
+	//		$match = $i;
+	//}
+	//	string $rotate;
+	//if ($match == 0)
+	//	$rotate = ".rotateX";
+	//if ($match == 1)
+	//	$rotate = ".rotateY";
+	//if ($match == 2)
+	//	$rotate = ".rotateZ";
+
+    //new method - find joint rotation value that has changed the most to determine which should be driver
+	int $match;
+	float $diff[];
+	float $compare = 0;
+	for ($i = 0;$i<3;$i++){
+		$diff[$i] = abs($rotationDP[$i] - $rotationBP[$i]);
+		if ($diff[$i] > $compare)
+		    {
+		    $compare = $diff[$i];
+		    $match = $i;
+		    }
+	}
+		
+	string $rotate;
+	if ($match == 0)
+		$rotate = ".rotateX";
+	if ($match == 1)
+		$rotate = ".rotateY";
+	if ($match == 2)
+		$rotate = ".rotateZ";
+		
+		
+
+	//on mesh
+	string $newTransform[] = `duplicate -n $poseName -rr $transform[0]`;
+
+	bt_assignPoseBlendShader ($poseName);
+
+	delete -ch $newTransform[0];
+	string $newShapes[] = `listRelatives -c $newTransform[0]`;
+	delete $newShapes[1];
+	select -replace $newTransform[0];
+	select -add $rootJoint[0];
+	//print "\nskinning";
+	newSkinCluster "-omi true -dr 5 -rui true";
+	//print "\nskinned";
+	connectAttr -f ($transform[0] + ".message") ($newTransform[0] + ".isHistoricallyInteresting");
+
+	//copy skin weights
+	select -replace $transform[0];
+	select -add $newTransform[0];
+	performCopySkinWeights false;
+
+	//set up blendshape
+	//performBlendShape 0;
+	select -replace $newTransform[0];
+	select -add $transform[0];
+	if (`size $blendShape` == 0){
+		$blendShape = `blendShape`;
+	}
+	else
+	{
+	    int $blendShapeIndex = `blendShape -q -wc $blendShape[0]`;
+        blendShape -edit -t $transform[0] $blendShapeIndex $newTransform[0] 1 $blendShape[0];
+	}
+	int $blendShapeIndex = `blendShape -q -wc $blendShape[0]`;
+	blendShape -e -w ($blendShapeIndex-1) 0 $blendShape[0];
+	hide $transform[0];
+
+	//set driven key
+	setDrivenKeyframe -cd ($joint[0] + $rotate) ($blendShape[0] + "." + $newTransform[0]);
+
+	dagPose -restore $dagPose;
+	delete $dagPose;
+
+	blendShape -e -w ($blendShapeIndex-1) 1 $blendShape;
+	setDrivenKeyframe -cd ($joint[0] + $rotate) ($blendShape[0] + "." + $newTransform[0]);
+	
+	//create annotation
+	$ann = `annotate -tx $newTransform[0] -p 5 6 5 $newTransform[0]`;
+	move -r -ws 0 5 0;
+	parent $ann $newTransform[0];
+    select -r $newTransform[0];
+	//print "\ndp ";print $dagPose;
+	
+}
+
+
+global proc bt_assignPoseBlendShader(string $poseName){
+		
+    string $shader;
+	string $selection[] = `ls -selection`;
+	string $poseSuffix = "_poseShader";
+
+    if (`size $poseName` == 0)
+        warning "Nothing selected for shader assignment";
+    else
+        {
+        //turn on texture caching for better display
+        string $texWinName[] = `getPanel -sty polyTexturePlacementPanel`;
+        textureWindow -e -viewPortImage 1 $texWinName[0];
+
+
+        if (`objExists ($poseName + $poseSuffix)`)
+            $shader = ($poseName + $poseSuffix);
+    
+        else
+            {	
+        	string $shader = `shadingNode -asShader lambert -name ($poseName + $poseSuffix)`;
+            setAttr ($shader+".colorR") (rand(0.5 ,0.7));
+            setAttr ($shader+".colorG") (rand(0.5 ,0.7));
+            setAttr ($shader+".colorB") (rand(0.5 ,0.7));
+            setAttr ($shader+".diffuse") 1;
+            }
+
+        //select object
+    	select -replace $poseName;
+    	hyperShade -assign ($poseName + $poseSuffix);
+    	
+    	select -r $selection;
+    	bt_updatePoseBlendShapeEditor;
+    	
+        }
+	
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// 
+// UI procs
+//
+///////////////////////////////////////////////////////////////////////////////////
+
+
+global proc bt_updatePoseBlendShapeEditor(){
+	//get active blendshape
+	//find shape and check for existing blendShape
+	string $transform[] = `ls -sl -exactType transform`;
+	if (`size $transform`){
+		string $shapes[] = `listRelatives -c $transform[0]`;
+		string $blendShape[];
+		$blendShape = `listConnections -type blendShape $shapes[0]`;
+		
+    	//find all targets
+	    string $targets[];
+	  	if (`size $blendShape`)
+            $targets = `listConnections -type mesh -s 1 -d 0 -p 0 $blendShape`;
+        else 
+            warning "No Pose Blend Shapes found for selected object. Select a skinned mesh that has existing Pose Blend Shapes and retry.";
+
+		
+		//delete all entried on scrolllist
+		//	clear the set list
+		//
+		textScrollList -e -ra bt_poseBlendShapeList;
+		
+		//repopulate scrolllist
+		if (`size $targets`){
+				for( $target in $targets ) {
+				textScrollList -e -a $target bt_poseBlendShapeList;
+			}
+		}
+		else
+		    textScrollList -e -a "No Pose Blend Shapes Found" bt_poseBlendShapeList;
+	}
+	else
+	{
+	warning "Nothing selected. Select a skinned mesh that has existing Pose Blend Shapes and press Update to refesh list.";
+    textScrollList -e -ra bt_poseBlendShapeList;
+    textScrollList -e -a "No Pose Blend Shapes Found" bt_poseBlendShapeList;
+	}
+	
+}
+
+
+global proc bt_poseBlendShapeUI( )
+{
+
+	//source bt_poseBlendShapeCreate;  // now consolidated into a single script
+	
+	string $window = "bt_poseBlendShapeUI";
+
+
+	if( `window -exists $window` ) {
+		deleteUI -window $window;
+		//windowPref -remove $window;
+
+	}
+
+   // GG: don't hardcode the HEIGHT! It doesn't work X-platform
+	window -t "Pose Blend Shape Editor" 
+		-menuBar true
+		-w 223
+		-s true 
+		$window;
+
+
+
+	formLayout bt_poseBlendShapeUIForm;
+
+        columnLayout -adj 1 headingLayout;
+    		text  "    Existing Pose Blend Shapes";
+		setParent ..;			
+		
+		textScrollList 
+			-ams true 
+			//-deleteKeyCommand  "colorSetEditCmd delete bt_poseBlendShapeList"
+			//-doubleClickCommand "colorSetEditCmd rename bt_poseBlendShapeList"
+			//-selectCommand "colorSetEditCmd setCurrent bt_poseBlendShapeList"
+			bt_poseBlendShapeList;	
+
+		
+        columnLayout -adj 1 bt_poseBlendShapeUIButtonLayout;
+
+    		button -h 26 -l "Update Pose Blend Shape List" 		
+    			-c "bt_updatePoseBlendShapeEditor" 
+    			-ann "Select mesh to update editor with"
+    			updateButton;
+    			
+   			button -h 26 -l "Create New Pose Blend Shape"
+				-ann "Create a new pose - select joint and mesh in target position"
+				-enable true
+				-c "bt_poseBlendShapeCreatePrompt;bt_updatePoseBlendShapeEditor"
+				newButton;
+				
+   			button -h 26 -l "Delete Selected Pose Blend Shape"
+				-ann "Delete selected Pose Blend Shape from list"
+				-enable true
+				-c "bt_poseBlendShapeDeletePrompt;bt_updatePoseBlendShapeEditor"
+				deleteButton;				
+
+			button -h 26 -l "Show Selected Pose Blend Shape"
+				-ann "Show the selected pose"
+				-c "bt_poseBlendShapeShowPoseFromEditor" 
+				-enable true 
+				showSelectedButton;
+
+			button -h 26 -l "Show Original Mesh"
+				-ann "Show the original shape"
+				-c "bt_poseBlendShapeShowOriginal;" 
+				-enable true 
+				showOriginalButton;
+				
+			button -h 26 -l "Select Blend Shape Node"
+				-ann "Select the Blend Shape node"
+				-c "bt_poseBlendShapeSelectBlendShape" 
+				-enable true 
+				selectBlendShapeButton;
+
+
+    		separator -style "in" scrollButtonsSeparator;
+
+    		button -h 26 -w 80 -l "Close" 		
+    			-c ("deleteUI -window " + $window)
+    			closeButton;
+			
+			setParent ..;			
+
+
+		setParent ..;
+
+		formLayout -e
+		
+			-af headingLayout left 5
+			-an headingLayout bottom
+			-af headingLayout right 5
+			-af headingLayout top 5	 	
+		
+			-ac bt_poseBlendShapeList top 5 headingLayout
+			-af bt_poseBlendShapeList right 5 
+			-af bt_poseBlendShapeList left 5
+			-ac bt_poseBlendShapeList bottom 5 bt_poseBlendShapeUIButtonLayout
+
+
+			-af bt_poseBlendShapeUIButtonLayout left 5
+			-af bt_poseBlendShapeUIButtonLayout bottom 5
+			-af bt_poseBlendShapeUIButtonLayout right 5
+			-an bt_poseBlendShapeUIButtonLayout top 
+			
+			bt_poseBlendShapeUIForm;
+	
+
+	//	Create script jobs to keep the color set editor up to date
+	//	when the selection changes
+	//
+	//scriptJob 
+	//	-parent "colorEditor"
+	//	-event "SelectionChanged"
+	//	"updateColorSetEditor";
+
+	bt_updatePoseBlendShapeEditor;
+	showWindow $window;
+}
+
+
+//bt_poseBlendShapeUI;

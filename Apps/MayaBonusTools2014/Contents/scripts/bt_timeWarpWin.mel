@@ -1,0 +1,249 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// international treaties.
+//
+//
+
+// Created 01/27/11 - Fixed old timewarp.mel script and added UI
+// Updated 01/22/12 - Now works more like scene timewarp.  
+//                    Initial curve is linear and start/end defined by current time range
+
+
+
+
+
+global proc bt_timeWarp() {
+	
+	//	Get a list of the selected items
+
+	string $selected[] = `ls -sl`;
+	
+	string $hierachyOn = `optionVar -q bt_TimeWarpHierarchy`;	    
+	string $useExisting = `optionVar -q bt_TimeWarpCurveReuse`;
+	
+	string $timeWarp;
+	
+	if( `size $selected` == 0 ) {
+		//delete $timeWarp;
+		error( "Nothing selected..." );
+		return;
+	}
+	
+	if ($hierachyOn)
+	    $hierachy = "below";
+	else 
+	    $hierachy = "selected";
+
+
+
+	//	Create a timeWarp curve
+	
+	if ($useExisting == 1)
+	    {	    
+        //string $selConn = `editor -q -selectionConnection graphEditor1OutlineEd`;
+        //$animCurves = `findAnimCurves($selConn)`;
+        $selectedCurves = `ls -sl -type animCurveTT`;
+        
+        if (`size $selectedCurves` != 1)
+	            error "Apply Existing Timewarp:  You must select one and only one timeWarp curve in addition to the objects you want to apply it to).";
+	    else
+	        $timeWarp = $selectedCurves[0];  
+	     }
+	else  
+	    $timeWarp = `createNode animCurveTT -n "timeWarp"`;
+	   	    
+	   	    
+	$startFrame = `playbackOptions -q -min`;
+	$endFrame = `playbackOptions -q -max`;
+	
+	//set start and end of timewarp curve to match current range
+	setKeyframe -t $startFrame -v $startFrame -itt linear -ott linear $timeWarp;
+	setKeyframe -t $endFrame -v $endFrame -itt linear -ott linear $timeWarp;
+	
+	select -r $selected; 
+	select -d $timeWarp;
+	$targetObjects = `ls -sl`;  //selection without Timewarp curve;
+	
+	switch( $hierachy) {
+	case "all":
+		        
+    		//	Not using
+    
+    		//string $animCurves[] = `ls -type animCurveTL -type animCurveTA -type animCurveTU`;
+    
+    		//for( $animCurve in $animCurves ) {
+    		//	connectAttr -f ( $timeWarp + ".output" ) ( $animCurve + ".input" );
+		    //}
+		break;
+
+	case "below":
+		
+		//	Make sure everything is selected correctly
+		select -hi $targetObjects;
+		$hierSelection = `ls -sl -type "transform" -type "shape"`;
+		select -r $targetObjects;  //original nodes
+		select -add $hierSelection;  //only transforms for hierarchy
+		$targetObjects = `ls -sl`;
+		
+		for( $item in $targetObjects ) {
+			
+			//	Get a list of all animCurves attached to
+			//	the attrs of the selected object
+
+			string $connections[] = `listConnections $item`;
+			//print ($connections);
+			
+			if (`size $connections` > 0)
+			{
+			    for( $conn in $connections ) {
+				
+    				//	Attach the output of the timeWarp to 
+    				//	the input of this animCurve
+    
+    				string $type = `nodeType $conn`;
+    				print ("Connecting " + $timeWarp + " to " + $conn + "\n");
+    
+                    if (`attributeExists "input" $conn`)
+                        $isConnected = `listConnections -s 1 ($conn + ".input" )`;
+                    else
+                        $isConnected[0] = "";
+                    
+                    if (`size $isConnected` != 0)
+                        warning ("Existing node " + $isConnected[0] + " is already connected to " + $conn + ".input - Skipping");
+    				else if( $type == "animCurveTL" ||
+    					$type == "animCurveTA" ||
+    					$type == "animCurveTU" ) 
+    					connectAttr ( $timeWarp + ".output") ($conn + ".input" );
+    					
+    		        }
+    		}
+            else
+                warning ($item + " has no animation curves to warp\n");	
+			
+		}
+
+			
+		break;		
+
+	case "selected":
+		
+		//	Get a list of all animCurves attached to the
+		//	selected objects.
+
+		for( $item in $targetObjects ) {
+			
+			//	Get a list of all animCurves attached to
+			//	the attrs of the selected object
+
+			string $connections[] = `listConnections $item`;
+			//print ($connections);
+			
+			if (`size $connections` > 0)
+			{
+			    for( $conn in $connections ) {
+				
+    				//	Attach the output of the timeWarp to 
+    				//	the input of this animCurve
+    
+    				string $type = `nodeType $conn`;
+    				print ("Connecting " + $timeWarp + " to " + $conn + "\n");
+    
+                    if (`attributeExists "input" $conn`)
+                        $isConnected = `listConnections -s 1 ($conn + ".input" )`;
+                    else
+                        $isConnected[0] = "";
+                                            
+                    if (`size $isConnected` != 0)
+                        warning ("Existing node " + $isConnected[0] + " is already connected to " + $conn + ".input - Skipping");
+    				else if( $type == "animCurveTL" ||
+    					$type == "animCurveTA" ||
+    					$type == "animCurveTU" ) 
+    					connectAttr ( $timeWarp + ".output") ($conn + ".input" );
+    		        }
+    		}
+            else
+                warning ($item + " has no animation curves to warp\n");	
+			
+		}
+	}
+	
+	
+	select -r $selected;
+
+}
+				
+			
+			
+				
+global proc bt_timeWarpWin()
+
+{
+	//Creat UI and prompt user
+	//
+	global string $textName;
+	if( (`window -exists timeWarpUI`) == true )
+	{
+		deleteUI timeWarpUI;
+		windowPref -remove timeWarpUI;
+	}
+	
+	window  
+		-sizeable true  -width 340 -h 60
+		-title "Time Warp Selected Objects" timeWarpUI;
+	rowColumnLayout -numberOfColumns 2 ;
+	
+	
+    text -l ""; 
+    text -l "";
+    
+    checkBox -al "right" -label "Include Hierachy / Shape Nodes"
+        -ann "Apply timewarp curve to selected objects hierachy including shape nodes"
+        -onc "optionVar -iv bt_TimeWarpHierarchy 1; print \"Apply timewarp curve to the hierachy below.  This is includes shape nodes\""
+        -ofc "optionVar -iv bt_TimeWarpHierarchy 0"
+        -v `optionVar -q bt_TimeWarpHierarchy`;
+        		
+    checkBox -label "Use Existing Timewarp Curve"
+        -ann "Apply an existing timewarp curve to the selected objects"
+        -onc "optionVar -iv bt_TimeWarpCurveReuse 1; print \"Select an existing timewarp curve from the HyperGraph to be applied to selected animated objects/nodes.\""
+        -ofc "optionVar -iv bt_TimeWarpCurveReuse 0; print \"A new timewarp curve will be created for selected animated objects/nodes\""
+        -v `optionVar -q bt_TimeWarpCurveReuse`;
+       
+    text -l ""; 
+    text -l "";
+    
+    separator; separator;
+        
+	button -label "Apply" 
+		-command ("bt_timeWarp");
+	
+	button -label "Close" 
+		-command ("deleteUI timeWarpUI;windowPref -remove timeWarpUI");
+	
+	showWindow timeWarpUI;	
+}
+
+		

@@ -1,0 +1,101 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+global proc sbCreateCircleJoints()
+{
+
+
+    int $segNum;
+    float $segSize;
+     
+   
+    $segNum = `intField -q -v segNum`;
+    $circleRadius = `floatSliderGrp -q -v circleRadius`;
+   
+    float $posX = $circleRadius;
+    float $posY = 0.0;
+    float $posZ = 0.0;
+   
+       
+    select -cl;
+    
+    joint -a -p $posX $posY $posZ -name circleJoint1;
+   
+    for ( $i = 1; $i < ($segNum +1) ; $i++ )
+    {
+    
+        string $number; 
+        $number = $i + 1;
+        string $name = "circleJoint" + $number; 
+        
+        float $angle = 360 / $segNum;
+        float $angle2 = $angle * $i;
+        
+        $posX =  cos(deg_to_rad($angle2)) * $circleRadius;
+        $posY =  0;
+        $posZ =  sin(deg_to_rad($angle2)) * $circleRadius;
+         
+        
+         
+        joint -a -p $posX $posY $posZ -name $name;
+        
+        
+    }
+    
+    
+    deleteUI -window circleJoints;
+    
+}
+
+
+
+proc CircleJointsUI()
+{
+    
+ 
+
+    if (`window -exists circleJoints`) { deleteUI -window circleJoints; }
+    
+    window circleJoints;
+     
+    columnLayout;
+        
+        rowColumnLayout -nc 2 -cw 1 140 -cw 2 80;
+    
+        text -al "right" "Number of Legs   ";
+        intField -minValue 4 -maxValue 100 -v 36 -step 2 segNum;       
+        
+        setParent.. ;
+     
+        
+        floatSliderGrp -label " Radius" -field true -min 0.0 -max 10.0 -v 5.0 -step 0.1 circleRadius;
+
+        rowColumnLayout -nc 2 -cw 1 140 -cw 2 80;
+        text " ";  
+        button -label "Create" -c sbCreateCircleJoints;
+        
+    showWindow circleJoints;
+
+
+}
+
+
+CircleJointsUI;

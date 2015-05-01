@@ -1,0 +1,212 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+global proc poseBlendShapeSelectBlendShape(){
+
+		string $shape[] = `listRelatives -children`;
+		if (`size $shape` == 0){
+			string $target[] = `textScrollList -q -si poseBlendShapeList`;
+			$shape = `listRelatives -children $target[0]`;
+		}
+		string $blendShape[] = `listConnections -type blendShape $shape[0]`;
+		select -replace $blendShape[0];
+}
+
+global proc string[] poseBlendShapeGetPoses(){
+	string $poses[] = `listConnections -type transform`;
+	return $poses;
+}
+
+global proc poseBlendShapeShowPose(){
+
+	string $text;
+ 	string $result = `promptDialog 
+ 		-title "Show Blend Shape Pose"
+ 		-message "Enter Pose Name:"
+ 		-button "OK" -button "Cancel"
+ 		-defaultButton "OK" -cancelButton "Cancel"
+ 		-dismissString "Cancel"`;
+ 
+ 	if ($result == "OK") {
+ 		$text = `promptDialog -query -text`;
+		
+		hide;
+		showHidden $text;
+ 	}
+}
+
+global proc poseBlendShapeShowPoseFromEditor (){
+	
+	string $target[] = `textScrollList -q -si poseBlendShapeList`;
+	string $connections[] = `listConnections $target[0]`;
+	hide $connections[0];
+	showHidden `textScrollList -q -si poseBlendShapeList`;
+	
+}
+
+global proc string[] poseBlendShapeListConnections(string $connections[]){
+// for a list of connections
+// strip out connections that are not made to "isHistoricallyInteresting"
+	string $blendShapeConnections[];
+	int $i = 0;
+	for ($connection in $connections){
+		string $buffer[];
+		tokenize $connection "." $buffer;
+		//print "\nbu ";print $buffer[1];
+		if ($buffer[1] == "message"){
+			$blendShapeConnections[$i] = $buffer[0];
+			$i++;
+		}
+	}
+
+	//print "\nc ";print $blendShapeConnections;
+	return $blendShapeConnections;
+
+}
+
+global proc poseBlendShapeShowOriginal(){
+
+	string $transform[] = `ls -sl -exactType transform`;
+	//if (`size $transform` == 0){
+	//	string $shape[] = `listRelatives -parent`;
+	//	$transform = `listRelatives -parent $shape[0]`;
+	//}
+
+
+	
+	//***this needs cleanup
+	if (`size $transform` == 0){
+		string $target[] = `textScrollList -q -si poseBlendShapeList`;
+		string $connections[] = `listConnections $target[0]`;
+		showHidden $connections[0];
+		hide `textScrollList -q -si poseBlendShapeList`;
+	} else {
+		//need to look for specific connection .isHistoricallyInteresting 
+		//***need the opposite attr to isHistoricallyInteresting
+		string $connections[] = `listConnections -p 1 -s 1 -d 1 $transform[0]`;
+		//print "\nc ";print $connections;
+		$connections = `poseBlendShapeListConnections $connections`;
+		hide $transform[0];
+		//print "\nc ";print $connections;
+		showHidden $connections[0];	
+		
+	}
+
+}
+
+global proc poseBlendShapeCreatePrompt(){
+
+	string $text;
+ 	string $result = `promptDialog 
+ 		-title "Blend Shape Pose"
+ 		-message "Enter Pose Name:"
+ 		-button "OK" -button "Cancel"
+ 		-defaultButton "OK" -cancelButton "Cancel"
+ 		-dismissString "Cancel"`;
+ 
+ 	if ($result == "OK") {
+ 		$text = `promptDialog -query -text`;
+		poseBlendShapeCreate $text;
+
+ 	}
+
+}
+
+
+global proc poseBlendShapeCreate(string $poseName){
+
+	string $joint[] = `ls -sl -type joint`;
+	string $transform[] = `ls -sl -exactType transform`;
+
+	//find shape and check for existing blendShape
+	string $shapes[] = `listRelatives -c $transform[0]`;
+	string $blendShape[];
+	$blendShape = `listConnections -type blendShape $shapes[0]`;
+	//print "\nbs ";print $blendShape;
+
+	//store a dagPose - skeleton goes back to this pose at end of proc
+	string $dagPose = `dagPose -save $joint[0]`;
+	float $rotationDP[2] = `getAttr ($joint[0] + ".rotate")`;
+	string $rootJoint[] = `dagPose -q -m $dagPose`;
+	//need to remove any non-Joints from the list $rootJoint list
+	$rootJoint = `ls -type joint $rootJoint`;
+	//print "\ndp ";print $rotationDP;
+	print "\nroot ";print $rootJoint[0];
+
+	select -r $joint[0];
+	gotoBindPose;
+	float $rotationBP[2] = `getAttr ($joint[0] + ".rotate")`;
+	//print "\nbp ";print $rotationBP;
+	int $match;
+	for ($i = 0;$i<3;$i++){
+		if ($rotationDP[$i] != $rotationBP[$i])
+			$match = $i;
+	}
+	string $rotate;
+	if ($match == 0)
+		$rotate = ".rotateX";
+	if ($match == 1)
+		$rotate = ".rotateY";
+	if ($match == 2)
+		$rotate = ".rotateZ";
+
+	//on mesh
+	string $newTransform[] = `duplicate -n $poseName -rr $transform[0]`;
+	delete -ch $newTransform[0];
+	string $newShapes[] = `listRelatives -c $newTransform[0]`;
+	delete $newShapes[1];
+	select -replace $newTransform[0];
+	select -add $rootJoint[0];
+	//print "\nskinning";
+	newSkinCluster "-omi true -dr 5 -rui true";
+	//print "\nskinned";
+	connectAttr -f ($transform[0] + ".message") ($newTransform[0] + ".isHistoricallyInteresting");
+
+	//copy skin weights
+	select -replace $transform[0];
+	select -add $newTransform[0];
+	performCopySkinWeights false;
+
+	//set up blendshape
+	//performBlendShape 0;
+	select -replace $newTransform[0];
+	select -add $transform[0];
+	if (`size $blendShape` == 0){
+		$blendShape = `blendShape`;
+	}else{
+		blendShape -edit -t $transform[0] 1 $newTransform[0] 1 $blendShape[0];
+	}
+	int $blendShapeIndex = `blendShape -q -wc $blendShape[0]`;
+	blendShape -e -w ($blendShapeIndex-1) 0 $blendShape[0];
+	hide $transform[0];
+
+	//set driven key
+	setDrivenKeyframe -cd ($joint[0] + $rotate) ($blendShape[0] + "." + $newTransform[0]);
+
+	dagPose -restore $dagPose;
+	delete $dagPose;
+
+	blendShape -e -w ($blendShapeIndex-1) 1 $blendShape;
+	setDrivenKeyframe -cd ($joint[0] + $rotate) ($blendShape[0] + "." + $newTransform[0]);
+
+	//print "\ndp ";print $dagPose;
+
+}

@@ -1,0 +1,964 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Date: April 26, 2004.
+//
+// Script: rpr2ns
+//
+// Description:
+//		Convert a scene from using renaming prefix (RPR) style references 
+//		to using namespace (NS) style references. This will modify the scene
+//		and all references (including nested references) and save those 
+//		modifications. As this script is not undoable, it is recommended
+//		that you back up all files associated with your scene before 
+//		converting.
+//
+// Return Value:
+//		This script will return an array of 2 strings containing the original
+//		names of all nodes in the scene, and the name it was converted to.
+//		The first element contains a comma separated list of all the original
+//		names. The second element contains a comma separated list of all the
+//		converted (NS style) names.
+//
+// WARNING:
+//		This script will modify and overwrite the passed in file as well as any
+//		reference file! If the passed in scene references files which may be 
+//		referenced by other scenes, it is suggested that all scenes be converted
+//		or that you make backups of all the referenced files.
+//
+// WARNING:
+//		If the RPR style scene being converted has existing problems (i.e.
+//		there are errors when unloading or loading a reference), this script 
+//		will not fix and may exacerbate them.
+//
+// WARNING:
+//		This script works by recursively opening all files in the scene, and
+//		unloading and loading all references. This may be done multiple times.
+//		Because of this it may take a long time to complete on complex scenes.
+//
+
+global int $gRPR2NSprompt;
+global int $gRPR2NSsuppressWarnings;
+global int $gRPR2NSsuppressResults;
+global int $gRPR2NSsuppressInfo;
+
+proc string convertToFileName( string $str )
+//
+// Description:
+//		Remove all characters from $str that are not valid filename
+//		characters. Replace them with '_'.
+//
+{
+	string $fileName = $str;
+	string $char = `match "[^a-zA-Z0-9_]" $fileName`;
+	while ( "" != $char ) {
+		$fileName = substituteAllString( $fileName, $char, "_" );
+		$char = `match "[^a-zA-Z0-9_]" $fileName`;
+	}
+	return $fileName;
+}	
+
+
+
+proc int nsFileExists( string $file, string $dataDir )
+//
+// Description:
+//		Determine whether a data file containing all the NS style
+//		object names already exists for $file.
+//
+{
+	string $nsFile = convertToFileName($file);
+	$nsFile = ("ns_" + $nsFile);
+	return `filetest -f ($dataDir + $nsFile)`;
+}
+
+proc int rprFileExists( string $file, string $dataDir ) 
+//
+// Description:
+//		Determine whether a data file containing all the RPR style
+//		object names already exists for $file.
+//
+{
+	string $rprFile = convertToFileName($file);
+	$rprFile = ("rpr_" + $rprFile);
+	return `filetest -f ($dataDir + $rprFile)`;
+}
+
+proc int referenceDataExists( string $file, string $refNode, string $dataDir ) 
+//
+// Description:
+//		Determine whether a data file containing all the NS style
+//		reference edits already exists for $file's $refNode.
+//
+{
+	string $dataFile = convertToFileName($refNode + "_" + $file);
+	return `filetest -f ($dataDir + $dataFile)`;
+}
+
+
+proc writeNames( string $refNode, int $fileID )
+//
+// Description:
+//	Write out the contents of $refNode to $fileID.
+//
+{
+	file -rfn $refNode -selectAll;
+	string $names[] = `ls -sl`;
+	int $numNames = `size($names)`;
+	int $i = 0;
+	for ($i = 0; $i < $numNames; $i++ ) {
+		// We only care about node names, so ignore all dag paths.
+		//
+		string $name;
+		string $tokens[];
+		tokenize $names[$i] "|" $tokens;
+		int $last = `size($tokens)` - 1;
+		$name = $tokens[$last];
+		fprint $fileID ($name + "\n");
+	}
+}
+
+proc writeReferenceData( string $topFile, string $refNode, string $type, string $data[], string $dataDir )
+//
+// Description:
+//		Write one type of reference edit, determined by $type and $data.
+//
+{
+	string $dataFile = convertToFileName($refNode + "_" + $topFile);
+	int $fileID = `fopen ($dataDir + $dataFile) "a"`;
+	fprint $fileID ($type+"START\n");
+	int $numData = `size($data)`;
+	int $i = 0;
+	for ($i = 0; $i < $numData; $i++ ) {
+		fprint $fileID ($data[$i] + "\n");
+	}
+	fprint $fileID ($type+"END\n");
+	fclose $fileID;
+}
+
+proc loadData( int $fileID, string $dest[], string $endTag )
+//
+// Description:
+//		Read from $fileID storing each line in $dest until $endTag is reached.
+//
+{
+	string $line;
+	while( 1 ) {
+		$line = fgetline( $fileID );
+		$line = substitute( "\n", $line, "" );
+		if ( $line == $endTag ) {
+			break;
+		}
+		$dest[`size($dest)`] = $line;
+	}
+}
+
+proc loadReferenceData( string $topFile, 
+					    string $refNode, 
+					   	string $fileNames[],
+						string $connAttrValues[],
+						string $connections[],
+						string $setAttrList[],
+						string $addAttrList[],
+						string $deleteAttrList[],
+						string $brokenConnectionList[],
+						string $parentList[],
+						string $fosterParents[],
+						string $dataDir )
+//
+// Description:
+//		Load all reference edits from the intermediate data file into
+//		the given string arrays.
+//
+{
+	string $dataFile = convertToFileName($refNode + "_" + $topFile);
+	int $fileID = `fopen ($dataDir + $dataFile) "r"`;
+	while( ! `feof( $fileID )` ) {
+		string $line = fgetline( $fileID );
+		switch ($line) {
+			case "fileNamesSTART\n":
+				loadData( $fileID, $fileNames, "fileNamesEND" );
+				break;
+			case "connAttrValuesSTART\n":
+				loadData( $fileID, $connAttrValues, "connAttrValuesEND" );
+				break;
+			case "connectionsSTART\n":
+				loadData( $fileID, $connections, "connectionsEND" );
+				break;
+			case "setAttrListSTART\n":
+				loadData( $fileID, $setAttrList, "setAttrListEND" );
+				break;
+			case "addAttrListSTART\n":
+				loadData( $fileID, $addAttrList, "addAttrListEND" );
+				break;
+			case "deleteAttrListSTART\n":
+				loadData( $fileID, $deleteAttrList, "deleteAttrListEND" );
+				break;
+			case "brokenConnectionListSTART\n":
+				loadData( $fileID, $brokenConnectionList, "brokenConnectionListEND" );
+				break;
+			case "parentListSTART\n":
+				loadData( $fileID, $parentList, "parentListEND" );
+				break;
+			case "fosterParentSTART\n":
+				loadData( $fileID, $fosterParents, "fosterParentEND" );
+				break;
+		}
+	}
+	fclose($fileID);
+}
+
+proc writeRPRNames( string $topFile, string $dataDir )
+//
+// Description:
+//		Write out the names of all nodes nodes in the this scene.
+//		This proc should be called before the conversion to Namespaces
+//		takes place, and all references should be unloaded.
+//
+{
+	string $rprFile = convertToFileName($topFile);
+	$rprFile = ("rpr_" + $rprFile);
+	int $fileID = fopen ($dataDir + $rprFile);
+	string $refFiles[] = `file -q -reference`;
+	int $numRefs = `size($refFiles)`;	
+	int $i = 0;	
+	
+	// Write out the contents of each reference sequentially.
+	//
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		string $refFile = $refFiles[$i];
+		string $refNode = `file -q -rfn $refFile`;
+
+		// It is imperative that the order in which objects are written out
+		// here, matches the order that they are written out in writeNSNames.
+		// As writeNSNames is called on a file before its immediate references
+		// are converted, it will ignore any edits to those references.
+		// Since 'parent' commands can change the order in which object names
+		// are returned, we have to clean the references here as well.
+		//
+		file -cleanReference $refNode;
+		file -loadReference $refNode $refFile;
+		writeNames($refNode, $fileID);
+	}	
+	fclose $fileID;
+
+}
+
+
+proc writeNSNames( string $topFile, string $dataDir )
+//
+// Description:
+//		Write out the names of all nodes nodes in the this scene.
+//		This proc should be called before the conversion to Namespaces
+//		takes place, and all references should be unloaded.
+//
+{
+	string $nsFile = convertToFileName($topFile);
+	$nsFile = ("ns_" + $nsFile);
+	int $fileID = fopen ($dataDir + $nsFile);
+	string $refFiles[] = `file -q -reference`;
+	int $numRefs = `size($refFiles)`;	
+	int $i = 0;	
+
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		string $refFile = $refFiles[$i];
+		string $refNode = `file -q -rfn $refFile`;
+		string $prefix = `file -q -rpr $refFile`;
+		
+		// Remove the reference and recreate it using Namespaces. These
+		// changes are not saved and are done purely to predict the expected
+		// object names after the conversion.
+		//
+		file -cleanReference $refNode;
+		file -removeReference $refFile;
+		file -r -ns $prefix -rfn $refNode $refFile;
+
+		writeNames($refNode, $fileID);
+	}	
+	fclose $fileID;
+
+}
+
+proc string[] loadNames( string $file )
+//
+// Description:
+//		Load each line in $file into a string array and
+//		return it.
+//
+{
+	string $names[];
+	int $fileID = fopen($file, "r");
+	while( ! `feof( $fileID )` ) {
+		string $name = fgetline( $fileID );
+		$name = substitute( "\n", $name, "" );
+		$names[`size($names)`] = $name;
+	}
+	fclose($fileID);
+	return $names;
+}
+
+proc string[] loadRPRNames( string $topFile, string $dataDir )
+//
+// Description:
+//		Load all the RPR names stored in the intermediate data file.
+//
+{
+	string $rprFile = convertToFileName($topFile);
+	$rprFile = ("rpr_" + $rprFile);
+	return loadNames($dataDir + $rprFile);
+}
+
+proc string[] loadNSNames( string $topFile, string $dataDir )
+//
+// Description:
+//		Load all the NS names stored in the intermediate data file.
+//
+{
+	string $nsFile = convertToFileName($topFile);
+	$nsFile = ("ns_" + $nsFile);
+	return loadNames($dataDir + $nsFile);
+}
+
+
+
+proc string replaceRPRNameWithNSName( string $input, string $rprNames[], string $nsNames[] )
+//
+// Description:
+//		Given a list of all RPR names and the corresponding NS names, replace
+//		all occurrences of an RPR name in $input with the corresponding NS name.
+//
+{
+	string $result = $input;
+	int $curName;
+	int $numNames = `size($rprNames)`;
+	for ( $curName = 0; $curName < $numNames; $curName++ ) {
+		if ( "" != $rprNames[$curName] ) {
+			int $foundMatch = true;
+			while ( $foundMatch ) {
+				$foundMatch = false;
+				string $match;
+				$match = `match ("[^a-zA-Z0-9_]" + $rprNames[$curName] + "[^a-zA-Z0-9_]") $result`;
+				if ( "" == $match ) {
+					$match = `match ("^" + $rprNames[$curName] + "[^a-zA-Z0-9_]") $result`;
+					if ( "" == $match ) {
+						$match = `match ("[^a-zA-Z0-9_]" + $rprNames[$curName] + "$") $result`;
+					}
+				}
+				if ( ( "" != $match ) && ( $nsNames[$curName] != $rprNames[$curName] ) ) {
+					$foundMatch = true;
+					$result = `substitute $rprNames[$curName] $result $nsNames[$curName]`;
+				}
+			}
+		}
+	}
+	return $result;
+}
+proc replaceRPRNamesWithNSNames( string $input[], string $rprNames[], string $nsNames[] )
+//
+// Description:
+//		Given a list of all RPR names and the corresponding NS names, replace
+//		all occurrences of an RPR name in $input with the corresponding NS name.
+//
+{
+	int $numInput = `size($input)`;
+	int $curName;
+	int $i;
+	for ( $i = 0; $i < $numInput; $i++ ) {
+		$input[$i] = replaceRPRNameWithNSName( $input[$i], $rprNames, $nsNames );
+	}
+}
+
+proc getMultiStringAttr( string $refNode, string $attr, string $result[] )
+//
+// Description:
+//		Get all the values on a multi string attribute and return them
+//		in $result.
+//
+{
+	int $size = eval("getAttr -s " + $refNode + "." + $attr);
+	if ( $size > 0 ) {
+		// The multi values may not start at index 0, so we have to use the
+		// "*" index notation to guarantee that we get them all.
+		//
+		eval("getAttr " + $refNode + "." + $attr + "[\"*\"]");
+		if ( $size == 1 ) {
+			string $res = eval("getAttr " + $refNode + "." + $attr + "[\"*\"]");
+			$result = { $res };
+		} else if ( $size > 1 ) {
+			$result = eval("getAttr " + $refNode + "." + $attr + "[\"*\"]");
+		}
+	
+		int $numValues = `size($result)`;
+		int $i = 0;
+		for ($i = 0; $i < $numValues; $i++) {
+			$result[$i] = encodeString($result[$i]);
+		}
+	}
+}
+
+proc setMultiStringAttr( string $refNode, string $attr, string $values[] )
+//
+// Description:
+//		Given and array of string values, set them onto a string multi 
+//		attribute.
+//
+{
+	int $numValues = `size($values)`;
+	int $i = 0;
+	for ($i = 0; $i < $numValues; $i++ ) {
+		eval("setAttr -type \"string\" " + $refNode + "." + $attr + "[" + $i + "] \"" + $values[$i] + "\"");
+	}
+}
+
+proc getConnList( string $refNode, string $connValueNode, string $connAttrValues[], string $connections[], string $rprNames[], string $nsNames[] )
+//
+// Description:
+//		Get the connection information stored on $refNode. This is stored as 
+//		connections b/w refNode and a node in the main scene and the names
+//		of unloaded referenced nodes to connect to. Source attr values are
+//		also stored here.
+//
+{
+	int $numConnections = eval("getAttr -s " + $refNode + ".connectionList");
+	for ($i = 0; $i < $numConnections ; $i++ ) {
+		$connAttrValues[$i] = eval("getAttr " + $refNode + ".connectionList[" + $i + "].connectionAttr");
+		$connAttrValues[$i] = encodeString($connAttrValues[$i]);
+
+		if ( eval("connectionInfo -isSource " + $refNode + ".connectionList[" + $i + "].connection") ) {
+			string $type;
+			$type = eval("getAttr -type " + $refNode + ".connectionList[" + $i + "].connection");
+			if ( "generic" == $type ) {
+				$type = "double";
+			}
+			if ( "" != $type ) {
+				select -r $connValueNode;
+				// try '-dt' first because there are '-at' types which are 
+				// compounds.
+				//
+				if ( catch(`eval("addAttr -ln \"" + $type + "_" + $i + "\" -dt \"" + $type + "\"")`) ) {
+					eval("addAttr -ln \"" + $type + "_" + $i + "\" -at \"" + $type + "\"");
+				}
+				if ( "string" == $type ) {
+					string $value;
+					$value = eval("getAttr " + $refNode + ".connectionList[" + $i + "].connection");
+					$value = replaceRPRNameWithNSName( $value, $rprNames, $nsNames );
+					$value = encodeString($value);
+					eval("setAttr -type \"string\" " + $connValueNode + "." + $type + "_" + $i);
+				} else {
+					eval("connectAttr " + $refNode + ".connectionList[" + $i + "].connection " + $connValueNode + "." + $type + "_" + $i);			
+					eval("disconnectAttr " + $refNode + ".connectionList[" + $i + "].connection " + $connValueNode + "." + $type + "_" + $i);			
+				}
+			}
+		}
+		
+		if ( eval("connectionInfo -isDestination " + $refNode + ".connectionList[" + $i + "].connection") ) {
+			string $source = eval("connectionInfo -sfd " + $refNode + ".connectionList[" + $i + "].connection");
+			$connections[$i] = ("connectAttr " + $source + " " + $refNode + ".connectionList[" + $i + "].connection");
+			eval("disconnectAttr " + $source + " " + $refNode + ".connectionList[" + $i + "].connection");
+		} else if ( eval("connectionInfo -isSource " + $refNode + ".connectionList[" + $i + "].connection") ) {
+			string $destinations[] = eval("connectionInfo -dfs " + $refNode + ".connectionList[" + $i + "].connection");
+			string $dest = $destinations[0];
+			string $tokens[];
+			tokenize $dest "." $tokens;
+			if ( $refNode != $tokens[0] ) {
+				$connections[$i] = ("connectAttr " + $refNode + ".connectionList[" + $i + "].connection " + $dest);
+				eval("disconnectAttr " + $refNode + ".connectionList[" + $i + "].connection " + $dest);
+			}
+		}
+	}
+}
+
+proc setConnList( string $refNode, string $connValueNode, string $connAttrValues[], string $connections[] )
+//
+// Description:
+//		Populate $refNode with connection information. This includes the 
+//		connection information itself as well as the source attr values.
+//
+{
+	int $numConnections = `size($connAttrValues)`;
+	int $i = 0;
+	for ($i = 0; $i < $numConnections ; $i++ ) {
+		eval("setAttr -type \"string\" " + $refNode + ".connectionList[" + $i + "].connectionAttr \"" + $connAttrValues[$i] + "\"");
+	}
+	
+	string $attrs[] = `listAttr $connValueNode`;
+	int $numAttrs = `size($attrs)`;
+	for ($i = 0; $i < $numAttrs; $i++) {
+		string $tokens[];
+		tokenize $attrs[$i] "_" $tokens;
+		if ( 2 != `size($tokens)` ) {
+			continue;
+		}
+		eval("connectAttr " + $connValueNode + "." + $attrs[$i] + " " + $refNode + ".connectionList[" + $tokens[1] + "].connection");
+		eval("disconnectAttr " + $connValueNode + "." + $attrs[$i] + " " + $refNode + ".connectionList[" + $tokens[1] + "].connection");
+	}
+		
+	for ($i = 0; $i < $numConnections ; $i++ ) {
+		if ( "" != $connections[$i] ) {
+			catch(`eval($connections[$i])`);
+		}
+	}
+}
+ 
+
+proc convertReferenceData( string $topFile, string $refFile, string $dataDir )
+//
+// Description:
+//		Convert all edits to $refFile to use NS style object names, and write
+//		out the converted edits to an intermediate data file in $dataDir.
+//		$topFile:		the parent file
+//		$refFile:		the resolved name of the reference to be converted.
+//
+{
+	string $refNode = `file -q -rfn $refFile`;
+
+	print("\tConverting and writing reference data " + $refNode + " " + $refFile + "... ");
+
+	// Convert the comma separated list to an array of strings.
+	//
+	string $rprNames[] = loadRPRNames($topFile, $dataDir);;
+	string $nsNames[] = loadNSNames($topFile, $dataDir);
+
+	string $fileNames[];
+	string $connValueNode = ($refNode + "_connValueNode");
+	string $connAttrValues[];
+	string $connections[];
+	string $setAttrList[];
+	string $addAttrList[];
+	string $deleteAttrList[];
+	string $brokenConnectionList[];
+	string $parentList[];
+	string $fosterParent;
+
+	// An unloaded reference stores all reference modifications on the 
+	// associated reference node. To convert this reference we will
+	// get and convert all the modifications over to using NS-style
+	// names. Then remove the old reference, add a new NS-style reference
+	// and populate the new reference node with all the appropriate
+	// modifications.
+	//
+
+	// Get the values of refNode.fileNames
+	//
+	getMultiStringAttr( $refNode, "fileNames", $fileNames );
+	writeReferenceData( $topFile, $refNode, "fileNames", $fileNames, $dataDir );
+	
+	// Get the connections stored in refNode, and convert them to use NS
+	// style names.
+	//
+	createNode -name $connValueNode "unknown";
+	getConnList( $refNode, $connValueNode, $connAttrValues, $connections, $rprNames, $nsNames );
+	replaceRPRNamesWithNSNames( $connAttrValues, $rprNames, $nsNames );
+	replaceRPRNamesWithNSNames( $connections, $rprNames, $nsNames );
+	writeReferenceData( $topFile, $refNode, "connAttrValues", $connAttrValues, $dataDir );
+	writeReferenceData( $topFile, $refNode, "connections", $connections, $dataDir );
+
+	// Get the setAttrs stored in refNode, and convert them to use NS
+	// style names.
+	//
+	getMultiStringAttr( $refNode, "setAttrList", $setAttrList );
+	replaceRPRNamesWithNSNames( $setAttrList, $rprNames, $nsNames );
+	writeReferenceData( $topFile, $refNode, "setAttrList", $setAttrList, $dataDir );
+
+	// Get the addAttrs stored in refNode, and convert them to use NS
+	// style names.
+	//
+	getMultiStringAttr( $refNode, "addAttrList", $addAttrList );
+	replaceRPRNamesWithNSNames( $addAttrList, $rprNames, $nsNames );
+	writeReferenceData( $topFile, $refNode, "addAttrList", $addAttrList, $dataDir );
+
+	// Get the deleteAttrs stored in refNode, and convert them to use NS
+	// style names.
+	//
+	getMultiStringAttr( $refNode, "deleteAttrList", $deleteAttrList );
+	replaceRPRNamesWithNSNames( $deleteAttrList, $rprNames, $nsNames );
+	writeReferenceData( $topFile, $refNode, "deleteAttrList", $deleteAttrList, $dataDir );
+
+	// Get the broken connections stored in refNode, and convert them to use NS
+	// style names.
+	//
+	getMultiStringAttr( $refNode, "brokenConnectionList", $brokenConnectionList );
+	replaceRPRNamesWithNSNames( $brokenConnectionList, $rprNames, $nsNames );
+	writeReferenceData( $topFile, $refNode, "brokenConnectionList", $brokenConnectionList, $dataDir );
+
+	// Get the parent commands stored in refNode, and convert them to use NS
+	// style names.
+	//
+	getMultiStringAttr( $refNode, "parentList", $parentList );
+	replaceRPRNamesWithNSNames( $parentList, $rprNames, $nsNames );
+	writeReferenceData( $topFile, $refNode, "parentList", $parentList, $dataDir );
+
+	// Get the foster parent associated with refNode.
+	//
+	$fosterParent = eval("connectionInfo -sfd " + $refNode + ".fosterParent");
+	writeReferenceData( $topFile, $refNode, "fosterParent", {$fosterParent}, $dataDir );
+	
+	print("Done.\n");
+}
+
+
+proc populateReference( string $topFile, string $refNode, string $dataDir )
+//
+// Description:
+//		Populate an NS style reference from an RPR style reference. 
+//		$topFile:		parent file.
+//		$refNode:		name of reference node to associate with the new reference.
+//		$dataDir:		directory with the intermediate data file containing all
+//						to this reference.
+//
+{	
+	// Load all edist from the intermediate data file.
+	//
+	string $connValueNode = ($refNode + "_connValueNode");
+	string $fileNames[];
+	string $connAttrValues[];
+	string $connections[];
+	string $setAttrList[];
+	string $addAttrList[];
+	string $deleteAttrList[];
+	string $brokenConnectionList[];
+	string $parentList[];
+	string $fosterParents[];
+	string $fosterParent;
+	loadReferenceData( $topFile, 
+					   $refNode, 
+					   $fileNames, 
+					   $connAttrValues, 
+					   $connections, 
+					   $setAttrList, 
+					   $addAttrList, 
+					   $deleteAttrList, 
+					   $brokenConnectionList, 
+					   $parentList, 
+					   $fosterParents,
+					   $dataDir );
+					   
+	// Populate the new reference node with all the converted modification
+	// information.
+	//
+	
+	$fosterParent = $fosterParents[0];
+	
+	setMultiStringAttr($refNode, "fileNames", $fileNames);
+	
+	setConnList($refNode, $connValueNode, $connAttrValues, $connections);
+	
+	setMultiStringAttr($refNode, "setAttrList", $setAttrList);
+
+	setMultiStringAttr($refNode, "addAttrList", $addAttrList);
+
+	setMultiStringAttr($refNode, "deleteAttrList", $deleteAttrList);
+
+	setMultiStringAttr($refNode, "brokenConnectionList", $brokenConnectionList);
+
+	setMultiStringAttr($refNode, "parentList", $parentList);
+
+	if ( $fosterParent != "" ) {
+		eval("connectAttr " + $fosterParent + " " + $refNode + ".fosterParent");
+	}
+	
+	// $connValueNode was just used as a means to transfer attribute
+	// values from the old refNode to the new one, we can delete it
+	// now.
+	//
+	delete $connValueNode;
+}
+
+proc string[] findInvalidRefs(string $file)
+//
+// Description:
+//		Traverse all references in the scene $file, and verify that they
+//		can be unloaded. As soon as a non-unloadable reference is found,
+//		return.
+//
+{
+	file -f -o -lar $file;
+	string $refFiles[] = `file -q -reference`;
+	int $numRefs = `size($refFiles)`;
+	int $i = 0;
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		string $refFile = $refFiles[$i];
+		string $refNode = `file -q -rfn $refFile`;
+		if ( catch(`eval("file -ur " + $refNode + " \"" +  $refFile + "\"")`) ) {
+			return { $file, $refFile };
+		}
+	}
+	
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		string $refFile = $refFiles[$i];
+		string $invalidRefs[] = findInvalidRefs($refFile);
+		if ( `size($invalidRefs)` > 0 ) {
+			return $invalidRefs;
+		}
+	}
+	return {};
+}
+
+proc doRPR2NS(string $topFile, string $dataDir)
+{
+	// This script works in 4 stages:
+	// 1.	For each child reference get a list of all contained nodes. This
+	//		list represents the pre-conversion list of nodes.
+	// 2.	Recurse into all child references, converting *their* child
+	//		references to use namespaces.
+	// 3.	For each child reference predict what the list of all contained
+	//		nodes will be after that reference is converted to namespaces.
+	// 4.	For each child reference query all edits and convert them to using
+	//		namespace style naming to refer to nodes.
+	// 5.	Remove all child references.
+	// 6.	Recreate each child reference using namespaces and re-apply the 
+	//		edits.
+	//
+	// The end result is that references are converted in a bottom-up manner
+	// but the mapping of renaming prefix style node names to namespace style
+	// node names is built in a top-down manner. This is necessary to ensure
+	// that, during the process of conversion, we can always load an unload
+	// references without errors.
+	//	
+	
+	// We always want to open topFile without loading references. This is for
+	// performance reasons, and to ensure that we don't get any errors when
+	// we're in the middle of the conversion process.
+	//
+	file -f -o -loadNoReferences $topFile;
+	
+	string $refFilesNoCopy[] = `file -q -reference -withoutCopyNumber`;
+	int $numRefs = `size($refFilesNoCopy)`;
+	if ( 0 == $numRefs ) {
+		return;
+	}
+
+	// 1.	For each child reference get a list of all contained nodes. This
+	//		list represents the pre-conversion list of nodes.
+	//
+	if ( !rprFileExists($topFile, $dataDir) ) {
+		writeRPRNames( $topFile, $dataDir );
+		
+		// writeRPRNames modified and reloaded references.
+		//
+		file -f -o -loadNoReferences $topFile;
+	}
+	
+	// Save the file with all references unloaded. This is necessary because
+	// the next time we open this file, all of its descendant references
+	// will have been converted to using NS style names. If we try to load
+	// any of them before converting this file, we may get errors.
+	//
+	file -f -save;
+
+	// 2.	Recurse into all child references, converting *their* child
+	//		references to use namespaces.
+	//
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		if ( !rprFileExists($refFilesNoCopy[$i], $dataDir) ) {
+			doRPR2NS( $refFilesNoCopy[$i], $dataDir );
+		}
+	}
+	
+	// By now all references except our direct children have been converted to
+	// using namespaces. As such any edits we have stored on our child 
+	// reference nodes may fail, so open $topFile with references unloaded.
+	//
+	file -f -o -loadNoReferences $topFile;
+	
+	// 3.	For each child reference predict what the list of all contained
+	//		nodes will be after that reference is converted to namespaces.
+	//
+	if ( !nsFileExists( $topFile, $dataDir ) ) {
+		writeNSNames( $topFile, $dataDir );
+
+		// writeNSNames modified and reloaded references.
+		//
+		file -f -o -loadNoReferences $topFile;
+	}
+
+	print("Converting all references in " + $topFile + "\n");
+
+	// We need the raw file names when we re-create the references, and the
+	// resolved file names when referring to references in memory.
+	//
+	string $rawRefFiles[] = `file -q -reference -unresolvedName -withoutCopyNumber`;
+	$refFilesNoCopy = `file -q -reference -withoutCopyNumber`;
+	string $refFiles[] = `file -q -reference`;
+	$numRefs = `size($refFiles)`;
+	string $refNodes[];
+	string $prefixes[];
+		
+	// 4.	For each child reference query all edits and convert them to using
+	//		namespace style naming to refer to nodes.
+	//
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		string $refFile = $refFiles[$i];
+		$refNodes[$i] = `file -q -rfn $refFile`;
+		$prefixes[$i] = `file -q -rpr $refFile`;
+		
+		// Convert all child reference node edits to use Namespaces and write
+		// out the data.
+		//
+		convertReferenceData( $topFile, $refFile, $dataDir );
+	}
+	
+	// 5. Remove all child references.
+	//
+	// This is needed so that, when we re-create them, the reference
+	// file copy numbers remain the same as before the conversion process.
+	//
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		// We have to clean the reference node before removing it because
+		// if two unloaded reference nodes are connected, removing one may
+		// delete the other.
+		//
+		file -cleanReference $refNodes[$i];
+		file -removeReference $refFiles[$i];
+	}
+	
+	// Create a new, NS-style reference and unload it so that it can be
+	// populated with all necessary edits.
+	//
+	
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		if ( catch(`eval("file -r -ns \"" + $prefixes[$i] + "\" -rfn \"" + $refNodes[$i] + "\" \"" + $rawRefFiles[$i] + "\"")`) ) {
+			print("\n");
+			error("rpr2ns: reference " + $rawRefFiles[$i] + " in file " + $topFile + " could not be found, make sure project is set correctly. Aborting conversion."); 
+		}
+		file -ur $refNodes[$i] $refFiles[$i];
+	}
+	
+	// 6.	Recreate each child reference using namespaces and re-apply the 
+	//		edits.
+	//
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		print("\tPopulating reference " +$refNodes[$i] + " " + $refFiles[$i] + "... ");
+		populateReference( $topFile, $refNodes[$i], $dataDir );
+		print("Done.\n");
+	}
+	
+	// Load all references.
+	//
+	for ( $i = 0; $i < $numRefs; $i++ ) {
+		file -lr $refNodes[$i] $refFiles[$i];
+	}
+			
+	file -f -save;
+	print("Done converting " + $topFile + "\n");
+}
+
+global proc int rpr2ns(string $topFile)
+//
+// Description:
+//		Convert $topFile from using renaming prefix (RPR) style references 
+//		to using namespace (NS) style references. This will modify $topFile
+//		and all references (including nested references) and save those 
+//		modifications. As this script is not undoable, it is recommended
+//		that you back up all files associated with your scene before 
+//		converting.
+//
+// Return Value:
+//		This script returns a 1 on success and a 0 or error on failure.
+//
+{
+	string $message = ( "This operation may modify\n" +
+						$topFile + "\n" +
+						"and any of its references!" );
+	string $choice = `confirmDialog -title "Warning!" -message $message -messageAlign "center"
+ 									-button "Continue" -button "Cancel" -defaultButton "Cancel"
+ 									-cancelButton "Cancel" -dismissString "Cancel"`;
+	if ( "Cancel" == $choice ) {
+		return 0;
+	}
+
+	rpr2nsForce($topFile);
+	
+	return 1;
+}	
+
+global proc rpr2nsForce(string $topFile)
+//
+// Description:
+//		Bypass the warning dialog. This should be used with extreme care.
+//
+{
+	global int $gRPR2NSprompt;
+	global int $gRPR2NSsuppressWarnings;
+	global int $gRPR2NSsuppressResults;
+	global int $gRPR2NSsuppressInfo;
+
+	// This script performs a lot of file IO and will generate a lot
+	// of script editor output. As most of it can be ignored in this
+	// case, we suppress it.
+	//
+	$gRPR2NSprompt = `file -q -prompt`;
+	$gRPR2NSsuppressWarnings = `scriptEditorInfo -q -suppressWarnings`;
+	$gRPR2NSsuppressResults = `scriptEditorInfo -q -suppressResults`;
+	$gRPR2NSsuppressInfo = `scriptEditorInfo -q -suppressInfo`;
+	file -prompt false;
+	scriptEditorInfo -e -suppressWarnings true;
+	scriptEditorInfo -e -suppressResults true;
+	scriptEditorInfo -e -suppressInfo true;
+
+	// This procedure depends on the ability to unload every reference in
+	// the scene. If any reference can not be unloaded, this script will
+	// abort without converting or modifying any files.
+	//
+	string $invalidRefs[] = findInvalidRefs($topFile);
+	if ( `size($invalidRefs)` > 0 ) {
+		file -f -o $topFile;
+		file -prompt $gRPR2NSprompt;
+		scriptEditorInfo -e -suppressWarnings $gRPR2NSsuppressWarnings;
+		scriptEditorInfo -e -suppressResults $gRPR2NSsuppressResults;
+		scriptEditorInfo -e -suppressInfo $gRPR2NSsuppressInfo;
+		error("Can't convert scene to namespaces because reference \"" + $invalidRefs[1] + "\" in file \"" + $invalidRefs[0] + "\" can not be unloaded.");
+	}
+	
+	// In the course of conversion this script will create a number
+	// of intermediate and temporary data files. They will be placed
+	// under you temp directory in a sub-directory named after the
+	// $topFile. If such a directory already exists a numerical grist
+	// will be appended (e.g. if /tmp/topFile/ already exists, all data
+	// will be placed in /tmp/topFile1/).
+	//
+	string $tmpDir = `internalVar -utd`;
+	string $dataDir = basename( $topFile, "" );
+	$dataDir = ("rpr2ns_" + $dataDir);
+	$dataDir = convertToFileName($dataDir);
+	$dataDir = ($tmpDir + $dataDir);
+	string $baseName = $dataDir;
+	int $grist = 1;
+	while ( `filetest -f $dataDir` || `filetest -d $dataDir` ) {
+		$dataDir = ($baseName + $grist);
+		$grist++;
+	}
+	
+	if ( !`sysFile -makeDir $dataDir` ) {
+		error("Can't convert scene to namespaces because temp directory \"" + $dataDir + "\" could not be created.");
+	}
+	$dataDir = ($dataDir + "/");
+
+	// Do the conversion.
+	catch(doRPR2NS($topFile, $dataDir));
+	
+	file -prompt $gRPR2NSprompt;
+	scriptEditorInfo -e -suppressWarnings $gRPR2NSsuppressWarnings;
+	scriptEditorInfo -e -suppressResults $gRPR2NSsuppressResults;
+	scriptEditorInfo -e -suppressInfo $gRPR2NSsuppressInfo;
+}	
+

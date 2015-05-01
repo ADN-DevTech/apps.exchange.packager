@@ -1,0 +1,904 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//////////////////////////////////////////////
+//	OrientTo Tool Procs
+//////////////////////////////////////////////
+//
+// Original Algorithms by : Hiroyuki Haga
+// Original Tools by : cpam Oct 2004
+// Re-written by: Steven T. L. Roselle 2005
+// Updated with fixes : stlr Aug 2006
+
+
+///////////////////////////////////////////
+//
+// UI Config
+//
+
+
+///////////////////////////////////////////
+//
+//	Edge Tool Options Setup
+//
+
+global proc orientToEdgeToolProperties () {
+
+	// Linux Motif2.1 shrinks the checkBox, if the string is ""
+    // NT would tab over the blank (" ") string label.
+    // So...
+	string $emptyLabel = "";
+    if (`about -linux`) {
+        $emptyLabel = " ";
+    }
+
+	string $parent = `toolPropertyWindow -q -location`;
+
+	setUITemplate -pushTemplate OptionsTemplate;
+
+	setParent $parent;
+
+	columnLayout orientToEdgeTool;
+		frameLayout -collapsable true -collapse false
+			-l "Orient To Edge Tool Settings";
+			columnLayout;
+
+
+				radioButtonGrp -nrb 2 
+					-l "Orient To" 
+					-l1 "Edge"
+					-l2 "Vert"
+					orientToEdgeMethodRadio;	
+				
+				radioButtonGrp -nrb 2 
+					-l "Space" 
+					-l1 "Object"
+					-l2 "World"
+					orientToEdgeSpaceRadio;	
+				
+				radioButtonGrp -nrb 3 
+					-l "Rotate Axis" 
+					-l1 "X"
+					-l2 "Y"
+					-l3 "Z"
+					orientToEdgeAxisRadio;
+
+			setParent ..;
+		setParent ..;
+	setParent ..;	
+
+	setUITemplate -popTemplate;
+}
+
+
+
+global proc orientToEdgeToolValues ( string $toolName ) {
+
+	string $parent = (`toolPropertyWindow -q -location` + "|orientToEdgeTool");
+	setParent $parent;
+
+
+	////////////////
+	// Method Radio	
+	
+	int $currentState = `optionVar -q orientToMethod`;
+	switch ($currentState)
+	{
+		case 0:
+		case 1:
+			 radioButtonGrp -e -sl 1 orientToEdgeMethodRadio;
+	  		 optionVar -iv orientToMethod 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  orientToEdgeMethodRadio;
+			optionVar -iv orientToMethod 2;
+		break;
+	}
+	
+	
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv orientToMethod 1")
+		//switch to orientToVertTool if changed
+		-on2 ("optionVar -iv orientToMethod 2 ; if (!`contextInfo -exists orientToVertTool`) orientToVertToolCtx ; setToolTo orientToVertTool;")
+		-select 1
+		orientToEdgeMethodRadio;
+	
+	
+	////////////////
+	// Space Radio
+	
+	int $currentState = `optionVar -q orientToSpace`;
+	switch ($currentState)
+	{
+		case 0:
+		case 1:
+			 radioButtonGrp -e -sl 1 orientToEdgeSpaceRadio;
+			optionVar -iv orientToSpace 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  orientToEdgeSpaceRadio;
+			optionVar -iv orientToSpace 2;
+		break;
+	}
+	
+	
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv orientToSpace 1")
+		-on2 ("optionVar -iv orientToSpace 2")
+		-select $currentState
+		orientToEdgeSpaceRadio;
+
+	
+	////////////////
+	// Axis Radio
+	
+	
+	int $currentState = `optionVar -q orientToAxis`;
+	switch ($currentState)
+	{
+		case 0:
+		case 1:
+			 radioButtonGrp -e -sl 1 orientToEdgeAxisRadio;
+			optionVar -iv orientToAxis 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  orientToEdgeAxisRadio;
+			optionVar -iv orientToAxis 2;
+		break;
+		case 3:
+			radioButtonGrp -e -sl 3 orientToEdgeAxisRadio;
+			optionVar -iv orientToAxis 3;
+		break;
+	}
+	
+	
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv orientToAxis 1")
+		-on2 ("optionVar -iv orientToAxis 2")
+		-on3 ("optionVar -iv orientToAxis 3")
+		-select $currentState
+		orientToEdgeAxisRadio;
+
+	string $helpTag = "orientToEdgeTool";
+	toolPropertySetCommon $toolName "orientToEdge.xpm" $helpTag;
+	toolPropertySelect "orientToEdgeTool";
+	
+}
+
+
+///////////////////////////////////////////
+//
+//	Vert Tool Option Setup
+//
+
+global proc orientToVertToolProperties () {
+
+	// Linux Motif2.1 shrinks the checkBox, if the string is ""
+    // NT would tab over the blank (" ") string label.
+    // So...
+	string $emptyLabel = "";
+    if (`about -linux`) {
+        $emptyLabel = " ";
+    }
+
+	string $parent = `toolPropertyWindow -q -location`;
+
+	setUITemplate -pushTemplate OptionsTemplate;
+
+	setParent $parent;
+
+	columnLayout orientToVertTool;
+		frameLayout -collapsable true -collapse false
+			-l "Orient To Vert Tool Settings";
+			columnLayout;
+
+
+				radioButtonGrp -nrb 2 
+					-l "Orient To" 
+					-l1 "Edge"
+					-l2 "Vert"
+					orientToVertMethodRadio;	
+				
+				radioButtonGrp -nrb 2 
+					-l "Space" 
+					-l1 "Object"
+					-l2 "World"
+					orientToVertSpaceRadio;	
+				
+				radioButtonGrp -nrb 3 
+					-l "Rotate Axis" 
+					-l1 "X"
+					-l2 "Y"
+					-l3 "Z"
+					orientToVertAxisRadio;
+
+			setParent ..;
+		setParent ..;
+	setParent ..;	
+
+	setUITemplate -popTemplate;
+}
+
+global proc orientToVertToolValues ( string $toolName ) {
+
+	string $parent = (`toolPropertyWindow -q -location` + "|orientToVertTool");
+	setParent $parent;
+
+
+	////////////////
+	// Method Radio
+
+	
+	int $currentState = `optionVar -q orientToVertMethod`;
+	switch ($currentState)
+	{
+		case 0:
+		case 1:
+			radioButtonGrp -e -sl 1 orientToVertMethodRadio;
+			optionVar -iv orientToMethod 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  orientToVertMethodRadio;
+			optionVar -iv orientToMethod 2;
+		break;
+	}
+	
+	
+	
+	radioButtonGrp -e
+		-nrb 2
+		//switch to orientToEdgeTool if changed
+		-on1 ("optionVar -iv orientToMethod 1; if (!`contextInfo -exists orientToEdgeTool`) orientToEdgeToolCtx ; setToolTo orientToEdgeTool")
+		-on2 ("optionVar -iv orientToMethod 2")
+		-select 2
+		orientToVertMethodRadio;
+	
+
+	////////////////
+	// Space Radio
+	
+	int $currentState = `optionVar -q orientToSpace`;
+	switch ($currentState)
+	{
+		case 0:
+		case 1:
+			 radioButtonGrp -e -sl 1 orientToVertSpaceRadio;
+			optionVar -iv orientToSpace 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  orientToVertSpaceRadio;
+			optionVar -iv orientToSpace 2;
+		break;
+	}
+	
+	
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv orientToSpace 1")
+		-on2 ("optionVar -iv orientToSpace 2")
+		-select $currentState
+		orientToVertSpaceRadio;
+	
+
+	////////////////
+	// Axis Radio
+	
+	
+	int $currentState = `optionVar -q orientToAxis`;
+	switch ($currentState)
+	{
+		case 0:
+		case 1:
+			 radioButtonGrp -e -sl 1 orientToVertAxisRadio;
+			optionVar -iv orientToAxis 1;
+		break;
+		case 2:
+			radioButtonGrp -e -sl 2  orientToVertAxisRadio;
+			optionVar -iv orientToAxis 2;
+		break;
+		case 3:
+			radioButtonGrp -e -sl 3 orientToVertAxisRadio;
+			optionVar -iv orientToAxis 3;
+		break;
+	}
+	
+	
+	radioButtonGrp -e
+		-nrb 2
+		-on1 ("optionVar -iv orientToAxis 1")
+		-on2 ("optionVar -iv orientToAxis 2")
+		-on3 ("optionVar -iv orientToAxis 3")
+		-select $currentState
+		orientToVertAxisRadio;
+
+	string $helpTag = "orientToVertTool";
+	toolPropertySetCommon $toolName "orientToEdge.xpm" $helpTag;
+	toolPropertySelect "orientToVertTool";
+	
+}
+
+
+
+///////////////////////////////////////////
+//
+//	Edge base proc
+//
+
+global proc orientToEdge( string $Selection1 , string $Selection2 ,int $axis , int $sp)
+{
+	
+	global string $gSelect;
+	string $shape[] = `listRelatives -f -parent $Selection1`;
+	string $transform[] = `listRelatives -f -parent $shape[0]`;
+	string $orientObject = $transform[0];
+	float $degree;
+
+	print ("\nSource vertex : " + $Selection1);
+	print ("\nTarget edge : " + $Selection2);
+
+	if ($sp == 1)
+		$space = "-os";
+	else if ($sp == 2)
+		$space = "-ws";
+	else
+		error ("Space value not recognized.");
+	
+	////////////////////////////////////////////
+	// check for correct selection type and order
+	
+	string $vertCheck[];
+	string $edgeCheck[];
+	
+	select -r $Selection1;
+	$vertCheck = `filterExpand -sm 31`;
+	if (`size $vertCheck` != 1)
+		{	
+		select -cl;
+		error "First selection must be a vertex.";
+		}
+	select -r $Selection2;
+	$edgeCheck = `filterExpand -sm 32`;
+	if (`size $edgeCheck` != 1)
+		{	
+		select -cl;
+		error "Second selection must be an edge.";
+		}
+		
+		
+	//////////////////////////////////
+	// check for scale on orient object 
+	// tool won't work with non-1 scale values
+	
+	float $scaleCheck[];
+	$scaleCheck = `xform -r -q -scale $orientObject`;
+	if (($scaleCheck[0] != 1) || ($scaleCheck[1] != 1) || ($scaleCheck[2] != 1))
+		{
+		warning "OrientToEdge tool does not work if orient object has scale values other than 1.";	
+	 	$confirmValue = `confirmDialog -title "Confirm" -message "OrientToEdge tool does not work if orient object has scale values other than 1.  Do you want to freeze scale values?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+		if ($confirmValue == "Yes")
+			makeIdentity -apply true -s 1 $orientObject;
+		else
+			{
+			select -cl;
+			setToolTo $gSelect;
+			error "Exiting tool : OrientToEdge does not work if orient object has scale values other than 1.";	
+			}
+		}
+		
+	float $pivotPoint[3];
+	float $objectVertex[3];
+	string $edgeVertices[2];
+	
+	////////////////////////////////////////////////////////////	
+	//get local or world space position of first point and pivot
+	
+	$pivotPoint =`xform -q $space -scalePivot $orientObject`;
+	if ($sp == 1)
+		$objectVertex = `pointPosition -l $Selection1`;
+	if ($sp == 2)
+		$objectVertex = `pointPosition -w $Selection1`;
+
+		
+	//target object edge
+	$attachedVertices = `polyListComponentConversion -ff -fe -fuv -fvf -tv $Selection2`;
+	$edgeVertices = `filterExpand -sm 31 $attachedVertices`;
+
+	
+	///////////////////////////////////////
+	// deal with first target edge vert
+	
+	//get world space postion of first edge vert
+	$tempPoint = `pointPosition -w	$edgeVertices[0]`;
+		
+	//temporarily move pivot point to world locatoin of second point in order to get a local space value
+	xform -ws -scalePivot $tempPoint[0] $tempPoint[1] $tempPoint[2] $orientObject;
+		
+	//get local space postion of first edge vert relative to orient object
+	$edgeVert1 = `xform -q $space -scalePivot $orientObject`;
+
+	
+	///////////////////////////////////////
+	// deal with second target edge vert
+	
+	//get world space postion of second edge vert
+	$tempPoint = `pointPosition -w	$edgeVertices[1]`;
+		
+	//temporarily move pivot point to world locatoin of second point in order to get a local space value
+	xform -ws -scalePivot $tempPoint[0] $tempPoint[1] $tempPoint[2] $orientObject;
+		
+	//get local space postion of second edge vert relative to orient object
+	$edgeVert2 = `xform -q $space -scalePivot $orientObject`;
+	
+	//move pivot point back to where it started
+	xform $space -scalePivot $pivotPoint[0] $pivotPoint[1] $pivotPoint[2] $orientObject;
+	
+	//locate center
+	float $guideFloat[3];
+	for ($i = 0; $i < 3; $i++ ){
+		$objectVertex[$i] -= $pivotPoint[$i];
+		$edgeVert1[$i] -= $pivotPoint[$i];
+		$edgeVert2[$i] -= $pivotPoint[$i];
+		$guideFloat[$i] = $edgeVert1[$i] - $edgeVert2[$i];
+
+		if ($i == ($axis-1)){
+			$objectVertex[$i] = 0;
+			$edgeVert1[$i] = 0;
+			$edgeVert2[$i]= 0;
+			$guideFloat[$i] = 0;
+		}
+	}
+	vector $pivotVector;
+	vector $objectVector;
+	vector $guideVector;
+	vector $guidePivotVector;
+
+	//detectNearPoint;
+	vector $vertex1;
+	vector $vertex2;
+	$vertex1 = $edgeVert1;
+	$vertex2 = $edgeVert2;
+
+	
+	//default vertex2 = pivot;
+	if ( `mag $vertex1` < `mag $vertex2` ){
+		for ($i = 0; $i < 3; $i++ ){
+			$guideFloat[$i] = (-$guideFloat[$i]);
+		}
+		$guidePivotVector = $edgeVert1;
+	}else {
+		$guidePivotVector = $edgeVert2;
+	}
+
+	$pivotVector = $pivotPoint;
+	$objectVector = $objectVertex;
+	$guideVector = $guideFloat;
+
+	
+	//do crazy math :)
+	float $radius;
+	$radius = `mag $objectVector`;
+	float $guideVectorSize = `mag $guideVector`;
+	$a = `pow $guideVectorSize 2`;
+	float $guideVectorDot = `dot $guideVector $guidePivotVector`;
+	$b = 2 * $guideVectorDot;
+	float $guidePivotVectorSize = `mag $guidePivotVector`;
+	float $radiusPower = `pow $radius 2`;
+	$c = `pow $guidePivotVectorSize 2 ` - $radiusPower;
+	$D = `pow $b 2` - (4 * $a * $c);
+
+
+	if ( $D >= 0 )
+		{
+		float $t1, $t2;
+		if ( $a == 0 ) 
+			{
+			$t1 =  ( (-$b) - `sqrt $D` );
+			$t2 = ( (-$b) + `sqrt $D` );
+			} 
+		else
+			{
+			$t1 =  ( (-$b) - `sqrt $D` )/ (2 * $a);
+			$t2 = ( (-$b) + `sqrt $D` )/ (2 * $a);
+			}
+	
+		vector $finalVector1 = $guidePivotVector + ($t1 * $guideVector);
+		vector $finalVector2 = $guidePivotVector + ($t2 * $guideVector);
+
+		vector $cross1;
+		$cross1 = `cross $objectVector $finalVector1`;
+		
+		$rad = `angle $objectVector $finalVector1`;
+		$degree1 = rad_to_deg($rad);
+
+
+		switch( $axis ){
+			case 1:
+				if ($cross1.x < 0 ){
+					$degree1 = (-$degree1);
+				}
+				break;
+
+			case 2:
+				if ($cross1.y < 0 ){
+					$degree1 = (-$degree1);
+				}
+				break;
+
+			case 3:
+				if ($cross1.z < 0 ){
+					$degree1 = (-$degree1);
+				}
+				break;
+		}
+
+
+		vector $cross2;
+		$cross2 = `cross $objectVector $finalVector2`;
+
+		$rad = `angle $objectVector $finalVector2`;
+		$degree2 = rad_to_deg($rad);
+
+		switch( $axis ){
+			case 1:
+				if ($cross2.x < 0 ){
+					$degree2 = (-$degree2);
+				}
+				break;
+
+			case 2:
+				if ($cross2.y < 0 ){
+					$degree2 = (-$degree2);
+				}
+				break;
+
+			case 3:
+				if ($cross2.z < 0 ){
+					$degree2 = (-$degree2);
+				}
+				break;
+
+		}
+
+		if (abs($degree1) < abs($degree2)){
+			$degree = $degree1;
+		}else{
+			$degree = $degree2;
+		}
+
+
+
+		select -r $orientObject;
+
+		switch( $axis ){
+			case 1:
+				rotate -r $space $degree 0 0;
+				print ("Rotating " + $degree + " degrees around X axis.  Space = " + $space); 
+				break;
+
+			case 2:
+				rotate -r $space 0 $degree 0;
+				print ("Rotating " + $degree + " degrees around Y axis : Space = " + $space); 
+				break;
+
+			case 3:
+				rotate -r $space 0 0 $degree;
+				print ("Rotating " + $degree + " degrees around Z axis : Space = " + $space); 
+				break;
+			}
+
+		}
+	else
+		{
+		warning ("Can't orient to edge because objects are too far apart (relative to pivot of source object)");
+		}
+
+	select -cl;
+
+
+}
+
+
+
+///////////////////////////////////////////
+//
+//	Vert base proc
+//
+
+global proc orientToVert(string $Selection1, string $Selection2, int $axis, int $sp)
+{
+
+	
+	global string $gSelect;
+	string $shape[] = `listRelatives -f -parent $Selection1`;  //added full path
+	string $transform[] = `listRelatives -f -parent $shape[0]`;  //added full path
+	string $orientObject = $transform[0];
+
+	
+	if ($sp == 1)
+		$space = "-os";
+	else if ($sp == 2)
+		$space = "-ws";
+	else
+		error ("Space value not recognized.");
+	
+	print ($space + " \n");
+	
+	///////////////////////////////////////////
+	//check for correct selection type and order
+	
+	string $vertCheck[];
+	
+	select -r $Selection1;
+	$vertCheck = `filterExpand -sm 31`;
+	if (`size $vertCheck` != 1)
+		{	
+		select -cl;
+		error "First selection must be a vertex.";
+		}
+	select -r $Selection2;
+	$vertCheck = `filterExpand -sm 31`;
+	if (`size $vertCheck` != 1)
+		{	
+		select -cl;
+		error "Second selection must be a vertex.";
+		}
+		
+	//////////////////////////////////
+	// check for scale on orient object 
+	// tool won't work with non-1 scale values
+		
+	float $scaleCheck[];
+	$scaleCheck = `xform -q -scale $orientObject`;
+	if (($scaleCheck[0] != 1) || ($scaleCheck[1] != 1) || ($scaleCheck[2] != 1))
+		{
+		warning "OrientToVert tool does not work if orient object has scale values other than 1.";	
+	 	$confirmValue = `confirmDialog -title "Confirm" -message "OrientToVert tool does not work if orient object has scale values other than 1.  Do you want to freeze scale values?" -button "Yes" -button "No" -defaultButton "Yes" -cancelButton "No" -dismissString "No"`;
+		if ($confirmValue == "Yes")
+			makeIdentity -apply true -s 1 $orientObject;
+		else
+			{
+			select -cl;
+			setToolTo $gSelect;
+			error "Exiting tool : OrientToVert does not work if orient object has scale values other than 1.";	
+			}
+		}
+			
+	float $pivotPoint[3];
+	float $point1[3];
+	float $point2[3];
+
+
+	//get local or world space position of first point and pivot
+	$pivotPoint = `xform -q $space -scalePivot $orientObject`;
+	
+	if ($sp == 1)
+		$point1 = `pointPosition -l $Selection1`;
+	if ($sp == 2)
+		$point1 = `pointPosition -w $Selection1`;
+	
+	//get world space postion of second pivot
+	$tempPoint = `pointPosition -w	$Selection2`;
+		
+	//temporarily move pivot point to world locatoin of second point in order to get a local space value
+	xform -ws -scalePivot $tempPoint[0] $tempPoint[1] $tempPoint[2] $orientObject;
+		
+	//get local space postion of second point relative to orient object
+	$point2 = `xform -q $space -scalePivot $orientObject`;
+	
+	//move pivot point back to where it started
+	xform $space -scalePivot $pivotPoint[0] $pivotPoint[1] $pivotPoint[2] $orientObject;
+
+	////////////////////////
+	//do crazy math :)
+
+	float $floatDirection1[3];
+	float $floatDirection2[3];
+
+	for ($i = 0; $i < 3; $i++ ){
+		$floatDirection1[$i] = $point1[$i] - $pivotPoint[$i];
+		$floatDirection2[$i] = $point2[$i] - $pivotPoint[$i];
+		if( $i == ($axis-1) ){
+			$floatDirection1[$i] = 0;
+			$floatDirection2[$i] = 0;
+		}
+	}
+
+	vector $vectorDirection1;
+	vector $vectorDirection2;
+
+	$vectorDirection1 = $floatDirection1;
+	$vectorDirection2 = $floatDirection2;
+
+	vector $cross;
+	$cross = `cross $vectorDirection1 $vectorDirection2`;
+
+	normalize($vectorDirection1);
+	normalize($vectorDirection2);
+
+
+	float $angle;
+	$angle = `angle $vectorDirection1 $vectorDirection2`;
+
+	switch ($axis){
+		case 1:
+			if ($cross.x < 0 ){
+				$angle = (-$angle);
+			}
+			break;
+		case 2:
+			if ($cross.y < 0 ){
+				$angle = (-$angle);
+			}
+			break;
+		case 3:
+			if ($cross.z < 0 ){
+				$angle = (-$angle);
+			}
+			break;
+	}
+	$degree = rad_to_deg($angle);
+	//print $degree;
+
+	switch($axis){
+		case 1:
+			rotate -r $space $degree 0 0 $orientObject;
+			print ("Rotating " + $degree + " degrees around X axis : Space = " + $space); 
+			break;
+
+		case 2:
+			rotate -r $space 0 $degree 0 $orientObject;
+			print ("Rotating " + $degree + " degrees around Y axis : Space = " + $space); 
+			break;
+
+		case 3:
+			rotate -r $space 0 0 $degree $orientObject;
+			print ("Rotating " + $degree + " degrees around Z axis : Space = " + $space); 
+			break;
+	}
+
+	select -cl;
+
+}
+
+
+///////////////////////////////////////////
+//
+//	Context / Tool procs
+//
+
+global proc orientToEdgeToolCtx(){
+
+	//get cut code and extract date
+	string $cutCode = `about -c`;
+	int $dateCheck = `substring $cutCode 1 8`;
+	
+	if ($dateCheck < 20060701) 
+		$command = "print \"Select an alignment vertex on the source object to be rotated, followed by an edge on the target object to rotate/align to.\"";
+	else 
+		$command = "headsUpMessage \"Select an alignment vertex on the source object to be rotated, followed by an edge on the target object to rotate/align to.\"";
+		
+	scriptCtx
+		-title "Orient To Edge Tool"
+		//-image1 "???.xpm"
+		-showManipulators false
+		-baseClassName "orientToEdgeTool"
+		-toolCursorType "tumble"
+		-totalSelectionSets 2
+
+		-ts ($command)
+		
+		-cumulativeLists false
+		-expandSelectionList true
+		-fcs ("orientToEdge $Selection1[0] $Selection2[0] `optionVar -q orientToAxis` `optionVar -q orientToSpace`")
+
+		-setNoSelectionPrompt "Select an alignment vertex on object to rotate."
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 1
+		-polymeshVertex on
+		-polymeshEdge off
+		
+		-setNoSelectionPrompt "Select alignment edge on target object."
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 1
+		-polymeshVertex off
+		-polymeshEdge on	
+
+		-exitUponCompletion false
+		orientToEdgeTool;
+
+}
+	
+		
+	
+	
+global proc orientToVertToolCtx(){
+	
+	//get cut code and extract date
+	string $cutCode = `about -c`;
+	int $dateCheck = `substring $cutCode 1 8`;
+	
+	if ($dateCheck < 20060701) 
+		$command = "print \"Select an alignment vertex on the source object to be rotated, followed by a vertex on the target object to rotate/align to.\"";
+	else 
+		$command = "headsUpMessage \"Select an alignment vertex on the source object to be rotated, followed by a vertex on the target object to rotate/align to.\"";
+	
+	scriptCtx
+		-title "Orient To Vertex Tool"
+		//-image1 "???.xpm"
+		-showManipulators false
+		-baseClassName "orientToVertTool"
+		-toolCursorType "tumble"
+		-totalSelectionSets 2
+		
+		-ts ($command)
+		
+		-cumulativeLists false
+		-expandSelectionList true
+		-fcs ("orientToVert $Selection1[0] $Selection2[0] `optionVar -q orientToAxis` `optionVar -q orientToSpace`")
+
+		-setNoSelectionPrompt "Select alignment vertex on object to rotate."
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 1
+		-polymeshVertex on
+		
+		-setNoSelectionPrompt "Select alignment vertex on target object."
+		-setAutoToggleSelection true
+		-setAutoComplete true
+		-setSelectionCount 1
+		-polymeshVertex true		
+		
+		-exitUponCompletion false
+		orientToVertTool;
+	
+}
+
+
+global proc orientToTool()
+	{
+		
+	//check to see if optionVar exists
+	if (`optionVar -ex orientToMethod` == 0)
+		optionVar -iv orientToMethod 1;
+	
+	//determine vert or edge mode
+	if (`optionVar -q orientToMethod` == 2)				  		
+		{
+		if (!`contextInfo -exists orientToVertTool`)
+			orientToVertToolCtx;
+		setToolTo orientToVertTool;
+		}
+
+	else if (`optionVar -q orientToMethod` == 1)
+		{
+		if (!`contextInfo -exists orientToEdgeTool`)
+			orientToEdgeToolCtx;
+		setToolTo orientToEdgeTool;
+		}
+	else
+		warning ("Can't find orientToTool");
+	}
+	

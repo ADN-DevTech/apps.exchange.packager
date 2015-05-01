@@ -1,0 +1,4 @@
+CFBundleName = "ConvertNewlines";
+CFBundleShortVersionString = "1.0";
+CFBundleGetInfoString = "ConvertNewlines version 1.0 Copyright 2006 Daniel Jahns";
+NSHumanReadableCopyright = "Copyright 2006 Daniel Jahns.";

@@ -1,0 +1,149 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+global proc sbCreateMilliPed()
+{
+
+
+    int $segNum;
+    float $segSize;
+     
+    float $posX = 0.0;
+    float $posY = 1.0;
+    float $posZ = 0.0;
+    
+    $segNum = `intField -q -v segNum`;
+    $segSize = `floatSliderGrp -q -v segSize`;
+       
+    select -cl;
+    
+    joint -a -p $posX $posY $posZ -name millipedRoot;
+    addAttr -at "float" -ln timeOffset;
+    setAttr millipedRoot.timeOffset 1.25;
+    setAttr -k on millipedRoot.timeOffset;
+    
+    addAttr -at "float" -ln segSize;
+    setAttr millipedRoot.segSize $segSize;
+    setAttr -k off millipedRoot.segSize;
+    
+     
+    $posZ -= $segSize;
+    
+    for ( $i = 1; $i < (($segNum / 2 ) +1) ; $i++ )
+    {
+    
+        string $number; 
+        $number = $i;
+        
+        string $backName = "back" + $number; 
+        
+        string $leftLegName  = "leftLeg" + $number; 
+        string $leftKneeName = "leftKnee" + $number;
+        string $leftFootName = "leftFoot" + $number; 
+       
+        string $rightLegName  = "rightLeg" + $number; 
+        string $rightKneeName = "rightKnee" + $number; 
+        string $rightFootName = "rightFoot" + $number; 
+         
+        joint -a -p $posX $posY $posZ -name $backName;
+        
+         
+        joint -a -p ($posX - 1.0) ($posY + 0.0) ($posZ + 0.0) -name $leftLegName; 
+        $expr = "float $frameOffset;\r\n$frameOffset  = `getAttr millipedRoot.timeOffset`;\r\nleftLeg" + $i + ".rotateX = `getAttr -t (frame - $frameOffset) leftLeg" + ($i-1) + ".rotateX`;";
+        if ( $i > 1) expression -s $expr -o $leftLegName -ae 1 -uc all;
+        
+        joint -a -p ($posX - 1.0) ($posY - 0.5) ($posZ + 0.2) -name $leftKneeName;
+        $expr = "float $frameOffset;\r\n$frameOffset  = `getAttr millipedRoot.timeOffset`;\r\nleftKnee" + $i + ".rotateX = `getAttr -t (frame - $frameOffset) leftKnee" + ($i-1) + ".rotateX`;";
+        if ( $i > 1) expression -s $expr -o $leftLegName -ae 1 -uc all;
+        
+        joint -a -p ($posX - 1.0) ($posY - 1.0) ($posZ + 0.0) -name $leftFootName;
+        
+         
+        
+        select $backName;
+            
+        joint -a -p ($posX + 1.0) ($posY + 0.0) ($posZ + 0.0) -name $rightLegName;
+        $expr = "float $frameOffset;\r\n$frameOffset  = `getAttr millipedRoot.timeOffset`;\r\nrightLeg" + $i + ".rotateX = `getAttr -t (frame - $frameOffset) rightLeg" + ($i-1) + ".rotateX`;";
+        if ( $i > 1) expression -s $expr -o $leftLegName -ae 1 -uc all;
+        
+        joint -a -p ($posX + 1.0) ($posY - 0.5) ($posZ + 0.2) -name $rightKneeName;
+        $expr = "float $frameOffset;\r\n$frameOffset  = `getAttr millipedRoot.timeOffset`;\r\nrightKnee" + $i + ".rotateX = `getAttr -t (frame - $frameOffset) rightKnee" + ($i-1) + ".rotateX`;";
+        if ( $i > 1) expression -s $expr -o $leftLegName -ae 1 -uc all;
+        
+        
+        joint -a -p ($posX + 1.0) ($posY - 1.0) ($posZ + 0.0) -name $rightFootName;
+        
+        select $backName;
+        $posZ -= $segSize;
+           
+    }
+    
+    select -r rightLeg1.rotatePivot ;
+    select -add rightFoot1.rotatePivot ;
+    ikHandle -sol ikSCsolver -n rightFootIK;
+    
+    select -r leftLeg1.rotatePivot ;
+    select -add leftFoot1.rotatePivot ;
+    ikHandle -sol ikSCsolver -n leftFootIK;
+   
+    
+    $expr = "float $segSize;\r\n$segSize  = `getAttr millipedRoot.segSize`;\r\nmillipedRoot.tz = (((leftFootIK.tz + rightFootIK.tz)/2) + $segSize)";
+    expression -s $expr -o millipedRoot -ae 1 -uc all;
+     
+
+    deleteUI -window milliPed;
+    
+}
+
+
+
+proc sbMilliPedUI()
+{
+    
+ 
+
+    if (`window -exists milliPed`) { deleteUI -window milliPed; }
+    
+    window milliPed;
+     
+    columnLayout;
+        
+        rowColumnLayout -nc 2 -cw 1 140 -cw 2 80;
+    
+        text -al "right" "Number of Legs   ";
+        intField -minValue 4 -maxValue 100 -v 10 -step 2 segNum;       
+        
+        setParent.. ;
+     
+        
+        floatSliderGrp -label " Segment Size" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.05 segSize;
+
+        rowColumnLayout -nc 2 -cw 1 140 -cw 2 80;
+        text " ";  
+        button -label "Create Milliped" -c sbCreateMilliPed;
+        
+    showWindow milliPed;
+
+
+}
+
+
+sbMilliPedUI;

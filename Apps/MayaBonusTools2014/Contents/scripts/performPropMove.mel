@@ -1,0 +1,941 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+// 
+// 
+
+//  performPropMove.mel
+//
+//  Creation Date:  April 2004 CPAM
+//
+//  Updated 12/22/12 
+//    - Added option to use first object 
+//    - Updated defaults for percent = 0 and specify pivot = 0,0,0
+//    - Changed method for prop scaling along isolated scale axis
+//    - Fix misc scale bugs 
+//
+//  Description:
+//      Proportioanal Transform option box script.
+//
+//
+//  Procedure Name:
+//      performPropMove
+//
+//  Description:
+//		Initialize the option values.
+//
+//  Input Arguments:
+//		Whether to set the options to default values.
+//
+//  Return Value:
+//      None.
+//
+proc setOptionVars (int $forceFactorySettings)
+{
+
+	//	Translate values
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMoveTX`) {
+		optionVar -floatValue propMoveTX 0.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveTY`) {
+		optionVar -floatValue propMoveTY 0.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveTZ`) {
+		optionVar -floatValue propMoveTZ 0.0;
+	}
+
+	//	Rotate values
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMoveRX`) {
+		optionVar -floatValue propMoveRX 0.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveRY`) {
+		optionVar -floatValue propMoveRY 0.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveRZ`) {
+		optionVar -floatValue propMoveRZ 0.0;
+	}
+
+	//	Scale values
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMoveSX`) {
+		optionVar -floatValue propMoveSX 1.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveSY`) {
+		optionVar -floatValue propMoveSY 1.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveSZ`) {
+		optionVar -floatValue propMoveSZ 1.0;
+	}
+
+	//	Pivot style flag
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMovePivotStyle`) {
+		optionVar -intValue propMovePivotStyle 1;
+	}
+
+	//	pivot point
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMoveSX`) {
+		optionVar -floatValue propMovePX 0.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMovePY`) {
+		optionVar -floatValue propMovePY 0.0;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMovePZ`) {
+		optionVar -floatValue propMovePZ 0.0;
+	}
+
+	//	Transform Axes flag
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMoveAxes1`) {
+		optionVar -intValue propMoveTransformAxes1 1;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveAxes2`) {
+		optionVar -intValue propMoveTransformAxes2 1;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveAxes3`) {
+		optionVar -intValue propMoveTransformAxes3 1;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMoveAxes4`) {
+		optionVar -intValue propMoveTransformAxes4 1;
+	}
+
+	//	Percent values
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMovePercent`) {
+		optionVar -floatValue propMovePercent 1;
+	}
+
+	//	Percent Axes flag
+	//
+	if ($forceFactorySettings || !`optionVar -exists propMovePercentAxes1`) {
+		optionVar -intValue propMovePercentAxes1 1;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMovePercentAxes2`) {
+		optionVar -intValue propMovePercentAxes2 1;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMovePercentAxes3`) {
+		optionVar -intValue propMovePercentAxes3 1;
+	}
+	if ($forceFactorySettings || !`optionVar -exists propMovePercentAxes4`) {
+		optionVar -intValue propMovePercentAxes4 1;
+	}
+}
+
+//
+//  Procedure Name:
+//      propMoveCmdSetup
+//
+//  Description:
+//		Update the state of the option box UI to reflect the option values.
+//
+//  Input Arguments:
+//      parent               - Top level parent layout of the option box UI.
+//                             Required so that UI object names can be 
+//                             successfully resolved.
+//
+//	forceFactorySettings - Whether the option values should be set to
+//                             default values.
+//
+//  Return Value:
+//      None.
+//
+global proc propMoveSetup (string $parent, int $forceFactorySettings)
+{
+	// Retrieve the option settings
+	//
+	setOptionVars ($forceFactorySettings);
+
+	setParent $parent;
+
+	//	Translate values
+	//
+	float $tx = `optionVar -q propMoveTX`;
+	float $ty = `optionVar -q propMoveTY`;
+	float $tz = `optionVar -q propMoveTZ`;
+	floatFieldGrp -edit -value1 $tx -value2 $ty -value3 $tz propMoveTranslate;
+
+	//	Rotate values
+	//
+	float $rx = `optionVar -q propMoveRX`;
+	float $ry = `optionVar -q propMoveRY`;
+	float $rz = `optionVar -q propMoveRZ`;
+	floatFieldGrp -edit -value1 $rx -value2 $ry -value3 $rz propMoveRotate;
+
+	//	Scale values
+	//
+	float $sx = `optionVar -q propMoveSX`;
+	float $sy = `optionVar -q propMoveSY`;
+	float $sz = `optionVar -q propMoveSZ`;
+	floatFieldGrp -edit -value1 $sx -value2 $sy -value3 $sz propMoveScale;
+
+	
+	//	Pivot style flag
+	//
+	radioButtonGrp -edit -select `optionVar -q propMovePivotStyle` propMovePivotStyle;
+
+	//	pivot values
+	//
+	float $px = `optionVar -q propMovePX`;
+	float $py = `optionVar -q propMovePY`;
+	float $pz = `optionVar -q propMovePZ`;
+	floatFieldGrp -edit -value1 $px -value2 $py -value3 $pz propMovePivot;
+
+	//	transform axes
+	//
+	checkBoxGrp -edit
+		-value1 `optionVar -q propMoveAxes1`
+		-value2 `optionVar -q propMoveAxes2`
+		-value3 `optionVar -q propMoveAxes3`
+		-value4 `optionVar -q propMoveAxes4`
+		propMoveTransformAxes;
+
+	//	percent
+	//
+	floatSliderGrp  -edit
+		-value `optionVar -q propMovePercent`
+		propMovePercent;
+
+	//	transform axes
+	//
+	checkBoxGrp -edit
+		-value1 `optionVar -q propMovePercentAxes1`
+		-value2 `optionVar -q propMovePercentAxes2`
+		-value3 `optionVar -q propMovePercentAxes3`
+		-value4 `optionVar -q propMovePercentAxes4`
+		propMoveTransformAxes;
+
+	propMoveOptionsUpdateEnableState($parent);
+}
+
+global proc propMoveOptionsUpdateEnableState(string $parent)
+//
+//	Description:
+//		Update the enable state of all the option box controls.
+//
+//		Call this whenever any of the control values changes.
+//
+{
+	setParent $parent;
+
+	//	Enable Pivot Point float field...
+	//
+	int $pivotStyle = `radioButtonGrp -query -select propMovePivotStyle`;
+	//$pivotStyle = !$pivotStyle;
+	if ($pivotStyle == 3){
+		floatFieldGrp -edit
+			-enable true
+			propMovePivot;
+	} else {
+		floatFieldGrp -edit
+			-enable false
+			propMovePivot;
+	}
+
+	//	Transform Axes
+	//
+	int $transformAxes = `checkBoxGrp -query -value1 propMoveTransformAxes`;
+	if ($transformAxes){
+		checkBoxGrp -edit -enable2 0 propMoveTransformAxes;
+		checkBoxGrp -edit -enable3 0 propMoveTransformAxes;
+		checkBoxGrp -edit -enable4 0 propMoveTransformAxes;
+	} else {
+		checkBoxGrp -edit -enable2 1 propMoveTransformAxes;
+		checkBoxGrp -edit -enable3 1 propMoveTransformAxes;
+		checkBoxGrp -edit -enable4 1 propMoveTransformAxes;
+	}
+
+	//	Percent Axes
+	//
+	int $percentAxes = `checkBoxGrp -query -value1 propMovePercentAxes`;
+	if ($percentAxes){
+		checkBoxGrp -edit -enable2 0 propMovePercentAxes;
+		checkBoxGrp -edit -enable3 0 propMovePercentAxes;
+		checkBoxGrp -edit -enable4 0 propMovePercentAxes;
+	} else {
+		checkBoxGrp -edit -enable2 1 propMovePercentAxes;
+		checkBoxGrp -edit -enable3 1 propMovePercentAxes;
+		checkBoxGrp -edit -enable4 1 propMovePercentAxes;
+	}
+
+}
+
+//
+//  Procedure Name:
+//      propMoveCallback
+//
+//  Description:
+//		Update the option values with the current state of the option box UI.
+//
+//  Input Arguments:
+//      parent - Top level parent layout of the option box UI.  Required so
+//               that UI object names can be successfully resolved.
+//
+//		doIt   - Whether the command should execute.
+//
+//  Return Value:
+//      None.
+//
+global proc propMoveCallback (string $parent, int $doIt)
+{
+    setParent $parent;
+
+	//	Set the optionVar's from the control values, and then
+	//	perform the command
+
+	//	Translate values
+	//
+	optionVar -floatValue propMoveTX
+		`floatFieldGrp -q -v1 propMoveTranslate`;
+	optionVar -floatValue propMoveTY
+		`floatFieldGrp -q -v2 propMoveTranslate`;
+	optionVar -floatValue propMoveTZ
+		`floatFieldGrp -q -v3 propMoveTranslate`;
+
+	//	Rotate values
+	//
+	optionVar -floatValue propMoveRX
+		`floatFieldGrp -q -v1 propMoveRotate`;
+	optionVar -floatValue propMoveRY
+		`floatFieldGrp -q -v2 propMoveRotate`;
+	optionVar -floatValue propMoveRZ
+		`floatFieldGrp -q -v3 propMoveRotate`;
+
+	//	Scale values
+	//
+	optionVar -floatValue propMoveSX
+		`floatFieldGrp -q -v1 propMoveScale`;
+	optionVar -floatValue propMoveSY
+		`floatFieldGrp -q -v2 propMoveScale`;
+	optionVar -floatValue propMoveSZ
+		`floatFieldGrp -q -v3 propMoveScale`;
+
+	//pivot style
+	//
+	optionVar -intValue propMovePivotStyle `radioButtonGrp -query -select propMovePivotStyle`;
+
+	//	pivot values
+	//
+	optionVar -floatValue propMovePX
+		`floatFieldGrp -q -v1 propMovePivot`;
+	optionVar -floatValue propMovePY
+		`floatFieldGrp -q -v2 propMovePivot`;
+	optionVar -floatValue propMovePZ
+		`floatFieldGrp -q -v3 propMovePivot`;
+
+	//	Transform Axes flag
+	//
+	optionVar -intValue propMoveTransformAxes1 
+		`checkBoxGrp -query	-value1 propMoveTransformAxes`;
+	optionVar -intValue propMoveTransformAxes2
+		`checkBoxGrp -query	-value2 propMoveTransformAxes`;
+	optionVar -intValue propMoveTransformAxes3
+		`checkBoxGrp -query	-value3 propMoveTransformAxes`;
+	optionVar -intValue propMoveTransformAxes4
+		`checkBoxGrp -query	-value4 propMoveTransformAxes`;
+
+	//	percent
+	//
+	optionVar -floatValue propMovePercent
+		`floatSliderGrp  -query	-value propMovePercent`;
+
+	//	Percent Axes flag
+	//
+	optionVar -intValue propMovePercentAxes1 
+		`checkBoxGrp -query	-value1 propMovePercentAxes`;
+	optionVar -intValue propMovePercentAxes2
+		`checkBoxGrp -query	-value2 propMovePercentAxes`;
+	optionVar -intValue propMovePercentAxes3
+		`checkBoxGrp -query	-value3 propMovePercentAxes`;
+	optionVar -intValue propMovePercentAxes4
+		`checkBoxGrp -query	-value4 propMovePercentAxes`;
+
+	//	pivot point flag
+	//
+	optionVar -intValue propMovePivotStyle `radioButtonGrp -q -select propMovePivotStyle`;
+
+	if ($doIt) {
+		performPropMove 0; 
+		addToRecentCommandQueue "performPropMove 0" "Proportional Transform";
+	}
+}
+
+//
+//  Procedure Name:
+//      propMoveOptions
+//
+//  Description:
+//		Construct the option box UI.  Involves accessing the standard option
+//		box and customizing the UI accordingly.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+proc propMoveOptions ()
+{
+	//	Name of the command for this option box.
+	//
+	string $cmdName        = "propMove";
+
+	//	Build the option box actions.
+	//
+	string $callback = ($cmdName + "Callback");
+	string $setup = ($cmdName + "Setup");
+
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	//  The value returned is the name of the layout to be used as
+	//	the parent for the option box UI.
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	//	Any default option box behaviour based on the command name is set 
+	//	up with this call.  For example, updating the 'Help' menu item with
+	//	the name of the command.
+	//
+	setOptionBoxCommandName($cmdName);
+
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	//	Activate the default UI template so that the layout of this 
+	//	option box is consistent with the layout of the rest of the 
+	//	application.
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+	
+	//	Turn on the wait cursor.
+	//
+	waitCursor -state 1;
+
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//
+	tabLayout -scr true -tv false;
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	floatFieldGrp -label "Translate"
+		-numberOfFields 3
+		propMoveTranslate;
+
+	floatFieldGrp -label "Rotate"
+		-numberOfFields 3 
+		propMoveRotate;
+
+	floatFieldGrp -label "Scale"
+		-numberOfFields 3 
+		propMoveScale;
+
+	separator -style "in";
+
+	radioButtonGrp
+		-label "Pivot Location"
+		-numberOfRadioButtons 3 -label1 "First Object" -label2 "Last Object" -label3 "Specify"
+		-changeCommand ("propMoveOptionsUpdateEnableState " + $parent)
+		propMovePivotStyle;
+
+	floatFieldGrp -label "Pivot Point"
+		-numberOfFields 3 
+		propMovePivot;
+
+	separator -style "in";
+
+	//*****************
+	//*** NOT COMPLETED
+	//*****************
+	checkBoxGrp -numberOfCheckBoxes 4
+		-visible 0
+		-label "Transform Axes"
+		-label1 "All"
+		-label2 "X"
+		-label3 "Y"
+		-label4 "Z"
+		-changeCommand ("propMoveOptionsUpdateEnableState " + $parent)
+		propMoveTransformAxes;
+
+	floatSliderGrp  -label "Percent"
+		-field true
+		-minValue 0
+		-maxValue 1
+		-fieldMaxValue 1
+		-changeCommand ("propMoveOptionsUpdateEnableState " + $parent)
+		propMovePercent;
+
+	//*****************
+	//*** NOT COMPLETED
+	//*****************
+	checkBoxGrp -numberOfCheckBoxes 4
+		-visible 0
+		-label "Percent Axes"
+		-label1 "All"
+		-label2 "X"
+		-label3 "Y"
+		-label4 "Z"
+		-changeCommand ("propMoveOptionsUpdateEnableState " + $parent)
+		propMovePercentAxes;
+
+	//	Turn off the wait cursor.
+	//
+	waitCursor -state 0;
+	
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+	
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	//	Provide more descriptive labels for the buttons.
+	//	Disable those buttons that are not applicable to the option box.
+	//	Attach actions to those buttons that are applicable to the option
+	//	box.
+
+	//	'Apply' button.
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit
+		-label "Proportioanal Transform"
+		-command ($callback + " " + $parent + " " + 1)
+		$applyBtn;
+
+	//	'Save' button.
+	//
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + "; hideOptionBox")
+		$saveBtn;
+
+	//	'Reset' button.
+	//
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Set the option box title.
+	//	=========================
+	//
+	setOptionBoxTitle("Proportioanal Transform Options");
+
+	//	Customize the 'Help' menu item text.
+	//
+	setOptionBoxHelpTag( "Proportioanal Transform" );
+
+	//	Set the current values of the option box.
+	//	=========================================
+	//
+	eval (($setup + " " + $parent + " " + 0));	
+
+	//	Show the option box.
+	//	====================
+	//
+	showOptionBox();
+}
+
+
+//
+//  Procedure Name:
+//      assembleCmd
+//
+//  Description:
+//		Construct the command that will apply the option box values.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+proc string assembleCmd()
+{
+	string $objects[] = `ls -sl -type "transform"`;
+	int $numObjects = size($objects);
+	if ($numObjects == 0){
+		error "Proportioanl Transform: Nothing selected to operate on.";
+		return "nothing selected";
+	}
+
+	string $cmd = "";
+
+	setOptionVars(false);
+
+	//	Translate values
+	//
+	float $transX = `optionVar -q propMoveTX`;
+	float $transY = `optionVar -q propMoveTY`;
+	float $transZ = `optionVar -q propMoveTZ`;
+
+	//	Rotate values
+	//
+	float $rotatX = `optionVar -q propMoveRX`;
+	float $rotatY = `optionVar -q propMoveRY`;
+	float $rotatZ = `optionVar -q propMoveRZ`;
+
+	//	Scale values
+	//
+	float $scaleX = `optionVar -q propMoveSX`;
+	float $scaleY = `optionVar -q propMoveSY`;
+	float $scaleZ = `optionVar -q propMoveSZ`;
+
+	//	Pivot style flag
+	//
+	int $pivotStyle = `optionVar -query propMovePivotStyle`;
+
+	//	pivot point
+	//
+	float $pivotX = `optionVar -q propMovePX`;
+	float $pivotY = `optionVar -q propMovePY`;
+	float $pivotZ = `optionVar -q propMovePZ`;
+
+	//	Transform Axes flag
+	//
+	int $transAxes1	= `optionVar -q propMoveTransformAxes1`;
+	int $transAxes2 = `optionVar -q propMoveTransformAxes2`;
+	int $transAxes3 = `optionVar -q propMoveTransformAxes3`;
+	int $transAxes4 = `optionVar -q propMoveTransformAxes4`;
+
+	//	Percent values
+	//
+	float $percent = `optionVar -q propMovePercent`;
+
+
+	//	Percent Axes flag
+	//
+	int $percAxes1 = `optionVar -q propMovePercentAxes1`;
+	int $percAxes2 = `optionVar -q propMovePercentAxes2`;
+	int $percAxes3 = `optionVar -q propMovePercentAxes3`;
+	int $percAxes4 = `optionVar -q propMovePercentAxes4`;
+
+
+    //Translate
+	if ($transX || $transY || $transZ){
+		$cmd += "propMove ";
+		float $percentageTotal = $percent;
+		for ($object in $objects){
+			$cmd += "-percent ";
+			$cmd += $percentageTotal;
+			$cmd += " ";
+			$percentageTotal += $percent;
+		}
+		if ($pivotStyle == 1){
+    	    //	first object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[(0)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 2){
+    	    //	last object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[($numObjects-1)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 3){
+			$cmd += "-pivot ";
+			$cmd += ($pivotX + " ");
+			$cmd += ($pivotY + " ");
+			$cmd += ($pivotZ + " ");
+		}
+
+		$cmd += "-translate ";
+		$cmd += ($transX + " ");
+		$cmd += ($transY + " ");
+		$cmd += ($transZ + " ");
+		$cmd += ";";
+
+	}
+	
+	//Rotate
+	if ($rotatX || $rotatY || $rotatZ){
+		$cmd += "propMove ";
+		float $percentageTotal = $percent;
+		for ($object in $objects){
+			$cmd += "-percent ";
+			$cmd += $percentageTotal;
+			$cmd += " ";
+			$percentageTotal += $percent;
+		}
+		if ($pivotStyle == 1){
+    	    //	first object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[0]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 2){
+    	    //	last object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[($numObjects-1)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 3){
+			$cmd += "-pivot ";
+			$cmd += ($pivotX + " ");
+			$cmd += ($pivotY + " ");
+			$cmd += ($pivotZ + " ");
+		}
+		$cmd += "-rotate ";
+		$cmd += ($rotatX + " ");
+		$cmd += ($rotatY + " ");
+		$cmd += ($rotatZ + " ");
+		$cmd += ";";
+
+	}
+	
+	//Scale XYZ
+	if (($scaleX != 1.0) && ($scaleY != 1.0)  && ($scaleZ != 1.0)){
+		$cmd += "propMove ";
+		float $percentageTotal = $percent;
+		for ($object in $objects){
+			$cmd += "-percent ";
+			$cmd += $percentageTotal;
+			$cmd += " ";
+			$percentageTotal += $percent;
+		}
+		if ($pivotStyle == 1){
+    	    //	first object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[0]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 2){
+    	    //	last object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[($numObjects-1)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 3){
+			$cmd += "-pivot ";
+			$cmd += ($pivotX + " ");
+			$cmd += ($pivotY + " ");
+			$cmd += ($pivotZ + " ");
+		}
+		$cmd += "-scale ";
+		$cmd += ($scaleX + " ");
+		$cmd += ($scaleY + " ");
+		$cmd += ($scaleZ + " ");
+		$cmd += ";";
+
+	}
+
+
+	//Scale X
+	else if ($scaleX != 1.0) {
+		$cmd += "propMove ";
+		float $percentageTotal = $percent;
+		for ($object in $objects){
+			$cmd += "-px ";
+			$cmd += $percentageTotal;
+			$cmd += " ";
+			$percentageTotal += ($scaleX - $percent);
+		}
+		if ($pivotStyle == 1){
+    	    //	first object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[0]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 2){
+    	    //	last object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[($numObjects-1)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 3){
+			$cmd += "-pivot ";
+			$cmd += ($pivotX + " ");
+			$cmd += ($pivotY + " ");
+			$cmd += ($pivotZ + " ");
+		}
+		$cmd += "-scale ";
+		$cmd += ($scaleX + " 1 1 ");
+		$cmd += ";";
+
+	}
+
+	//Scale Y
+	else if ($scaleY != 1.0) {
+		$cmd += "propMove ";
+		float $percentageTotal = $percent;
+		for ($object in $objects){
+			$cmd += "-py ";
+			$cmd += $percentageTotal;
+			$cmd += " ";
+			$percentageTotal += ($scaleY - $percent);
+		}
+		if ($pivotStyle == 1){
+    	    //	first object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[0]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 2){
+    	    //	last object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[($numObjects-1)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 3){
+			$cmd += "-pivot ";
+			$cmd += ($pivotX + " ");
+			$cmd += ($pivotY + " ");
+			$cmd += ($pivotZ + " ");
+		}
+		$cmd += "-scale ";
+		$cmd += (" 1 " + $scaleY + " 1 ");
+		$cmd += ";";
+
+	}
+	
+
+	//Scale Z
+	else if ($scaleZ != 1.0) {
+		$cmd += "propMove ";
+		float $percentageTotal = $percent;
+		for ($object in $objects){
+			$cmd += "-pz ";
+			$cmd += $percentageTotal;
+			$cmd += " ";
+			$percentageTotal += ($scaleZ - $percent);
+		}
+		if ($pivotStyle == 1){
+    	    //	first object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[0]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 2){
+    	    //	last object pivot
+	        float $objectPivot[] = `xform -q -piv -ws $objects[($numObjects-1)]`;
+			$cmd += "-pivot ";
+			$cmd += ($objectPivot[0] + " ");
+			$cmd += ($objectPivot[1] + " ");
+			$cmd += ($objectPivot[2] + " ");
+		}
+		if ($pivotStyle == 3){
+			$cmd += "-pivot ";
+			$cmd += ($pivotX + " ");
+			$cmd += ($pivotY + " ");
+			$cmd += ($pivotZ + " ");
+		}
+		$cmd += "-scale ";
+		$cmd += (" 1 1 " + $scaleZ);
+		$cmd += ";";
+
+	}	
+	print "\n";print $cmd;print "\n";
+	return $cmd;
+}
+
+
+//
+//  Procedure Name:
+//      performPropMove
+//
+//  Description:
+//		Perform the duplicate command using the corresponding 
+//		option values.  This procedure will also show the option box
+//		window if necessary as well as construct the command string
+//		that will invoke the duplicate command with the current
+//		option box values.
+//
+//  Input Arguments:
+//      0 - Execute the command.
+//      1 - Show the option box dialog.
+//      2 - Return the command.
+//
+global proc string performPropMove(int $action)
+{
+	string $cmd = "";
+
+	switch ($action) {
+
+		//	Execute the command.
+		//
+		case 0:
+			//	Get the command.
+			//
+			$cmd = `assembleCmd`;
+
+			//	Execute the command with the option settings.
+			//
+			//	*NOTE* we do NOT want to use evalEcho here because
+			//	this calls the duplicatePreset command which does
+			//	the command echoing.
+			//
+			eval($cmd);
+
+			break;
+
+		//	Show the option box.
+		//
+		case 1:
+			propMoveOptions();
+			break;
+
+		//	Return the command string.
+		//
+		case 2:
+			//	Get the command.
+			//
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}
+
+
+

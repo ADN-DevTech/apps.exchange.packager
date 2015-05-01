@@ -1,0 +1,683 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// 
+//
+//  Creation Date:  May, 2004
+//  Modified: 
+//
+//  Procedure Name:
+//      walkCycleControl
+//
+//  Description:
+//		window to set up character controls and then key them for walk cycles and
+//		the like. to be clear, these walk cycles are as if the character is on a 
+//		treadmill. the character is symmetrical across the X axis
+//         
+//		when a key is set for one side, a key is set for the opposite side at the
+//		opposite keyframe. eg.:
+//			- a 24 frame cycle
+//			- frame 5 is active
+//			- user keys left foot (from the control window), left foot is actually the
+//				left foot and the left knee
+//			- control window keys the right foot in the same position at frame 17
+//				(current frame + cycle offset)
+//
+//		note: order of controls in control window is important. eg.:
+//			- Left Foot set to Left Foot and Left Knee
+//			- Right Foor set to Right Knee and Right Foot
+//			this will be a problem as the Left Foot is being mapped to the Right Knee
+//
+
+global proc getWalkCycleControl (string $control){
+	string $controlString;
+	if ($control != "offset"){
+		string $selectedObjects[] = `ls -sl`;
+		
+		for ($object in $selectedObjects){
+			$controlString += $object;
+			$controlString += " ";
+		}
+	}
+	
+	print "\ncs ";
+	print $controlString;
+	
+	switch ($control){
+	case "lhand":
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			leftHandBtn;
+		optionVar -stringValue "walkCycleControlLeftHand" $controlString;
+		break;
+	case "rhand":
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			rightHandBtn;
+		optionVar -stringValue "walkCycleControlRightHand" $controlString;
+		break;
+	case "lfoot":
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			leftFootBtn;
+		optionVar -stringValue "walkCycleControlLeftFoot" $controlString;
+		break;
+	case "rfoot":
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			rightFootBtn;
+		optionVar -stringValue "walkCycleControlRightFoot" $controlString;
+		break;
+	case "central":
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			centralControlsBtn;
+		optionVar -stringValue "walkCycleControlCentralControls" $controlString;
+		break;
+	case "offset":
+		optionVar -intValue "walkCycleControlCycleOffset" `intSliderGrp -q -v cycleOffsetField`;
+		break;
+	}
+
+}
+
+global proc walkCycleControlSetup ()
+{
+	if (!`optionVar -exists "walkCycleControlLeftFoot"`){
+		optionVar -stringValue "walkCycleControlLeftHand" "";
+
+		optionVar -stringValue "walkCycleControlRightHand" "";
+
+		optionVar -stringValue "walkCycleControlLeftFoot" "";
+
+		optionVar -stringValue "walkCycleControlRightFoot" "";
+
+		optionVar -stringValue "walkCycleControlCentralControls" "";
+		
+		optionVar -intValue "walkCycleControlCycleOffset" 12;
+	}
+	
+	textFieldButtonGrp -edit 
+		-text `optionVar -query "walkCycleControlLeftFoot"`
+		leftFootBtn;
+
+	textFieldButtonGrp -edit
+		-text `optionVar -query "walkCycleControlRightFoot"`
+		rightFootBtn;
+	
+	textFieldButtonGrp -edit
+		-text `optionVar -query "walkCycleControlLeftHand"`
+		leftHandBtn;
+
+	textFieldButtonGrp -edit
+		-text `optionVar -query "walkCycleControlRightHand"`
+		rightHandBtn;
+
+	textFieldButtonGrp -edit
+		-text `optionVar -query "walkCycleControlCentralControls"`
+	centralControlsBtn;
+	
+	intSliderGrp -edit
+		-value `optionVar -query "walkCycleControlCycleOffset"`
+		cycleOffsetField;
+	
+
+}
+
+global proc walkCycleCurves ()
+{
+
+	string $objects = `optionVar -query "walkCycleControlLeftFoot"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlRightFoot"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlLeftHand"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlRightHand"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlCentralControls"`;
+	
+	string $objectBuffer[];
+	tokenize $objects " " $objectBuffer;
+	
+	for ($object in $objectBuffer){
+		setInfinity -poi cycle $object;
+		setInfinity -pri cycle $object;
+		keyTangent -e -itt spline -ott spline $object;
+	}
+}
+
+global proc setKeyWalkCycleCmd(	string $attribute,
+								int $frame,
+								float $value,
+								string $object
+								)
+{						
+	setKeyframe -breakdown 0 
+		-hierarchy none 
+		-time $frame 
+		-controlPoints 0 
+		-shape 0 
+		-attribute $attribute
+		-value $value
+		$object;					
+	/*						
+	print "\nset key ";
+	print ($object + "." + $attribute);
+	print " ";
+	print $frame;
+	print " ";
+	print $value;
+	*/
+}
+
+
+global proc keyWalkCycleCmd(string $activeControl, string $passiveControl)
+{
+	//setOptionVars (false);
+	int $cycleOffset = `intSliderGrp -query -value cycleOffsetField`;
+	int $doubleOffset = 2 * (`intSliderGrp -query -value cycleOffsetField`) + 1;
+	//symmetry must be across X axis
+	//this code was a start at user specified axis of symmetry
+	//int $symmetry = `radioButtonGrp	-query -select cycleSymmetry`;
+	//float $scale[3] = {1,1,1};
+	/*
+	switch ($symmetry){
+	case 1:
+		$scale[0] = -1;
+		$scale[2] = -1;
+		break;
+	case 2:
+		$scale[0] = -1;
+		$scale[2] = -1;
+		break;
+	case 3:
+		$scale[1] = -1;
+		$scale[0] = -1;
+		break;	
+	}
+	*/
+	int $currentFrame = `currentTime -query`;
+	int $offsetFrame = $cycleOffset + $currentFrame;
+	if ($currentFrame > $cycleOffset)
+		$offsetFrame = $currentFrame - $cycleOffset;
+	
+	$activeControl = `optionVar -query ("walkCycleControl" + $activeControl)`;
+	// if there is no passiveControl we are dealing with the central controls
+	if ($passiveControl != "")
+		$passiveControl = `optionVar -query ("walkCycleControl" + $passiveControl)`;
+	else
+		$passiveControl = $activeControl;
+	
+	string $activeControlBuffer[];
+	string $passiveControlBuffer[];
+	tokenize $activeControl " " $activeControlBuffer;
+	tokenize $passiveControl " " $passiveControlBuffer;
+	
+	setKeyframe -breakdown 0 
+		-hierarchy none 
+		-controlPoints 0 
+		-shape 0 $activeControlBuffer;
+	
+	//if at frame 1 set a 2nd key on the active object at the end of the cycle
+	if ($currentFrame == 1){
+		setKeyframe -breakdown 0 
+			-hierarchy none 
+			-controlPoints 0 
+			-time $doubleOffset
+			-shape 0 $activeControlBuffer;
+	}
+	
+	int $i = 0;
+	
+	for ($active in $activeControlBuffer){
+	
+		float $trans[] = `xform -q -translation $active`;
+		float $rot[] = `xform -q -rotation $active`;
+		
+		// key passive object offset
+		setKeyWalkCycleCmd translateX $offsetFrame (-1 * $trans[0]) $passiveControlBuffer[$i];
+		setKeyWalkCycleCmd translateY $offsetFrame ($trans[1]) $passiveControlBuffer[$i];
+		setKeyWalkCycleCmd translateZ $offsetFrame ($trans[2]) $passiveControlBuffer[$i];
+		setKeyWalkCycleCmd rotateX $offsetFrame ($rot[0]) $passiveControlBuffer[$i];
+		setKeyWalkCycleCmd rotateY $offsetFrame (-1 * $rot[1]) $passiveControlBuffer[$i];
+		setKeyWalkCycleCmd rotateZ $offsetFrame (-1 * $rot[2]) $passiveControlBuffer[$i];
+
+		//if at 1st key of the 2nd part of the cycle, 
+		//key the passive object at the end of the cycle
+		if ($currentFrame == ($cycleOffset + 1)){
+			setKeyWalkCycleCmd translateX $doubleOffset (-1 * $trans[0]) $passiveControlBuffer[$i];
+			setKeyWalkCycleCmd translateY $doubleOffset ($trans[1]) $passiveControlBuffer[$i];
+			setKeyWalkCycleCmd translateZ $doubleOffset ($trans[2]) $passiveControlBuffer[$i];
+			setKeyWalkCycleCmd rotateX $doubleOffset ($rot[0]) $passiveControlBuffer[$i];
+			setKeyWalkCycleCmd rotateY $doubleOffset (-1 * $rot[1]) $passiveControlBuffer[$i];
+			setKeyWalkCycleCmd rotateZ $doubleOffset (-1 * $rot[2]) $passiveControlBuffer[$i];
+		}
+		
+		//key user defined attrs
+		string $userAttrs[] = `listAttr -keyable -userDefined $active`;
+		if (`size $userAttrs`){
+			for ($attr in $userAttrs){
+				string $connectionBuffer[];
+				string $connections[] = `listConnections -scn 1 -d 1 -p 1 ($active + "." + $attr)`;
+				float $attrValue = `getAttr ($active + "." + $attr)`;
+				tokenize $connections[0] "." $connectionBuffer;
+				
+				if ($connectionBuffer[1] == "translateX" ||
+					$connectionBuffer[1] == "rotateY" ||
+					$connectionBuffer[1] == "rotateZ"){
+					setKeyWalkCycleCmd $attr $offsetFrame (-1 * $attrValue) $passiveControlBuffer[$i];
+					//if at 1st key of the 2nd part of the cycle, 
+					//key the passive object at the end of the cycle
+					if ($currentFrame == ($cycleOffset + 1)){
+						setKeyWalkCycleCmd $attr $doubleOffset (-1 * $attrValue) $passiveControlBuffer[$i];
+					}
+				} else {
+					setKeyWalkCycleCmd $attr $offsetFrame ($attrValue) $passiveControlBuffer[$i];
+					//if at 1st key of the 2nd part of the cycle, 
+					//key the passive object at the end of the cycle
+					if ($currentFrame == ($cycleOffset + 1)){
+						setKeyWalkCycleCmd $attr $doubleOffset ($attrValue) $passiveControlBuffer[$i];
+					}
+				}				
+			}
+			
+		}
+		
+		$i++;
+	}
+
+}
+
+/*
+//not used
+global proc int goToNextKey (string $leftFoot, string $rightFoot){
+	
+	string $nextKey = `findKeyframe -timeSlider -which next $leftFoot $rightFoot`;
+	currentTime -edit $nextKey;
+	
+		refresh -force;
+	print "\nnext key ";print $nextKey;
+	
+	int $ct = `currentTime -query`;
+	print "\nct ";print $ct;
+	
+	refresh -force;
+	return $nextKey;
+	
+}
+*/
+
+global proc walkCycleLocomote_old(){
+	
+	string $objects = `optionVar -query "walkCycleControlLeftFoot"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlRightFoot"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlLeftHand"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlRightHand"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlCentralControls"`;
+	
+	string $objectBuffer[];
+	tokenize $objects " " $objectBuffer;
+	
+	string $motionNode = `group -name "locomotion" $objectBuffer`;
+	
+	int $cycleOffset = `intSliderGrp -query -value cycleOffsetField`;
+	int $currentTime = 1;
+	int $switchFootTime = $cycleOffset + 1;
+	int $stopTime = $switchFootTime + $cycleOffset;
+	currentTime 1;
+	playbackOptions -min 1 -max $stopTime;
+
+	clear $objectBuffer;
+	string $leftFootControls = `optionVar -query "walkCycleControlLeftFoot"`;
+	tokenize $leftFootControls " " $objectBuffer;
+	string $leftFoot = $objectBuffer[0];
+	
+	clear $objectBuffer;
+	string $rightFootControls = `optionVar -query "walkCycleControlRightFoot"`;
+	tokenize $rightFootControls " " $objectBuffer;
+	string $rightFoot = $objectBuffer[0];
+	
+	float $leftPos[] = `xform -q -ws -t $leftFoot`;
+	float $rightPos[] = `xform -q -ws -t $rightFoot`;
+	
+	string $leadFoot, $trailFoot;
+	if ($leftPos[2] > $rightPos[2]){
+		$leadFoot = $leftFoot;
+		$trailFoot = $rightFoot;		
+	}else{
+		$leadFoot = $rightFoot;
+		$trailFoot = $leftFoot;
+	}
+	
+print "\nlead ";print $leadFoot;
+print "\ntrail ";print $trailFoot;
+	
+	select -replace $leadFoot $trailFoot;
+	//string $advanceToNextKey = ("findKeyframe -timeSlider -which next " + $leadFoot + " " + $trailFoot);
+	//print "\n advance "; print $advanceToNextKey;
+	float $transZ = 0;
+	setKeyframe -value $transZ -time $currentTime -attribute "translateZ" $motionNode;
+	
+	int $i;
+	float $trans;
+	for ($i=0;$i<15;$i++){
+	//do {
+
+		print "\nfor current time ";print $currentTime;
+		print "\ni ";print $i;
+	
+		//$currentTime = `goToNextKey $leftFoot $rightFoot`;
+		goToNextKey $leftFoot $rightFoot;
+		//int $nextKey = `findKeyframe -timeSlider -which next $leadFoot $trailFoot`;
+		//int $nextKey = `eval $advanceToNextKey`;
+		//refresh;
+		$currentTime = `currentTime -query`;
+		//$currentTime = `currentTime -edit (eval($advanceToNextKey))`;
+		
+		if ($currentTime < $switchFootTime)
+			$trans = `getAttr ($leadFoot + ".translateZ")`;
+		else
+			$trans = `getAttr ($trailFoot + ".translateZ")`;
+		//$trans = abs $trans;
+		if ($trans<0)
+			$trans = $trans * -1;
+		$transZ = $transZ + $trans;
+		//setAttr ($motionNode + ".translateZ") $transZ;
+		setKeyframe -value $transZ -time $currentTime -attribute "translateZ" $motionNode;
+		//$currentTime = `currentTime -query`;
+		refresh -force;
+		
+	} //while ($currentTime < $stopTime);
+	
+	setKeyframe -value $transZ -time $currentTime -attribute "translateZ" $motionNode;
+		
+}
+
+global proc walkCycleLocomote(){
+	
+	string $objects = `optionVar -query "walkCycleControlLeftFoot"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlRightFoot"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlLeftHand"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlRightHand"`;
+	$objects += " ";
+	$objects += `optionVar -query "walkCycleControlCentralControls"`;
+	
+	string $objectBuffer[];
+	tokenize $objects " " $objectBuffer;
+	
+	string $motionNode = `group -name "locomotion" $objectBuffer`;
+	//string $locator[] = `spaceLocator -name "locomotion"`;
+	//string $motionNode = $locator[0];
+	//for ($object in $objectBuffer){
+	//	pointConstraint -mo -weight 1 $motionNode $object; 
+	//}
+	
+	int $cycleOffset = `intSliderGrp -query -value cycleOffsetField`;
+	int $currentTime = 1;
+	int $switchFootTime = $cycleOffset + 1;
+	int $stopTime = $switchFootTime + $cycleOffset;
+	currentTime 1;
+	playbackOptions -min 1 -max $stopTime;
+
+	clear $objectBuffer;
+	string $leftFootControls = `optionVar -query "walkCycleControlLeftFoot"`;
+	tokenize $leftFootControls " " $objectBuffer;
+	string $leftFoot = $objectBuffer[0];
+	
+	clear $objectBuffer;
+	string $rightFootControls = `optionVar -query "walkCycleControlRightFoot"`;
+	tokenize $rightFootControls " " $objectBuffer;
+	string $rightFoot = $objectBuffer[0];
+	
+	float $leftPos[] = `xform -q -ws -t $leftFoot`;
+	float $rightPos[] = `xform -q -ws -t $rightFoot`;
+	
+	string $leadFoot, $trailFoot;
+	if ($leftPos[2] > $rightPos[2]){
+		$leadFoot = $leftFoot;
+		$trailFoot = $rightFoot;		
+	}else{
+		$leadFoot = $rightFoot;
+		$trailFoot = $leftFoot;
+	}
+	
+	string $leadFootZConnection[] = `listConnections -plugs 1 ($leadFoot + ".translateZ")`;
+	clear $objectBuffer;
+	tokenize $leadFootZConnection[0] "." $objectBuffer;
+	string $leadFootZCurve =  $objectBuffer[0];
+	float $leadFootKeys[] = `keyframe -query -timeChange $leadFootZCurve`;
+	float $leadFootValues[] = `keyframe -query -valueChange $leadFootZCurve`;
+
+	string $trailFootZConnection[] = `listConnections -plugs 1 ($trailFoot + ".translateZ")`;
+	clear $objectBuffer;
+	tokenize $trailFootZConnection[0] "." $objectBuffer;
+	string $trailFootZCurve =  $objectBuffer[0];
+	float $trailFootKeys[] = `keyframe -query -timeChange $trailFootZCurve`;
+	float $trailFootValues[] = `keyframe -query -valueChange $trailFootZCurve`;
+	
+	int $keys[];
+	float $values[];
+	int $i = 0;
+	for ($key in $leadFootKeys){
+		if ($key <= $switchFootTime){
+			$keys[$i] = $key;
+			$values[$i] = $leadFootValues[$i];
+			print "\nlead key "; print $key; print " ";print  $leadFootValues[$i];
+			$i++;
+		}
+	}
+	
+	for ($key in $trailFootKeys){
+		if ($key > $switchFootTime){
+			$keys[$i] = $key;
+			$values[$i] = $trailFootValues[$i];
+			print "\ntrail keys ";print $key;print " ";print $trailFootValues[$i];print " ";print $i;
+			$i++;
+		}
+	}
+	//print "\nlead keys ";print $leadFootKeys;
+	//print "\nlead vals ";print $leadFootValues;
+
+	//	print "\ntrl keys ";print $trailFootKeys;
+	//print "\ntrl vals ";print $trailFootValues;
+	
+	print "\nkeys ";print $keys;
+	print "\nvals ";print $values;
+	
+	$i = 0;
+	int $firstKeyPastSwitch = 0;
+	float $trans[];
+	$trans[0]= 0;
+	for ($key in $keys){
+		//if ($trans > 0)
+		//	$trans = $values[;
+		//if ($values[$i] < 0){
+		//	$values[$i] = $values[$i] * (-1);
+		//}
+		if ($key > $switchFootTime)
+			$firstKeyPastSwitch++;
+		if ($i > 0){
+			//$values[$i] = - $values[$i-1];
+			if ($firstKeyPastSwitch == 1)
+				$trans[$i] = $trans[$i-1] + ($values[0] - $values[1]);
+			else
+				$trans[$i] = $trans[$i-1] + ($values[$i-1] - $values[$i]);
+		}
+
+		// must add absolute value of translate Z
+		setKeyframe -value $trans[$i]
+			-time $key 
+			-attribute "translateZ" $motionNode;
+		//$trans += $values[$i];
+		$i++;
+
+	}
+	
+	setInfinity -poi cycleRelative $motionNode;
+	setInfinity -pri cycleRelative $motionNode;
+}
+
+global proc walkCycleControl ()
+{
+	string $win = "walkCycleControl";
+	if (`window -exists $win`)
+		deleteUI $win;
+	
+	window -title "Walk Cycle Control"
+		$win;
+	
+	scrollLayout;
+	
+	columnLayout;
+	
+	frameLayout -label "Setup" 
+		-borderStyle "etchedIn"
+		-collapsable 1;
+	
+	columnLayout;
+
+	/*
+	radioButtonGrp
+		-numberOfRadioButtons 3
+		-label "Symmetry Plane"
+		-labelArray3 "YZ" "XZ" "XY"
+		-select 1
+		cycleSymmetry;
+	*/
+
+	textFieldButtonGrp -label "Left Foot" 
+		-buttonLabel "Set"
+		-buttonCommand "getWalkCycleControl lfoot"
+		-editable true
+		-annotation ("Specify the left foot.")
+		leftFootBtn;
+
+	textFieldButtonGrp -label "Right Foot" 
+		-buttonLabel "Set"
+		-buttonCommand "getWalkCycleControl rfoot"
+		-editable true
+		-annotation ("Specify the right foot.")
+		rightFootBtn;
+	
+	textFieldButtonGrp -label "Left Hand" 
+		-buttonLabel "Set"
+		-buttonCommand "getWalkCycleControl lhand"
+		-editable true
+		-annotation ("Specify the left hand.")
+		leftHandBtn;
+
+	textFieldButtonGrp -label "Right Hand" 
+		-buttonLabel "Set"
+		-buttonCommand "getWalkCycleControl rhand"
+		-editable true
+		-annotation ("Specify the right hand.")
+		rightHandBtn;
+
+	textFieldButtonGrp -label "Central Controls" 
+		-buttonLabel "Set"
+		-buttonCommand "getWalkCycleControl central"
+		-editable true
+		-annotation ("Specify the central controls (pelvis, spine, head etc.).")
+		centralControlsBtn;
+	
+	intSliderGrp -label "Cycle Offset" 
+		//-editable true
+		-minValue 1
+		-maxValue 48
+		-field true
+		-fieldMinValue 1 -fieldMaxValue 200
+		-value 12
+		-annotation ("Specify the cycle offset.")
+		-cc "getWalkCycleControl offset"
+		cycleOffsetField;
+	
+	setParent ..;
+	setParent ..;
+
+	frameLayout -label "Control" 
+		-borderStyle "etchedIn"
+		-collapsable 1;
+	
+	rowColumnLayout -numberOfColumns 3
+			-cw 1 100 -cw 2 100 -cw 3 100;
+	
+	button -label "Key Left Hand"
+		-command "keyWalkCycleCmd LeftHand RightHand";
+	button -visible 0;
+	button -label "Key Right Hand"
+		-command "keyWalkCycleCmd RightHand LeftHand";
+	
+	button -visible 0;
+	button -label "Key Central"
+		-command "keyWalkCycleCmd CentralControls \"\"";
+	button -visible 0;
+	
+	button -label "Key Left Foot"
+		-command "keyWalkCycleCmd LeftFoot RightFoot";
+	button -visible 0;
+	button -label "Key Right Foot"
+		-command "keyWalkCycleCmd RightFoot LeftFoot";
+	
+	button -label "Cycle Curves"
+		-command "walkCycleCurves";
+	button -label "Key All"
+		-command ("keyWalkCycleCmd CentralControls \"\";" +
+		"keyWalkCycleCmd RightFoot LeftFoot;" + 
+		"keyWalkCycleCmd LeftFoot RightFoot;" +
+		"keyWalkCycleCmd LeftHand RightHand;" +
+		"keyWalkCycleCmd RightHand LeftHand;")
+		;
+	button -label "Locomote"
+		-command "walkCycleLocomote";
+	
+	setParent ..;
+	setParent ..;
+	columnLayout -columnAlign "center";
+	//image -image "rubberMan.tif"
+	//	-w 256
+	//	-h 256;
+	/*
+	popupMenu
+		-markingMenu true
+		-button 1;
+	menuItem
+		-radialPosition "N"; 
+	menuItem
+		-radialPosition "E"; 
+	menuItem
+		-radialPosition "W";
+	*/	
+	showWindow;
+
+	// set values for window
+	walkCycleControlSetup ;
+}
+
+walkCycleControl;

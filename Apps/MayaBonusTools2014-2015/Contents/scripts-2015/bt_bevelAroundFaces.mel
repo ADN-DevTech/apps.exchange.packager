@@ -1,0 +1,47 @@
+// Author:		Steven T. L. Roselle
+//
+// Created:        ( 04/01/14 )
+
+
+global proc bt_bevelAroundFaces(int $interactive)
+{  
+	//bt_convertSelectionToPerimeterEdges;
+	ConvertSelectionToEdgePerimeter;
+    if ($interactive)
+        {
+    	dR_bevelTool;
+	    dR_manipEntered;
+	    }
+	else
+	    BevelPolygon;
+}
+
+
+global proc bt_bevelAroundFacesDialog()
+{
+    string $result = `confirmDialog -title "Bevel Around Faces" 
+        -ma "center"
+		-message "Bevel perimeter edges of selected faces."
+ 		-button "Command" 
+ 		-button "Interactive" 
+ 		-button "Cancel"
+ 		-defaultButton "Command"
+ 		-cancelButton "Cancel" 
+ 		`;
+ 	
+ 	int $state;	
+ 	
+ 	if ($result == "Command"){
+ 		$state = 0;
+ 		bt_bevelAroundFaces 0;
+ 		}
+ 	else if ($result == "Interactive"){
+ 		$state = 1;
+ 		bt_bevelAroundFaces 1;
+ 		}	
+ 	else if ($result == "Command")
+ 	    print "Canceling Bevel Around Faces.";
+ 	     		
+ 	optionVar -intValue "bt_bevelAroundFacesMode" $state;
+}
+ 

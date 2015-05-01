@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+source ./scripts/setup-osx
+
+cp profiles/Readme.txt ./output/
+pushd ./output
+if [ -f $AppName.zip ];
+then
+  rm -f $AppName.zip
+fi
+
+# If we have a macos zip, use it as a base
+if [ -f $AppName-macos.zip ];
+then
+  cp $AppName-macos.zip $AppName.zip
+fi
+# If we have a msi, add it to the zip
+if [ -f $AppName-win64.msi ];
+then
+  zip $AppName.zip $AppName-win64.msi
+fi
+# If we have a Linux shell installer, add it to the zip
+if [ -f $AppName-linux.sh ];
+then
+  # Make sure our linux script can be executed
+  chmod ago+x $AppName-linux.sh
+  zip $AppName.zip $AppName-linux.sh
+fi
+
+zip $AppName.zip Readme.txt
+rm Readme.txt
+
+unzip -lt $AppName.zip
+popd

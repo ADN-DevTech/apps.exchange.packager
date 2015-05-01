@@ -1,0 +1,622 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+// Creation Date:  jan 2005
+//
+// Update 02/01/2011 (fixed various bugs and UI issues)
+
+
+//////////////////////////////////////////////////////////////
+//  Bookmark Procs
+//////////////////////////////////////////////////////////////
+
+//  Procedure Name:
+//      layerViewerBookmarkEdit
+//
+//  Description:
+//      Create a dialog to edit the specified bookmark. User may
+//		change name or delete the bookmark.
+
+global proc layerViewerBookmarkEdit( string $item ){
+	string $result = `promptDialog
+		-title "Edit Display Layer Bookmark"
+		-message "Layer Name:"
+		-text $item
+		-button "Rename"
+		-button "Delete"
+		-button "Cancel"
+		-defaultButton "Cancel" 
+		-cancelButton "Cancel"
+		-dismissString "Cancel"`;
+
+	if ($result == "Rename") {
+		$text = `promptDialog -query -text`;
+		rename $item $text;
+	} else if ($result == "Delete"){
+		delete $item;
+	}
+
+	//rebuild bookmark menu
+	layerViewerBookmarkMenu;
+}
+
+//  Procedure Name:
+//      layerViewerCreateBookmark
+//
+//  Description:
+//      Create a new displayLayer bookmark.
+//
+global proc layerViewerCreateBookmark(){
+	global string $gLayerViewerSelectedArray[];
+	string $layers[] = `layerViewerGetSelectedLayers`;
+	string $set;
+
+	if( size( $layers ) == 0 ) {
+		warning( "No layer(s) selected to bookmark" );
+		return;
+	} else {
+		$set = `sets -text "displayLayer" -name "displayLayerBookmark#"	$layers`;
+
+		layerViewerBookmarkMenu;
+		layerViewerBookmarkCmd  $set;
+	}
+}
+
+//  Procedure Name:
+//      layerViewerBookmarkCmd
+//
+//  Description:
+//      Set the outliner to display only the layers in the 
+//		specified bookmark set
+//
+global proc layerViewerBookmarkCmd (string $set){
+	global string $gLayerViewerOutlinerPanel;
+	string $layers[] = `sets -query $set`;
+	string $filter = `itemFilter -byName ($layers[0])`;
+	if ( `size $layers` > 1){
+		int $i;
+        for ($i = 1; $i < `size $layers`; $i++){
+			string $nextLayer = `itemFilter -byName ($layers[$i])`;
+			$filter = `itemFilter -union $filter $nextLayer`;
+			delete $nextLayer;
+		}
+	}
+	outlinerEditor -edit
+		-filter $filter
+		$gLayerViewerOutlinerPanel;
+
+}
+
+//  Procedure Name:
+//      layerViewerBookmarkMenu
+//
+//  Description:
+//      Create a menu item for each displayLayer bookmark.
+//
+global proc layerViewerBookmarkMenu(){
+
+	global string $gLayerViewerBookmarkMenu;
+	global string $gLayerViewerOutlinerPanel;
+	//set menu up
+	menu -edit
+		-deleteAllItems
+		$gLayerViewerBookmarkMenu;
+	setParent -menu $gLayerViewerBookmarkMenu; 
+	//build persistent menuItems
+	menuItem -label "Bookmark Selected Layers"
+		-command "layerViewerCreateBookmark"
+		;
+	menuItem -label "Show All Layers"
+		-command ("filterUIClearFilter " + $gLayerViewerOutlinerPanel)
+		;
+	menuItem -divider true;
+
+	//build menuItems for each bookmark
+	string $allSets[] = `ls -sets`;
+	for ($set in $allSets){
+		if (`sets -q -text $set` == "displayLayer"){
+			menuItem -label ($set)
+				-command ("layerViewerBookmarkCmd " + $set)
+				;
+			menuItem -optionBox true
+				-annotation ("Edit " + $set + " bookmark.")
+				-command ("layerViewerBookmarkEdit " + $set)
+				;
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+
+global proc string[] layerViewerGetSelectedLayers(){
+
+	global string $gLayerViewerSelectedArray[];
+	string $selectedLayers[];
+
+	int $i = 0;
+	for( $node in $gLayerViewerSelectedArray ) 
+	   if (`objExists $node`)
+	    {
+		if (`nodeType $node` == "displayLayer"){
+			$selectedLayers[$i] = $node;
+			$i++;
+		}
+	}
+	return $selectedLayers;
+}
+
+global proc layerViewerViewFit(string $objects[]){
+
+	global string $gLayerViewerSelectedArray[];
+	global string $gLayerViewerCamera[];
+
+	//****************
+	//check existence of camera
+	
+	//string $objects[] = `ls -dag $gLayerViewerSelectedArray`;
+	//string $objects[] = `ls -transforms -visible $gLayerViewerSelectedArray`;
+	//print "\nobjects ";
+	//print $objects;
+
+	if( size( $objects ) != 0 ) {
+
+		//get look at point
+		float $bbox[] = `exactWorldBoundingBox -ignoreInvisible 1 $objects[0]`;
+
+		float $bboxSize[];
+		$bboxSize[0] = $bbox[3] - $bbox[0];
+		$bboxSize[1] = $bbox[4] - $bbox[1];
+		$bboxSize[2] = $bbox[5] - $bbox[2];
+
+		if ($bboxSize[0] > $bboxSize[1]){
+			$bboxSize[3] = $bboxSize[0];
+		} else {
+			$bboxSize[3] = $bboxSize[1];
+		}
+
+		float $bboxCentre[];
+		$bboxCentre[0] = ($bboxSize[0]/2) + $bbox[0];
+		$bboxCentre[1] = ($bboxSize[1]/2) + $bbox[1];
+		$bboxCentre[2] = ($bboxSize[2]/2) + $bbox[2];
+		
+		viewPlace -eyePoint $bboxCentre[0] $bboxCentre[1] ($bbox[5]+$bboxSize[3])
+			-lookAt $bboxCentre[0] $bboxCentre[1] $bboxCentre[2]
+			$gLayerViewerCamera[0];
+	}
+}
+
+
+//  Procedure Name:
+//      layerViewerToggleView
+//
+//  Description:
+//      Toggle the display of the modelEditor in the 2nd pane.
+global proc layerViewerToggleView(string $paneLayout){
+	string $config = `paneLayout -query -configuration $paneLayout`;
+	if ($config == "vertical2")
+		paneLayout -edit -configuration "single" $paneLayout;
+	else
+		paneLayout -edit -configuration "vertical2" $paneLayout;
+
+}
+
+
+//  Procedure Name:
+//      layerViewer
+//
+//  Description:
+//      Create an outliner and a modelEditor to control display layers.
+//
+global proc layerViewer(){
+
+	string $win = "layerViewer";
+	if (`window -exists $win`) {
+		deleteUI -window $win;
+	}
+	
+	global string $gModelPanel;
+	global string $gModelEditor;
+	global string $gLayerViewerCamera[];
+	
+	//check if the camera exists
+	if ($gLayerViewerCamera[0] == "" || !`exists $gLayerViewerCamera[0]` ){
+		string $cameras[] = `ls -cameras "layerViewerCamera*"`;
+		if (`size $cameras` == 0){
+			$gLayerViewerCamera = `camera -n "layerViewerCamera"`;
+			hide $gLayerViewerCamera;
+		} else {
+			$gLayerViewerCamera[0] = $cameras[0];
+		}
+	} 
+	
+	//check for auto frame setting
+	if (`optionVar -ex bt_layerViewerAutoFrame` == 0)
+	    optionVar -iv bt_layerViewerAutoFrame 1;
+
+	window -wh 400 300 
+		-title "Layer Viewer"
+		$win;
+		
+
+	string $form = `formLayout layerViewerForm`;
+
+	//create 2 panes side by side, outliner on left, viewport on right
+	string $paneLayout = `paneLayout -configuration "vertical2"`;
+
+	//set up the outliner
+	global string $gLayerViewerOutlinerPanel;
+	$gLayerViewerOutlinerPanel = `outlinerPanel -mbv 0`;
+	//global string $outlinerEditor;
+	$outlinerEditor = `outlinerPanel -query -outlinerEditor $gLayerViewerOutlinerPanel`;
+	outlinerEditor -edit -showDagOnly false -showSetMembers true  $outlinerEditor ;
+	
+			
+
+	menu -label "Layers"
+		-allowOptionBoxes true;
+
+	//build menuItems that are shared with bonusToolsMenu.mel
+	layerViewerLayersMenuItems;
+
+	global string $gLayerViewerBookmarkMenu;
+	$gLayerViewerBookmarkMenu = `menu -label "Bookmarks" -allowOptionBoxes true layerViewerBookmarksMenu`;
+
+	layerViewerBookmarkMenu;
+	
+	setParent ..;
+
+	//print "\npanel "; print $outlinerPanel;
+	//print "\neditor "; print $outlinerEditor;
+
+	//set up the viewport
+	$gModelPanel = `modelPanel -mbv 1`;
+	$gModelEditor = `modelPanel -query -modelEditor $gModelPanel`;
+	modelEditor -edit 
+		-vs 1 
+		-displayAppearance smoothShaded 
+		-camera $gLayerViewerCamera[0]
+		$gModelEditor;
+	setParent ..;
+
+	//	Create the selection connection network.
+	string $inputList = `selectionConnection -worldList`;
+	string $fromEditor1 = `selectionConnection`;
+	string $fromEditor2 = `selectionConnection`;
+	editor -edit -mainListConnection $inputList $outlinerEditor;
+	editor -edit -selectionConnection $fromEditor1 $outlinerEditor;
+	editor -edit -mainListConnection $fromEditor1 $gModelEditor;
+	editor -edit -selectionConnection $fromEditor2 $gModelEditor;
+	//editor -edit -highlightConnection $fromEditor1 $gModelEditor;
+
+	//create the buttons at the bottom of the form
+	rowLayout -nc 9
+		-p $form
+		//-cw1 30 -cw2 50 -cw3 50 -cw4 50 -cw5 100 -cw6 100
+		layerEdBtnLayout;
+
+    text "     ";
+    
+    button -l "List All Layers"
+		-annotation "List all display layers in list below.  Click on specific layer below to isolate in viewer."
+		-bgc 0.75 0.75 0.75
+		-c ("filterUIClearFilter " + $gLayerViewerOutlinerPanel)
+		showButton;    
+    
+	button -l "  Layer Edit  "
+		-annotation "Layer controls"
+		//-bgc 1 0 0
+		layerButton;
+	popupMenu -button 1
+		-parent layerButton
+		-markingMenu true
+		layerPopup;
+	menuItem -label "New Layer"
+		-c ("layerEditorCreateLayer \"\"")
+		-boldFont true
+		-radialPosition "W"
+		;
+	menuItem -label "Add Selected"
+		-c ("layerEditorAddObjects \"\"; updateLayerViewer;")
+		-boldFont true
+		-radialPosition "N"
+		;
+	menuItem -label "Remove Selected"
+		-c ("layerEditorRemoveObjects \"\"; updateLayerViewer;")
+		-boldFont true
+		-radialPosition "NE"
+		;	
+	menuItem -label "Edit Layer"
+		-c ("layerEditorEditLayer \"\"")
+		-boldFont true
+		-radialPosition "S"
+		;
+	menuItem -label "Delete Layer"
+		-c ("layerEditorDeleteLayer \"\"")
+		-boldFont true
+		-radialPosition "SW"
+		;
+	menuItem -label "Select Contents"
+		-c ("layerEditorSelectObjects \"\"")
+		-boldFont true
+		-radialPosition "E"
+		;
+	menuItem -label "Delete Unused"
+		-c ("layerEditorSelectUnused;layerEditorDeleteLayer \"\"")
+		-boldFont true
+		-radialPosition "NW"
+		;
+	menuItem -label "Layer Membership"
+		-c  ("layerEditorMembership \"\"")
+		-boldFont true
+		-radialPosition "SE"
+		;		
+		
+		
+
+	button -l "Layer Status"
+		-annotation "Change the display type of the layer (Normal/Template/Reference)"
+		displayButton;
+	popupMenu -button 1
+		-parent displayButton
+		-markingMenu true
+		displayPopup;
+	menuItem -label "Normal"
+		-c ("setLayerTo selected \".displayType\" 0")
+		-boldFont true
+		-radialPosition "N"
+		;
+	menuItem -label "Template"
+		-c ("setLayerTo selected \".displayType\" 1")
+		-boldFont true
+		-radialPosition "W"
+		;
+	menuItem -label "Reference"
+		-c ("setLayerTo selected \".displayType\" 2")
+		-boldFont true
+		-radialPosition "E"
+		;
+	menuItem -label "Playback On"
+		-c ("setLayerTo selected \".playback\" 1")
+		-boldFont true
+		-radialPosition "S"
+		;
+	menuItem -label "Playback Off"
+		-c ("setLayerTo selected \".playback\" 0")
+		-boldFont true
+		-radialPosition "SW"
+		;
+
+	button -l "Layer Display"
+		-annotation "Change the level of detail of the layer"
+		detailButton;
+	popupMenu -button 1
+		-parent detailButton
+		-markingMenu true
+		detailPopup;
+	menuItem -label "Shaded"
+		-c ("setLayerTo selected \".shading\" 1")
+		-boldFont true
+		-radialPosition "W"
+		;
+	menuItem -label "Wireframe"
+		-c ("setLayerTo selected \".shading\" 0")
+		-boldFont true
+		-radialPosition "NW"
+		;
+	menuItem -label "Textured"
+		-c ("setLayerTo selected \".texturing\" 1")
+		-boldFont true
+		-radialPosition "N"
+		;					
+	menuItem -label "Untextured"
+		-c ("setLayerTo selected \".texturing\" 0")
+		-boldFont true
+		-radialPosition "NE"
+		;
+	menuItem -label "Visible"
+		-c ("setLayerTo selected \".visibility\" 1")
+		-boldFont true
+		-radialPosition "S"
+		;					
+	menuItem -label "Invisible"
+		-c ("setLayerTo selected \".visibility\" 0")
+		-boldFont true
+		-radialPosition "SW"
+		;
+	menuItem -label "Full Detail"
+		-c ("setLayerTo selected \".levelOfDetail\" 0")
+		-boldFont true
+		-radialPosition "E"
+		;					
+	menuItem -label "Bounding Box"
+		-c ("setLayerTo selected \".levelOfDetail\" 1")
+		-boldFont true
+		-radialPosition "SE"
+		;
+
+    text "          ";
+
+	button -label " Toggle Viewer"
+		-command ("layerViewerToggleView " + $paneLayout)
+		-ann "Toggle viewer on/off"
+		layerViewerViewerButton;
+		
+	button -label "Refresh Viewer"
+	    -command "updateLayerViewer; "
+	    -ann "Refresh viewer display in order to recognize changes to the current layer contents"
+	    -bgc 0.75 0.75 0.75
+	    layerViewerUpdateButton;
+
+
+	checkBox -label "Auto Frame Camera"
+	    -value `optionVar -q bt_layerViewerAutoFrame`
+	    -onc "optionVar -iv bt_layerViewerAutoFrame  1"
+	    -ofc "optionVar -iv bt_layerViewerAutoFrame  0"
+	    -ann "Layer Viewer camera will automatically frame to the contents of the selected layer"
+	    layerViewAutoFrameToggle;
+	
+	setParent ..;
+
+	formLayout -e
+		-af $paneLayout top 30
+		-af $paneLayout right 5
+		-af $paneLayout left 5
+		-af $paneLayout bottom 5
+
+
+		$form;
+
+	showWindow $win;
+	
+	//create a filter for the outliner to only show layers
+	string $layerFilter = `itemFilter -byType displayLayer`;
+	//set the filter to always be active
+	filterUISetImplicitFilter($outlinerEditor, $layerFilter);
+	//filterUICreateMenu($outlinerEditor, $outlinerPanel);
+
+	//buildBookmarkMenu -type displayLayer -editor $outlinerEditor $menu;
+	
+	selectionConnection -e -addScript layerViewerCallback $fromEditor1;	
+	//selectionConnection -e -addScript updateLayerViewer  $fromEditor1;
+	
+    scriptJob -parent $win -e displayLayerManagerChange  updateLayerViewer;	
+	updateLayerViewer;
+	
+	
+	
+}
+
+
+//global proc layerViewerCallback(string $array[]) 
+global proc layerViewerCallback(string $array[]) 
+{	
+	global string $gLayerViewerSelectedArray[];
+	global string $gModelEditor;
+	global string $gLayerViewerOutlinerPanel;
+	$gLayerViewerSelectedArray = $array;
+	
+	//print "Contents of callback array:\n";
+	//print $gLayerViewerSelectedArray ;
+	
+	//create set if it doesn't exist
+	//loop through array and find any layer nodes
+	//if a layer node is found, add it's members to the set
+	//BUT this method will filter other layers so it needs fixing
+	//string $layerSelectionConnection = `selectionConnection -obj $gLayerMembersSet`;
+ 	//editor -edit -mainListConnection $layerSelectionConnection $editor1;
+
+	//select layerButtons to make setLayerTo.mel work from this window
+	string $layers[] = `layerViewerGetSelectedLayers`;
+	
+	
+    if ($layers[0] == "defaultLayer")
+    {
+        warning "Layer Viewer does not display for the defaultLayer";
+        select -d defaultLayer;
+        eval ("filterUIClearFilter " + $gLayerViewerOutlinerPanel);
+    }
+        
+    else 
+    {      
+        layerViewerCreateBookmark;
+  
+    	int $i = 0;
+    	for ($layer in $layers){
+    		//print $layer;
+    		if ($i == 0){
+    			layerEditorLayerButtonSelect 0 $layer;
+    		} else {
+    			layerEditorLayerButtonSelect 1 $layer;
+    		}
+    		//layerEditorSelectObjects $layers[0];
+    		
+    		$i++;
+        }
+     }
+	
+
+    updateLayerViewer;
+    // Will crash!
+	//toggleAutoLoad $gModelPanel true;		
+
+}
+
+
+
+global proc updateLayerViewer ()
+{
+	global string $gModelEditor;
+	global string $gLayerViewerCamera[];
+	global string $gLayerViewerOutlinerPanel;
+
+	string $layers[] = `layerViewerGetSelectedLayers`;
+	//string $layerObjects[] = `editDisplayLayerMembers -q $layers[0]`;
+
+    if ($layers[0] == "defaultLayer")
+        {
+        warning "Layer Viewer does not display for the defaultLayer";
+        select -d defaultLayer;
+        eval ("filterUIClearFilter " + $gLayerViewerOutlinerPanel);
+        }
+    else if (`size $layers` == 0)
+        warning "No layers currently shown in LayerViewer";
+    else
+        {
+    	
+     	string $currentSeletion[] = `ls -sl`;
+            
+        layerEditorSelectObjects "";
+        
+        //select objects and frame in camera
+        if (`optionVar -q bt_layerViewerAutoFrame`)
+            {
+    	   // layerViewerViewFit $layerObjects;  // causing weird framing issues for non-geo stuff
+    	    viewFit ($gLayerViewerCamera[0]);
+    	    }
+    	
+    	//for ($obj in $layerObjects)
+        	//print $obj;
+        	//isolateSelect -addDagObject  $obj $gModelEditor;
+    	
+    	isolateSelect -loadSelected $gModelEditor;
+        isolateSelect -addSelected $gModelEditor;
+            
+        print "Layer Viewer Panel Updated\n";
+    
+        //select -r $currentSeletion;
+        //select -r $currentSeletion;
+        //$allLayers = `ls -type displayLayer`;
+        //select -d $allLayers;
+        //select -add $layers[0];
+        
+        select -r $currentSeletion;
+       }
+   }
+
+
+//layerViewer;

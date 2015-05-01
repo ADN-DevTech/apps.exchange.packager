@@ -1,0 +1,264 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+//
+// international treaties.
+
+//     bt_storePose.mel - stores poses for characters as shelf buttons
+//
+//	--------------------------
+//
+// StorePose records a given pose for an object by creating a shelf
+// button and icon on the current (top) shelf.  This button contains all 
+// of the necessary setAttrs for getting back to a particular pose. 
+// It will work on either hierarchies (default) or selected nodes.  
+// You can create as many poses/buttons as you need.  This pose is not
+// to be confused with Trax Poses.  There is no association between
+// the StorePose poses and Maya's CharacterSets.
+//
+// To store a pose for a character, select the parent node(s) of anything 
+// related to the character (Root Joint, IK, constraints, locators, etc...)
+// If everything is parented under one node, simple select that node.
+// Then just open the storePoseUI, name the pose and apply using
+// hierarchy mode.  To return to the stored pose, simply click the shelf
+// button.
+//
+// NOTE: This script is loosley basd on the old recordPose.mel script   
+// by mbaer. However, this version addresses various limitations,
+// including checks for attributes that are unwritable or locked.  
+// (e.g. EndEffectors or IK handles that are constrained or driven)
+//
+//
+// Created by Steven T. L. Roselle 
+// Last updated:  ( 02/01/12 ) - Added support for shape nodes (e.g. cameras and lights)
+//
+
+
+
+
+
+global proc recordAttrs(int $shape, int $hier, string $buttonName)
+{
+	string $type;
+	int $writable;
+	string $selected[];
+	string $command = "";
+	global string $gShelfTopLevel;
+	string $mayaLocation = `getenv MAYA_LOCATION`;
+	$originalSelection = `ls -sl`;
+	
+	print ("hier = " + $hier + " shape = " + $shape + "\n");
+
+	//Check for including hierarchy of current nodes - isolate transforms
+	if (($hier == 1)  && ($shape == 1))
+	    {
+	    print "Including hierachy and shape nodes\n";
+		select -hi;
+        $selected = `ls -sl -type "transform" -type "shape"`;
+        //select -r $selected;
+        }
+
+    if (($hier == 1)  && ($shape == 0))
+	    {
+	    print "Including hierachy\n";
+		select -hi;
+        $selectedHier = `ls -sl -type "transform"`;	 
+        select -r $selectedHier;
+	    }
+
+	if (($hier == 0)  && ($shape == 1))
+	    {
+	    print "Including shape nodes\n";
+        $selected = `ls -sl -type "transform" -type "shape"`;
+        $stepDown =  `pickWalk -d down`;	
+        select -r $selected $stepDown;        
+        //select -r `ls -sl -type "transform" -type "shape"`;
+	    }
+    	
+    if (($hier == 0)  && ($shape == 0))
+        {
+	    print "Including shape nodes\n";
+        select -r `ls -sl -type "transform"`;
+     	}    
+     
+    $selected = `ls -sl`;
+
+	$size = `size $selected`;	
+	print $size;	
+	
+
+	if ($size == 0)
+	{
+		error ("Nothing selected.");
+		return;
+	}
+
+
+	//Step through list of transforms
+	for ($item in $selected)
+	{
+        print $item;
+		//Step through list of appropriate attributes for each object
+		for ($att in `listAttr -keyable -connectable -unlocked -scalar -write -hd $item`)
+		{
+			$match = ("match \"\\\\.\"  " + $att);
+			//print $match;
+
+
+			if ( `eval $match` != "." )   //if not a compound
+			{
+                //
+				// Check for input connections to current attr
+				$input = `listConnections -source 1 ($item + "." + $att)`;
+				if (`size $input` == 0)
+				{
+					$writable = 1;  //if no connections
+				}
+				else
+				{
+					if (`nodeType $input[0]` == "character")	
+					{
+						$writable = 1;  //if connected to character set
+					}
+					else
+					{
+						$writable = `isAnimCurve $input[0]`;  //check for anim curves	
+					}
+				}
+
+
+				if ($writable)		
+				{
+					// add to command list for shelf button and print to script editor
+					float $val = `getAttr ($item + "." + $att)`;
+					$text = ("setAttr -clamp " + $item + "." + $att + " " + $val + ";\n");
+					print ($text);
+					$command = ($command+$text);	
+				}
+
+				else 	
+
+				{	
+					// if locked by connection only print warning to script editor	
+					$text = ($item + "." + $att + " : locked by input connection");
+					warning ($text);
+				}
+			}
+		}
+	}
+
+	
+
+	//make shelf button containing list of setAttrs
+
+	if (`tabLayout -exists $gShelfTopLevel`)	
+
+	{
+		shelfButton
+
+			-parent ($gShelfTopLevel + "|" + `tabLayout -q -st $gShelfTopLevel`)
+			-command ($command)
+			-image "storeXform.png"  //new icon for 2012
+			-iol $buttonName
+			-label ($buttonName + " : Stored pose for " + $originalSelection[0] + "...")
+			-annotation ($buttonName + " : Stored pose for " + $originalSelection[0] + "...");
+
+	}
+
+	else
+		error ("Must have active shelf to create shelf button");
+
+	
+	//Reselect original nodes
+	select -r $originalSelection;
+	
+	if ($hier == 0)	
+		print ("\nStored values for selected nodes - " + $size + " nodes - as shelf button: " + $buttonName + "\n");	
+	else 
+		print ("\nStored values for entire hierarchy - " + $size + " nodes - as shelf button: " + $buttonName + "\n");	
+
+}
+
+
+
+
+
+global proc string getPoseName(string $id)
+
+{
+	// Return given name for sets
+	//
+	string $name = `textField -q -tx $id` ;
+	return $name;
+
+}
+
+
+global proc bt_storePose()
+{
+	//Creat UI and prompt user
+	//
+	global string $bt_storePoseName;
+	global string $bt_storePoseCheckBox;
+	
+	if( (`window -exists storePoseUI`) == true )
+	{
+		deleteUI storePoseUI;
+		//windowPref -remove storePoseUI;
+	}
+
+
+	window  
+		-sizeable true  -h 30
+		-title "Save objects/hierarchies values to shelf" storePoseUI;
+	rowColumnLayout -numberOfColumns 6 -width 550;
+
+
+	text -font "smallBoldLabelFont" 
+		-align "center" 
+		-label "  Button Name :  " ;
+
+	$bt_storePoseName = `textField -text "Name" -width 100`;
+	
+	$bt_storePoseCheckBox = `checkBox -label "Include Shape Nodes" -v 1`;
+
+	button -label "Store Hierarchy" 
+		-command ("recordAttrs(`checkBox -q -v $bt_storePoseCheckBox`, 1,`getPoseName $bt_storePoseName`)");
+
+
+	button -label " Store Selected " 
+		-command ("recordAttrs(`checkBox -q -v $bt_storePoseCheckBox`, 0,`getPoseName $bt_storePoseName`)");
+
+
+	button -label "     Close     " 
+		-command ("deleteUI storePoseUI;windowPref -remove storePoseUI");
+
+	showWindow storePoseUI;	
+
+}
+
+
+
+bt_storePose;
+

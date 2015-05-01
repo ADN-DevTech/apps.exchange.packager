@@ -1,0 +1,141 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+// Updated 01/20/12 - Using completely new method as old method did not work well
+//
+
+global proc bt_autoMapMultipleMeshes()
+{
+	string $objects[] = `ls -sl`;
+	string $origMeshes[] = `filterExpand -sm 12`;
+	//string $controller = `createNode -name "polyAutoProjControl#" polyAutoProj`;
+	
+	if (`size $origMeshes` < 2)
+	    error "Auto Map requires at least 2 meshes.  Select 2 or more meshes and try again.";
+	
+	$dups = `duplicate $origMeshes`;
+	$autoMapMesh = `polyUnite -ch 0`;
+	
+	DeleteHistory;
+	CenterPivot;
+	
+	$selectNode = `createNode nurbsCurve -n "selectionCurveShape#" -p $autoMapMesh[0]`;
+    select -r $autoMapMesh[0];
+    pickWalk -d down;
+    TemplateObject;
+    select -r $autoMapMesh[0];
+    setAttr ($autoMapMesh[0]+".displayHandle") 1;
+    $locator = `spaceLocator -p 0 0 0`;
+    setAttr  ($locator[0] + ".tx") `getAttr ($autoMapMesh[0]+".rpx")`;
+	setAttr  ($locator[0] + ".ty") `getAttr ($autoMapMesh[0]+".rpy")`;
+	setAttr  ($locator[0] + ".tz") `getAttr ($autoMapMesh[0]+".rpz")`;
+    TemplateObject;
+    $annotation = `annotate -tx "Auto Map Multiple Meshes Node" -p 5 6 5`;
+    $annotationTransform = `pickWalk -d up`;
+    setAttr  ($annotationTransform[0] + ".tx") `getAttr ($autoMapMesh[0]+".rpx")`;
+	setAttr  ($annotationTransform[0] + ".ty") (`getAttr ($autoMapMesh[0]+".rpy")` + 5);
+	setAttr  ($annotationTransform[0] + ".tz") `getAttr ($autoMapMesh[0]+".rpz")`;
+    parent $annotation $locator;
+    parent $locator $autoMapMesh[0];
+
+    
+
+
+	//delete $dups;
+	$autoMapMesh[0] = `rename $autoMapMesh[0] "autoProjectautoMapMesh"`;
+	//hide $autoMapMesh[0];
+	setAttr -lock true ($autoMapMesh[0] + ".tx");
+    setAttr -lock true ($autoMapMesh[0] + ".ty");
+    setAttr -lock true ($autoMapMesh[0] + ".tz");
+    setAttr -lock true ($autoMapMesh[0] + ".rx");
+    setAttr -lock true ($autoMapMesh[0] + ".ry");
+    setAttr -lock true ($autoMapMesh[0] + ".rz");
+    setAttr -lock true ($autoMapMesh[0] + ".sx");
+    setAttr -lock true ($autoMapMesh[0] + ".sy");
+    setAttr -lock true ($autoMapMesh[0] + ".sz");
+    //setAttr ($autoMapMesh[0]+".template") 1;
+    
+	//create UV set for Automap
+    //polyUVSet -currentUVSet -uvSet "autoMapUVs" $origMeshes;
+
+	//polyUVSet -delete -uvSet "autoMapUVs" $origMeshes;
+	polyUVSet -create -uvSet "autoMapUVs" $origMeshes;
+	polyUVSet -create -uvSet "autoMapUVs" $autoMapMesh[0];
+	polyUVSet -currentUVSet -uvSet "autoMapUVs" $origMeshes $autoMapMesh[0];
+
+
+    select -r $autoMapMesh[0];
+	performPolyAutoProj 0;
+    $projNode = `ls -sl`;
+   	setAttr  ($projNode[1] + ".tx") `getAttr ($autoMapMesh[0]+".rpx")`;
+	setAttr  ($projNode[1] + ".ty") `getAttr ($autoMapMesh[0]+".rpy")`;
+	setAttr  ($projNode[1] + ".tz") `getAttr ($autoMapMesh[0]+".rpz")`;
+	
+
+	for ($mesh in $origMeshes)
+	    {
+	    select -r $autoMapMesh[0];
+	    select -add $mesh;
+	    transferAttributes -transferPositions 0 -transferNormals 0 -transferUVs 1 -sourceUvSet "autoMapUVs" -targetUvSet "autoMapUVs" -transferColors 0 -sampleSpace 0 
+	                        -sourceUvSpace "autoMapUVs" -targetUvSpace "autoMapUVs" -searchMethod 3-flipUVs 0 -colorBorders 1 ;
+        }
+	    
+
+	setAttr ($projNode[1] + ".optimize") 1;      //Fewer pieces
+	setAttr ($projNode[1] + ".layoutMethod") 1;  //Shape
+	setAttr ($projNode[1] + ".layout") 2;        //Into square
+	setAttr ($projNode[1] + ".scaleMode") 1;     //Uniform
+
+
+    select -r $autoMapMesh[0];
+    select -addFirst $projNode[1];
+    
+    warning ("New Auto Map UV set created for multiple objects.  You will need to delete history on target object to bake live Automap projection.");
+    headsUpMessage -time 8.0 "Warning:  You will need to delete history on target objects in order to bake live Automap UV projection.";
+
+    // Obsolete - from original tool
+    /*
+	for ($object in $objects){
+		string $projection[] = `polyAutoProjection -pb 0 -ibd 1 -cm 0 -l 3 -sc 1 -o 0 -p 6 -ps 0.2 -ws 1 ($object + ".f[*]")`;
+		connectAttr -f ($controller + ".translate") ($projection[0] + ".translate");
+		connectAttr -f ($controller + ".rotate") ($projection[0] + ".rotate");
+		connectAttr -f ($controller + ".scale") ($projection[0] + ".scale");
+		connectAttr -f ($controller + ".pivot") ($projection[0] + ".pivot");
+		connectAttr -f ($controller + ".planes") ($projection[0] + ".planes");
+		connectAttr -f ($controller + ".optimize") ($projection[0] + ".optimize");
+		connectAttr -f ($controller + ".layoutMethod") ($projection[0] + ".layoutMethod");
+		connectAttr -f ($controller + ".layout") ($projection[0] + ".layout");
+		connectAttr -f ($controller + ".skipIntersect") ($projection[0] + ".skipIntersect");
+		connectAttr -f ($controller + ".percentageSpace") ($projection[0] + ".percentageSpace");
+		connectAttr -f ($controller + ".scaleMode") ($projection[0] + ".scaleMode");
+		connectAttr -f ($controller + ".projectBothDirections") ($projection[0] + ".projectBothDirections");
+	}
+
+	select -replace $objects;
+	select -add $controller;
+	*/
+}
+
+//bt_autoMapMultipleMeshes;

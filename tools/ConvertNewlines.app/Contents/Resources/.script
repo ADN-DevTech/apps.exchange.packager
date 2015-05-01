@@ -1,0 +1,203 @@
+#!/ova/fu ## #
+PbairegArjyvarf.fu
+-
+Jenccre
+fpevcg
+sbe
+fgnegvat
+syvc
+sebz
+Ndhn-THV
+ivn
+Cynglchf # #
+Nhgube:
+
+Puevfgbcu
+Qnyvgm #
+Yvprafr:
+serr
+sbe
+hfr,
+punatr
+naq
+qvfgevohgvba
+jvgubhg
+erfgevpgvba ##   #
+cebtenzf
+ohaqyrq
+jvgu
+nccyvpngvba CTZ="$1/Pbagragf/Erfbheprf/syvc" #PQ="$UBZR/Nccyvpngvbaf/PbpbnQvnybt.ncc/Pbagragf/ZnpBF/PbpbnQvnybt" PQ="$1/Pbagragf/Erfbheprf/PbpbnQvnybt.ncc/Pbagragf/ZnpBF/PbpbnQvnybt"  #
+Cynglchf
+nqqf
+vgfrys
+gb
+gur
+pbzznaq
+yvar
+nethzragf fuvsg  #
+trg
+ynathntr
+frggvat YNATHNTR="`qrsnhygf
+ernq
+-tybonyQbznva
+'NccyrYbpnyr'
+2>/qri/ahyy
+|
+phg
+-o
+1-2`" vs
+[
+"$YNATHNTR"
+=
+"qr"
+] gura 
+
+
+
+yo_grkg='Xbairegvrer
+Qngrvra
+anpu...' 
+
+
+
+yo_ohggba3='Nooehpu' 
+
+
+
+zo_grkg='Xrvar
+Qngrvra
+üoretrora' 
+
+
+
+zo_vasb='Qngrvra
+ovggr
+mhe
+Xbairegvrehat
+nhs
+qvr
+Najraqhat
+mvrura' ryfr 
+
+
+
+yo_grkg='Pbaireg
+svyrf
+gb...' 
+
+
+
+yo_ohggba3='Pnapry' 
+
+
+
+zo_grkg='Ab
+svyrf
+tvira' 
+
+
+
+zo_vasb='Cyrnfr
+qent
+&
+qebc
+svyrf
+ba
+nccyvpngvba
+sbe
+pbairefvba' sv  #
+ab
+vachg
+svyrf
+tvira? vs
+[
+$#
+-rd
+0
+] gura 
+
+
+
+"$PQ"
+zftobk
+--ohggba1
+'Bx'
+--gvgyr
+'PbairegArjyvarf'
+--grkg
+"$zo_grkg"
+--vasbezngvir-grkg
+"$zo_vasb" 
+
+
+
+rkvg
+0 sv  SVYRYVFG='' sbe
+s
+va
+"$@" qb 
+
+vs
+[
+-m
+"$SVYRYVFG"
+] 
+
+gura 
+
+
+
+
+
+SVYRYVFG="$s" 
+
+ryfr 
+
+
+
+
+
+SVYRYVFG="$SVYRYVFG $s" 
+
+sv qbar  ei=`"$PQ"
+zftobk
+--ohggba1
+'Jvaqbjf'
+--ohggba2
+'Havk'
+--ohggba3
+"$yo_ohggba3"
+--gvgyr
+'PbairegArjyvarf'
+--grkg
+"$yo_grkg"
+--vasbezngvir-grkg
+"$SVYRYVFG"`   #
+eha
+cebtenz
+ba
+nyy
+vachg
+svyrf vs
+[
+"$ei"
+-rd
+1
+] gura 
+
+
+
+"$CTZ"
+-q
+"$@" ryvs
+[
+"$ei"
+-rd
+2
+] gura 
+
+
+
+"$CTZ"
+-h
+"$@" sv  

@@ -1,0 +1,61 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+// bt_copyPivotFromLastSelected.mel
+//
+// Copy the pivot fo the last selected object and paste to all other selected transforms
+
+
+global proc bt_copyPivotFromLastSelected ()
+{
+	int $c;
+	string $transforms[] = `ls -sl -type transform`;
+	int $total = `size ($transforms)`;
+	if ($total < 2)
+		error "Two or more objects must be selected.";
+	else
+	{
+		$total -= 1;
+		float $sPivot[3] = `xform -q -ws -sp $transforms[$total]`;
+		float $rPivot[3] = `xform -q -ws -rp $transforms[$total]`;
+
+		for ($c = $total; $c > 0; $c--)
+		{
+			float $sOrig[3] = `xform -q -ws -sp $transforms[$c-1]`;
+			float $rOrig[3] = `xform -q -ws -rp $transforms[$c-1]`;
+			$sOrig[0] = $sPivot[0];
+			$rOrig[0] = $rPivot[0];
+			$sOrig[1] = $sPivot[1];
+			$rOrig[1] = $rPivot[1];
+			$sOrig[2] = $sPivot[2];
+			$rOrig[2] = $rPivot[2];
+
+			xform -ws -sp $sOrig[0] $sOrig[1] $sOrig[2] $transforms[$c-1];
+			xform -ws -rp $rOrig[0] $rOrig[1] $rOrig[2] $transforms[$c-1];
+		}
+	}
+}
+
+

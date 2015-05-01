@@ -1,0 +1,162 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// 
+//
+// fkikControlWindow.mel
+// cpam july 2004
+//
+// this script allows for a more friendly ik/fk animation control. AS the user
+// changes the selected object (ik or fk control) the ik blend attribute is
+// set appropriately and the controls are keyed with an ik/fk key.
+//
+// usage: load all the ik and fk controllers in to the window, transform the 
+// controls and ik fk keyframes will be set when the selection changes. The 
+// checkBox will toggle the setting of ik fk keys on and off.
+//
+// note: auto keyframe should be turned on for this to work
+
+
+global proc getFKIKControl(string $control){
+	string $selection[] = `ls -sl`;
+	string $controlString;
+	global string $gFKControls[];
+	global string $gIKControls[];
+	for ($object in $selection){
+		$controlString += $object;
+		$controlString += " ";
+	}
+	
+	if ($control == "FK"){
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			fkControlBtn;
+		$gFKControls = $selection;
+	}else{
+		textFieldButtonGrp -edit 
+			-text ($controlString) 
+			ikControlBtn;
+		$gIKControls = $selection;
+	}
+
+}
+
+global proc fkikControlSwitcherKeyer(){
+	string $selection[] = `ls -sl`;
+	global string $gFKControls[];
+	global string $gIKControls[];
+	float $newIkBlendValue;
+	float $oldIkBlendValue = `optionVar -q ikFKSwitchState`;
+	
+	string $intersection[];
+	string $fkikControlIntersector = `stringArrayIntersector`;
+ 	stringArrayIntersector -edit -intersect $gFKControls $fkikControlIntersector;
+ 	stringArrayIntersector -edit -intersect $selection $fkikControlIntersector;
+	$intersection = `stringArrayIntersector -query $fkikControlIntersector`;
+	if (`size $intersection`){
+		//do the fk thing
+		//print "\ndoing the fk thing";print $intersection;
+		$newIkBlendValue = 0;
+		if ($newIkBlendValue != $oldIkBlendValue){
+			ToggleFkIk;
+		}
+		SetIKFKKeyframe;
+	} else {
+		stringArrayIntersector -edit -reset $fkikControlIntersector;
+		stringArrayIntersector -edit -intersect $gIKControls $fkikControlIntersector;
+		stringArrayIntersector -edit -intersect $selection $fkikControlIntersector;
+		$intersection = `stringArrayIntersector -query $fkikControlIntersector`;
+		if (`size $intersection`){
+			//do the ik thing
+			//print "\ndoing the ik thing";print $intersection;
+			$newIkBlendValue = 1;
+			if ($newIkBlendValue != $oldIkBlendValue){
+				ToggleFkIk;
+			}
+		}
+		stringArrayIntersector -edit -reset $fkikControlIntersector;
+		for ($node in $intersection){
+			string $handle[] = `listConnections ($node + ".ikBlend")`;
+			//print "\nhandle: ";print $handle;
+			setAttr ($handle[0] + ".ikBlend") $newIkBlendValue;
+			}
+		SetIKFKKeyframe;
+	
+	}
+	
+}
+
+global proc int fkikControlScriptJob(){
+
+	global int $gFKIKControlSwitcherJobNum;
+	$gFKIKControlSwitcherJobNum = `scriptJob -e "SelectionChanged" "fkikControlSwitcherKeyer"`;
+	SetIKFKKeyframe;
+	return $gFKIKControlSwitcherJobNum ;
+
+}
+
+global proc fkikControlWindow(){
+
+	global int $gFKIKControlSwitcherJobNum;
+
+	//kill job if still running from last time
+	if ($gFKIKControlSwitcherJobNum != 0)
+		{scriptJob -k $gFKIKControlSwitcherJobNum;}
+	
+	if (`window -exists fkikControlWindow`)
+		{deleteUI -wnd fkikControlWindow;}
+
+	//$gFKIKControlSwitcherJobNum = `scriptJob -e "SelectionChanged" "fkikControlSwitcherKeyer"`;
+
+	window -t "FKIK Control Window" fkikControlWindow;
+		columnLayout -adj 1;
+		
+		textFieldButtonGrp -label "FK Controls" 
+			-buttonLabel "Set"
+			-buttonCommand "getFKIKControl FK"
+			-editable true
+			-annotation ("Specify the FK controls.")
+			fkControlBtn;
+		
+		textFieldButtonGrp -label "IK Controls" 
+			-buttonLabel "Set"
+			-buttonCommand "getFKIKControl IK"
+			-editable true
+			-annotation ("Specify the IK controls.")
+			ikControlBtn;
+		
+		checkBoxGrp
+			-numberOfCheckBoxes 1
+			-label "FKIK Keying"
+			-label1 "Enabled"
+			-onCommand1 "fkikControlScriptJob"
+			-offCommand1 "scriptJob -k $gFKIKControlSwitcherJobNum"
+			-value1 0
+			;
+
+		setParent ..;
+		button -l "Close and End FK/IK Switching and Keying"
+			-c "scriptJob -k $gFKIKControlSwitcherJobNum; deleteUI -wnd fkikControlWindow";
+
+	showWindow;
+	
+}

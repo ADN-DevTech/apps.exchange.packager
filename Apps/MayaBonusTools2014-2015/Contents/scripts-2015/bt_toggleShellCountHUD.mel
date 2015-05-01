@@ -1,0 +1,49 @@
+// Author:		Steven T. L. Roselle
+//
+// Last Update:        ( 04/01/14 )
+
+global proc int[] bt_shellCounter ()
+{
+	//Count number of shells in selected poly objects
+	//
+	string $names[] = `filterExpand -sm 12` ;  // polygon
+	int $scountSelected[0];
+	
+	if (`size( $names )`) 
+		$scountSelected = `polyEvaluate -s`;
+	else 
+		$scountSelected[0] = 0;
+	
+	return $scountSelected;
+}
+
+
+
+global proc bt_createShellCountHUD (){
+
+	//headsUpDisplay -rp 0 7;
+	
+	headsUpDisplay
+		-section          0
+		//-block            7
+		-b `headsUpDisplay -nfb  0`
+		-blockSize        "small"
+		-label            "Shells:"
+		-labelFontSize    "small"
+		-dataFontSize	    "small"
+		-command          "bt_shellCounter"
+		-event            "SelectionChanged"
+		-nodeChanges      "attributeChange"
+	HUDShellCounter;
+}
+
+
+global proc bt_toggleShellCountHUD ()
+{
+
+    if (`headsUpDisplay -ex HUDShellCounter`)
+	headsUpDisplay -rem HUDShellCounter;
+    else 
+        bt_createShellCountHUD;
+     	
+}

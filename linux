@@ -1,0 +1,44 @@
+#!/bin/bash
+
+rootAppDir=./Apps/
+Template=linuxPerMachine
+Version=2016
+
+function show_help {
+    printf "linux [-h] [-p <path>] [-t <template>] [-v <version>] <project>\n"
+    printf "\n"
+    printf "\t-p|--path\tPath to the directory containing the project root folder\n"
+    printf "\t\t\t(default is $rootAppDir)\n"
+    printf "\t-t|--template\tTemplate to use for packaging the project\n"
+    printf "\t\t\t(default is $Template)\n"
+    printf "\t-v|--version\tProduct version string\n"
+    printf "\t\t\t(default is $Version)\n"
+    printf "\t<project>\tFolder name of the project to package\n"
+    printf "\n"
+    printf "\t-h|--help\tThis message\n"
+    printf "\n"
+}
+
+# A POSIX variable
+OPTIND=1 # Reset in case getopts has been used previously in the shell.
+while getopts "h?p:t:v:" opt; do
+    case "$opt" in
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    p)  rootAppDir=$OPTARG
+        ;;
+    t)  Template=$OPTARG
+        ;;
+    v)  Version=$OPTARG
+        ;;
+    esac
+done
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+
+AppName=$@
+PackageSrc=$rootAppDir$AppName
+
+source ./scripts/build-linux

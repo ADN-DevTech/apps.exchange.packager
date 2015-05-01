@@ -1,0 +1,231 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+// 
+// 
+// Old
+//
+// bt_adjustClipPlanes.mel
+//
+// Update 01/26/11 to work with regular sliders
+
+
+/*
+global proc setClipPlane(string $attr, string $ff){
+
+float $val = `floatField -q -v $ff`;
+print "ff ";print $ff;print "\n";
+print "attr ";print $attr;print "\n";
+print "val ";print $val;print "\n";
+
+setAttr ($attr) $val;
+
+}
+*/
+
+global proc bt_changeClippingPlaneNear(int $source)
+{		
+	global string $bt_clipPlaneSliderName1;
+	
+	$value = `floatSlider -q -v $bt_clipPlaneSliderName1`;
+    $niceNumber = `bt_floatToNiceString $value`;	
+	
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;
+		
+		setAttr ($camShape[0]+".nearClipPlane") $niceNumber;
+			
+
+		}
+	else
+		warning ("Set active panel to a camera.");
+	
+}
+
+global proc bt_changeClippingPlaneFar(int $source)
+{		
+	global string $bt_clipPlaneSliderName2;
+	
+	$value = `intSlider -q -v $bt_clipPlaneSliderName2`;
+	
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;
+		
+		setAttr ($camShape[0]+".farClipPlane") $value;
+			
+
+		}
+	else
+		warning ("Set active panel to a camera.");
+	
+}
+
+
+global proc float bt_getClippingPlaneNear()
+{		
+
+	
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;
+		
+		return `getAttr ($camShape[0]+".nearClipPlane")`;
+			
+
+		}
+	else
+		{
+		//warning ("Set active panel to a camera.");
+		return 0.01;
+		}
+}
+
+
+
+
+global proc float bt_floatToNiceString(float $swFloat)
+{
+    //Convert long float value to shorter string
+    //
+
+    string $swReturn;
+    string $swPrintData[];
+
+    if (($swFloat < 0.000001) && ( $swFloat > -0.000001)) $swReturn = "0.000000";
+    else
+
+    		{
+        string $swTmp = $swFloat;
+        tokenize $swTmp "." $swPrintData;
+        if (size ($swPrintData) == 2)
+	{
+
+                $swPrintData[1] = $swPrintData[1] + "000";
+                $swReturn = $swPrintData[0] + "." + `substring $swPrintData[1] 1 3`;
+        }
+        else 
+		$swReturn = $swPrintData[0] + ".000";
+    }
+    //$swReturn = $niceString;
+    return $swReturn;
+}
+
+
+
+global proc float bt_getClippingPlaneFar()
+{		
+	$currentPanel = `getPanel -withFocus`;
+	if (`getPanel -typeOf $currentPanel` == "modelPanel")
+		{
+		$cam = `modelPanel -q -camera $currentPanel`;
+		$camShape = `listRelatives -shapes $cam`;
+		
+		return `getAttr ($camShape[0]+".farClipPlane")`;
+			
+
+		}
+	else
+		{
+		//warning ("Set active panel to a camera.");
+		return 1000;
+		}
+}
+
+
+global proc bt_adjustClipPlanes(){
+
+    global string $bt_clipPlaneSliderName1;
+    global string $bt_clipPlaneSliderName2;
+	string $panel = `getPanel -withFocus`;
+
+    if (`getPanel -typeOf $panel` != "modelPanel")	
+        error "A modeling panel must be active in order to adjust clipping planes.";
+	
+	string $camera = `modelPanel -q -camera $panel`;
+	string $shape[] = `listRelatives -c -type "camera" $camera`;
+
+
+	if( (`window -exists bt_adjutClipUI`) == true )
+	{
+		deleteUI bt_adjutClipUI;
+		windowPref -remove bt_adjutClipUI;
+	}
+	
+	window -title  ("Interactively adjust clipping planes for active camera/panel") bt_adjutClipUI;
+	columnLayout -w 600 ;	
+	//far
+	float $val = `getAttr ($shape[0] + ".nearClipPlane")`;
+	//string $ff1 = `floatField -v $val`;
+
+	//slider
+	//string $slider = `floatSlider2`;
+
+	//near
+	//string $ff2 = `floatField -v 1000`;
+	$val = `getAttr ($shape[0] + ".farClipPlane")`;
+
+
+
+	rowColumnLayout -numberOfColumns 2  -columnWidth 1 100 -columnWidth 2 500;
+	
+		separator -st none;separator -st none;
+		text -l "Near Clipping Plane " -al "center" -ann "Set Near clipping plane for camera in active panel : Close <-> Distant";
+		$clipSizeNear = `bt_getClippingPlaneNear`;
+		$bt_clipPlaneSliderName1 = `floatSlider -ann "Set Near clipping plane for camera in active panel : Close <-> Distant" -min 0.001 -max 10 -step 0.001 -value $clipSizeNear -cc "print (\"Near clipping plane set to \" + `bt_getClippingPlaneNear` + \" units.\\n\"); bt_changeClippingPlaneNear 1" -dc "print (\"Near clipping plane set to \" + `bt_getClippingPlaneNear` + \" units.\\n\"); undoInfo -swf 0; bt_changeClippingPlaneNear 1; undoInfo -swf 1"`;		
+
+		text -l "Far Clipping Plane " -al "center" -ann "Set far clipping plane for camera in active panel : Close <-> Distant";
+		$clipSizeFar = `bt_getClippingPlaneFar`;
+		$bt_clipPlaneSliderName2 = `intSlider -ann "Set far clipping plane for camera in active panel : Close <-> Distant" -min 5 -max 20000 -step 5 -value $clipSizeFar -cc "print (\"Far clipping plane set to \" + `bt_getClippingPlaneFar` + \" units.\\n\"); bt_changeClippingPlaneFar 1" -dc "print (\"Far clipping plane set to \" + `bt_getClippingPlaneFar` + \" units.\\n\"); undoInfo -swf 0; bt_changeClippingPlaneFar 1; undoInfo -swf 1"`;		
+    					
+
+
+	   //floatField -edit
+		//-v `getAttr ($shape[0] + ".nearClipPlane")`
+		//-cc `setClipPlane ($shape[0] + ".nearClipPlane") $ff1`
+		//$ff1;
+
+      //floatField -edit
+		//	-v `getAttr ($shape[0] + ".farClipPlane")`
+		//-cc `setClipPlane ($shape[0] + ".farClipPlane") $ff2`
+		//$ff2;
+		//*/
+		
+		setParent ..; // column
+
+	
+
+	showWindow bt_adjutClipUI;
+
+}
+
+
+
+
+

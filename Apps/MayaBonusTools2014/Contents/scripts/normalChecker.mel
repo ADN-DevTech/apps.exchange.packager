@@ -1,0 +1,139 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+
+proc copyTRS( string $source, string $dest)
+{
+	float $v[] = `getAttr ($source + ".translate")`;
+	setAttr -type double3 ($dest + ".translate") ($v[0]) ($v[1]) ($v[2]);
+	float $v[] = `getAttr ($source + ".rotate")`;
+	setAttr -type double3 ($dest + ".rotate") ($v[0]) ($v[1]) ($v[2]);
+	float $v[] = `getAttr ($source + ".scale")`;
+	setAttr -type double3 ($dest + ".scale") ($v[0]) ($v[1]) ($v[2]);
+}
+
+global proc normalChecker( )
+{
+	
+		string $selection[] = `ls-sl`;
+
+		string $shapes[];
+		string $inverse[];
+	
+		$shapes = `ls -v -ni -ut -sl -dag -type nurbsSurface -type mesh`;
+		
+	if (size($shapes)) {			// create red inverse surfaces
+	
+		string $inverseShadingGroup;
+		if (!`objExists "normalCheckRedShader"`) {
+			$inverseShader = `shadingNode -name "normalCheckRedShader" -asShader lambert`;
+			setAttr ($inverseShader +".color") -type double3 1 0 0 ;
+			$inverseShadingGroup =`sets -renderable true -noSurfaceShader true -empty -name ($inverseShader +"SG")`;
+			connectAttr -f ($inverseShader + ".outColor") ($inverseShadingGroup + ".surfaceShader");
+		} else $inverseShadingGroup = "normalCheckRedShaderSG";
+	
+		if (!`objExists "normalCheckLayer"`) {
+			createDisplayLayer -name "normalCheckLayer" -number 1 -empty;
+			setAttr normalCheckLayer.displayType 2;
+		}
+	
+	
+	
+		for ( $obj in $shapes ) 
+		{
+			// check, if this shape is connected to the inverseLayer (that means, it is an inverse)
+			if (!`isConnected normalCheckLayer.drawInfo ($obj + ".drawOverride")`) {
+				string $tmp[] = `listRelatives -p $obj`;
+				string $parent = $tmp[0];
+
+				string $inverse;
+				if ( `objectType $obj` == "nurbsSurface" ) 
+				{
+					// first check, if an inverse already exists
+					if (!`objExists ($obj + "_inverse")` || !`isConnected ($obj + ".worldSpace[0]") ($obj + "_inverse.create")`) {
+
+						$inverse =`createNode -n ($obj + "_inverse") nurbsSurface`;
+//						$inverse =`createNode -p $parent -n ($obj + "_inverse") nurbsSurface`;
+						connectAttr -f ($obj+ ".worldSpace[0]") ($inverse +".create");
+					}
+				} else {
+					// first check, if an inverse already exists
+					if (!`objExists ($obj + "_inverse")` || !`isConnected ($obj + ".outMesh") ($obj + "_inverse.inMesh")`) {
+
+						$inverse =`createNode -n ($obj + "_inverse") mesh`;
+//						$inverse =`createNode -p $parent -n ($obj + "_inverse") mesh`;
+						connectAttr -f ($obj + ".outMesh") ($inverse + ".inMesh");
+					}
+				}
+
+				// do we have a new inverse?
+				if (size($inverse)) {
+
+					string $tmp[] = `listRelatives -p $inverse`;
+					string $inverseParent = $tmp[0];
+					copyTRS( $parent, $inverseParent);
+
+					select $inverseParent;
+					layerEditorAddObjects normalCheckLayer;
+
+					// now set the new shape to be reverse (from whatever the orig ist)
+					setAttr ($obj + ".doubleSided") 0;
+					setAttr ($inverse + ".doubleSided") 0;
+
+					// set the opposite flag for the single side option
+					setAttr ($inverse + ".opposite") (!`getAttr ($obj + ".opposite")`);
+
+					// connecting it to the red shader
+					select -r $inverse;
+					sets -e -forceElement $inverseShadingGroup;
+				}
+			}
+		}
+
+	} else {			// delete red inverse surfaces, the layer and the red shader
+		if (`objExists "normalCheckLayer"`) {
+			layerEditorSelectObjects normalCheckLayer;
+
+			// set the original shapes back to "doublesided"
+			string $shapes[] = `ls -v -ni -ut -sl -dag -type nurbsSurface -type mesh`;
+			for ( $s in $shapes ) {
+				string $tmp[];
+				if ( `objectType $s` == "nurbsSurface" ) $tmp = `listConnections -s 1 -p 0 -sh 1 ($s + ".create")`;
+				else $tmp = `listConnections -s 1 -p 0 -sh 1 ($s + ".inMesh")`;
+				setAttr ($tmp[0] + ".doubleSided") 1;
+			}
+
+			if (size(`ls -sl`)) delete;
+			evalDeferred ("layerEditorDeleteLayer normalCheckLayer");
+		}
+
+		if (`objExists "normalCheckRedShader"`) {
+			string $tmp[] = `listConnections -d 1 "normalCheckRedShader.outColor"`;
+			$tmp = `ls -type shadingEngine $tmp`;
+			if (size($tmp)) delete $tmp;
+			delete normalCheckRedShader;
+		}
+	}
+
+	select -r $selection;
+
+}

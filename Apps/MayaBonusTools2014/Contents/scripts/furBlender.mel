@@ -1,0 +1,615 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// Fur Blender - take two existing fur descriptions and allow the user 
+// to blend between them and replace the characteristics of a third.
+
+// Style and Color can be blended separately.
+
+// Input is 3 surfaces with fur, 3 fur descriptions or 3 fur feedbacks - select the two sources first, then the destination.
+
+// By Jill Ramsay
+// 2005
+
+// Revision 1.5 - includes ability to save new preset
+
+global proc getFur()
+
+// Get fur descriptions from surfaces, directly from selection or from fur feedbacks.
+
+{
+	global string $gFurDescOne[];
+	global string $gFurDescTwo[];
+	global string $gFurDescThree[];
+	
+	string $selected[] = `ls -sl`;
+	if (`size $selected` != 3)
+	{ error "Please select three furry surfaces, fur feedbacks, or fur descriptions: two sources first and one destination last";}
+	
+	// Process selection according to whether it is a fur description, or a fur feedback or furry surface
+	
+	string $typeOfNode = `nodeType $selected[0]`;
+	if ($typeOfNode == "FurDescription"){
+		$gFurDescOne[0] = $selected[0];
+		$gFurDescTwo[0] = $selected[1];
+		$gFurDescThree[0] = $selected[2];
+		}
+
+	else {
+		string $shapes[] = `listRelatives -c $selected`;
+		$gFurDescOne = `listConnections -type FurDescription $shapes[0]`;
+		$gFurDescTwo = `listConnections -type FurDescription $shapes[1]`;
+		$gFurDescThree = `listConnections -type FurDescription $shapes[2]`;
+		}
+			
+   	// Check that selection is valid
+	
+	if (`size $gFurDescOne` == 0 || `size $gFurDescTwo` == 0 || `size $gFurDescThree` == 0)
+	{ error "Incorrect selection. Please select three furry surfaces, fur feedbacks, or fur descriptions: two sources first and one destination last.";}
+}
+
+global proc furMagiMixColor()
+
+// Blend color of fur descriptions together
+
+{  
+	global string $gFurDescOne[];
+	global string $gFurDescTwo[];
+	global string $gFurDescThree[];
+	
+	float $colorSliderValue = `floatSliderGrp -q -v furColorWidget`;
+
+//
+// Main Color Attributes
+//
+	
+	//Blend BaseColor
+	float $BaseColorOne[] = `getAttr ($gFurDescOne[0] + ".BaseColor")`;
+	float $BaseColorTwo[] = `getAttr ($gFurDescTwo[0] + ".BaseColor")`;
+	setAttr ($gFurDescThree[0] + ".BaseColor") 
+		(($BaseColorOne[0] * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseColorTwo[0]))
+		(($BaseColorOne[1] * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseColorTwo[1]))
+		(($BaseColorOne[2] * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseColorTwo[2]));
+		
+	//Blend TipColor
+	float $TipColorOne[] = `getAttr ($gFurDescOne[0] + ".TipColor")`;
+	float $TipColorTwo[] = `getAttr ($gFurDescTwo[0] + ".TipColor")`;
+	setAttr ($gFurDescThree[0] + ".TipColor") 
+		(($TipColorOne[0] * (1 - $colorSliderValue)) + ($colorSliderValue * $TipColorTwo[0]))
+		(($TipColorOne[1] * (1 - $colorSliderValue)) + ($colorSliderValue * $TipColorTwo[1]))
+		(($TipColorOne[2] * (1 - $colorSliderValue)) + ($colorSliderValue * $TipColorTwo[2]));
+
+	//Blend BaseAmbientColor
+	float $BaseAmbientColorOne[] = `getAttr ($gFurDescOne[0] + ".BaseAmbientColor")`;
+	float $BaseAmbientColorTwo[] = `getAttr ($gFurDescTwo[0] + ".BaseAmbientColor")`;
+	setAttr ($gFurDescThree[0] + ".BaseAmbientColor") 
+		(($BaseAmbientColorOne[0] * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseAmbientColorTwo[0]))
+		(($BaseAmbientColorOne[1] * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseAmbientColorTwo[1]))
+		(($BaseAmbientColorOne[2] * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseAmbientColorTwo[2]));	
+	
+	//Blend TipAmbientColor
+	float $TipAmbientColorOne[] = `getAttr ($gFurDescOne[0] + ".TipAmbientColor")`;
+	float $TipAmbientColorTwo[] = `getAttr ($gFurDescTwo[0] + ".TipAmbientColor")`;
+	setAttr ($gFurDescThree[0] + ".TipAmbientColor") 
+		(($TipAmbientColorOne[0] * (1 - $colorSliderValue)) + ($colorSliderValue * $TipAmbientColorTwo[0]))
+		(($TipAmbientColorOne[1] * (1 - $colorSliderValue)) + ($colorSliderValue * $TipAmbientColorTwo[1]))
+		(($TipAmbientColorOne[2] * (1 - $colorSliderValue)) + ($colorSliderValue * $TipAmbientColorTwo[2]));	
+		
+	//Blend SpecularColor
+	float $SpecularColorOne[] = `getAttr ($gFurDescOne[0] + ".SpecularColor")`;
+	float $SpecularColorTwo[] = `getAttr ($gFurDescTwo[0] + ".SpecularColor")`;
+	setAttr ($gFurDescThree[0] + ".SpecularColor") 
+		(($SpecularColorOne[0] * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularColorTwo[0]))
+		(($SpecularColorOne[1] * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularColorTwo[1]))
+		(($SpecularColorOne[2] * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularColorTwo[2]));	
+
+	//Blend SpecularSharpness
+	float $SpecularSharpnessOne = `getAttr ($gFurDescOne[0] + ".SpecularSharpness")`;
+	float $SpecularSharpnessTwo = `getAttr ($gFurDescTwo[0] + ".SpecularSharpness")`;
+	setAttr ($gFurDescThree[0] + ".SpecularSharpness") (($SpecularSharpnessOne * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularSharpnessTwo));
+	
+	//Blend BaseOpacity
+	float $BaseOpacityOne = `getAttr ($gFurDescOne[0] + ".BaseOpacity")`;
+	float $BaseOpacityTwo = `getAttr ($gFurDescTwo[0] + ".BaseOpacity")`;
+	setAttr ($gFurDescThree[0] + ".BaseOpacity") (($BaseOpacityOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseOpacityTwo));
+
+	//Blend TipOpacity
+	float $TipOpacityOne = `getAttr ($gFurDescOne[0] + ".TipOpacity")`;
+	float $TipOpacityTwo = `getAttr ($gFurDescTwo[0] + ".TipOpacity")`;
+	setAttr ($gFurDescThree[0] + ".TipOpacity") (($TipOpacityOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipOpacityTwo));
+
+//
+//	Noise Amplitude Color Attributes
+//
+
+	//Blend BaseColorNoise
+	float $BaseColorNoiseOne = `getAttr ($gFurDescOne[0] + ".BaseColorNoise")`;
+	float $BaseColorNoiseTwo = `getAttr ($gFurDescTwo[0] + ".BaseColorNoise")`;
+	setAttr ($gFurDescThree[0] + ".BaseColorNoise") (($BaseColorNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseColorNoiseTwo));
+		
+	//Blend TipColorNoise
+	float $TipColorNoiseOne = `getAttr ($gFurDescOne[0] + ".TipColorNoise")`;
+	float $TipColorNoiseTwo = `getAttr ($gFurDescTwo[0] + ".TipColorNoise")`;
+	setAttr ($gFurDescThree[0] + ".TipColorNoise") (($TipColorNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipColorNoiseTwo));
+
+	//Blend BaseAmbientColorNoise
+	float $BaseAmbientColorNoiseOne = `getAttr ($gFurDescOne[0] + ".BaseAmbientColorNoise")`;
+	float $BaseAmbientColorNoiseTwo = `getAttr ($gFurDescTwo[0] + ".BaseAmbientColorNoise")`;
+	setAttr ($gFurDescThree[0] + ".BaseAmbientColorNoise") (($BaseAmbientColorNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseAmbientColorNoiseTwo));
+	
+	//Blend TipAmbientColorNoise
+	float $TipAmbientColorNoiseOne = `getAttr ($gFurDescOne[0] + ".TipAmbientColorNoise")`;
+	float $TipAmbientColorNoiseTwo = `getAttr ($gFurDescTwo[0] + ".TipAmbientColorNoise")`;
+	setAttr ($gFurDescThree[0] + ".TipAmbientColorNoise") (($TipAmbientColorNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipAmbientColorNoiseTwo));
+		
+	//Blend SpecularColorNoise
+	float $SpecularColorNoiseOne = `getAttr ($gFurDescOne[0] + ".SpecularColorNoise")`;
+	float $SpecularColorNoiseTwo = `getAttr ($gFurDescTwo[0] + ".SpecularColorNoise")`;
+	setAttr ($gFurDescThree[0] + ".SpecularColorNoise") (($SpecularColorNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularColorNoiseTwo));
+
+	//Blend SpecularSharpnessNoise
+	float $SpecularSharpnessNoiseOne = `getAttr ($gFurDescOne[0] + ".SpecularSharpnessNoise")`;
+	float $SpecularSharpnessNoiseTwo = `getAttr ($gFurDescTwo[0] + ".SpecularSharpnessNoise")`;
+	setAttr ($gFurDescThree[0] + ".SpecularSharpnessNoise") (($SpecularSharpnessNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularSharpnessNoiseTwo));
+	
+	//Blend BaseOpacityNoise
+	float $BaseOpacityNoiseOne = `getAttr ($gFurDescOne[0] + ".BaseOpacityNoise")`;
+	float $BaseOpacityNoiseTwo = `getAttr ($gFurDescTwo[0] + ".BaseOpacityNoise")`;
+	setAttr ($gFurDescThree[0] + ".BaseOpacityNoise") (($BaseOpacityNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseOpacityNoiseTwo));
+
+	//Blend TipOpacityNoise
+	float $TipOpacityNoiseOne = `getAttr ($gFurDescOne[0] + ".TipOpacityNoise")`;
+	float $TipOpacityNoiseTwo = `getAttr ($gFurDescTwo[0] + ".TipOpacityNoise")`;
+	setAttr ($gFurDescThree[0] + ".TipOpacityNoise") (($TipOpacityNoiseOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipOpacityNoiseTwo));
+
+//
+//	Noise Frequency Color Attributes
+//
+
+	//Blend BaseColorNoiseFreq
+	float $BaseColorNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".BaseColorNoiseFreq")`;
+	float $BaseColorNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".BaseColorNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".BaseColorNoiseFreq") (($BaseColorNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseColorNoiseFreqTwo));
+		
+	//Blend TipColorNoiseFreq
+	float $TipColorNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".TipColorNoiseFreq")`;
+	float $TipColorNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".TipColorNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".TipColorNoiseFreq") (($TipColorNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipColorNoiseFreqTwo));
+
+	//Blend BaseAmbientColorNoiseFreq
+	float $BaseAmbientColorNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".BaseAmbientColorNoiseFreq")`;
+	float $BaseAmbientColorNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".BaseAmbientColorNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".BaseAmbientColorNoiseFreq") (($BaseAmbientColorNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseAmbientColorNoiseFreqTwo));
+	
+	//Blend TipAmbientColorNoiseFreq
+	float $TipAmbientColorNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".TipAmbientColorNoiseFreq")`;
+	float $TipAmbientColorNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".TipAmbientColorNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".TipAmbientColorNoiseFreq") (($TipAmbientColorNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipAmbientColorNoiseFreqTwo));
+		
+	//Blend SpecularColorNoiseFreq
+	float $SpecularColorNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".SpecularColorNoiseFreq")`;
+	float $SpecularColorNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".SpecularColorNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".SpecularColorNoiseFreq") (($SpecularColorNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularColorNoiseFreqTwo));
+
+	//Blend SpecularSharpnessNoiseFreq
+	float $SpecularSharpnessNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".SpecularSharpnessNoiseFreq")`;
+	float $SpecularSharpnessNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".SpecularSharpnessNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".SpecularSharpnessNoiseFreq") (($SpecularSharpnessNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $SpecularSharpnessNoiseFreqTwo));
+	
+	//Blend BaseOpacityNoiseFreq
+	float $BaseOpacityNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".BaseOpacityNoiseFreq")`;
+	float $BaseOpacityNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".BaseOpacityNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".BaseOpacityNoiseFreq") (($BaseOpacityNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $BaseOpacityNoiseFreqTwo));
+
+	//Blend TipOpacityNoiseFreq
+	float $TipOpacityNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".TipOpacityNoiseFreq")`;
+	float $TipOpacityNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".TipOpacityNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".TipOpacityNoiseFreq") (($TipOpacityNoiseFreqOne * (1 - $colorSliderValue)) + ($colorSliderValue * $TipOpacityNoiseFreqTwo));
+	
+	
+}
+
+
+global proc furMagiMixStyle()
+
+// Blend style of fur descriptions together
+
+{  
+	global string $gFurDescOne[];
+	global string $gFurDescTwo[];
+	global string $gFurDescThree[];
+	
+	float $styleSliderValue = `floatSliderGrp -q -v furStyleWidget`;
+	
+//	
+// Main Style Attributes	
+//
+
+	//Blend Length
+	float $LengthOne = `getAttr ($gFurDescOne[0] + ".Length")`;
+	float $LengthTwo = `getAttr ($gFurDescTwo[0] + ".Length")`;
+	setAttr ($gFurDescThree[0] + ".Length") (($LengthOne * (1 - $styleSliderValue)) + ($styleSliderValue * $LengthTwo));
+	
+	//Blend Baldness
+	float $BaldnessOne = `getAttr ($gFurDescOne[0] + ".Baldness")`;
+	float $BaldnessTwo = `getAttr ($gFurDescTwo[0] + ".Baldness")`;
+	setAttr ($gFurDescThree[0] + ".Baldness") (($BaldnessOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaldnessTwo));
+
+	//Blend Inclination
+	float $InclinationOne = `getAttr ($gFurDescOne[0] + ".Inclination")`;
+	float $InclinationTwo = `getAttr ($gFurDescTwo[0] + ".Inclination")`;
+	setAttr ($gFurDescThree[0] + ".Inclination") (($InclinationOne * (1 - $styleSliderValue)) + ($styleSliderValue * $InclinationTwo));	
+
+	//Blend Roll
+	float $RollOne = `getAttr ($gFurDescOne[0] + ".Roll")`;
+	float $RollTwo = `getAttr ($gFurDescTwo[0] + ".Roll")`;
+	setAttr ($gFurDescThree[0] + ".Roll") (($RollOne * (1 - $styleSliderValue)) + ($styleSliderValue * $RollTwo));	
+
+	//Blend Polar
+	float $PolarOne = `getAttr ($gFurDescOne[0] + ".Polar")`;
+	float $PolarTwo = `getAttr ($gFurDescTwo[0] + ".Polar")`;
+	setAttr ($gFurDescThree[0] + ".Polar") (($PolarOne * (1 - $styleSliderValue)) + ($styleSliderValue * $PolarTwo));	
+
+	//Blend BaseWidth
+	float $BaseWidthOne = `getAttr ($gFurDescOne[0] + ".BaseWidth")`;
+	float $BaseWidthTwo = `getAttr ($gFurDescTwo[0] + ".BaseWidth")`;
+	setAttr ($gFurDescThree[0] + ".BaseWidth") (($BaseWidthOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaseWidthTwo));
+
+	//Blend TipWidth
+	float $TipWidthOne = `getAttr ($gFurDescOne[0] + ".TipWidth")`;
+	float $TipWidthTwo = `getAttr ($gFurDescTwo[0] + ".TipWidth")`;
+	setAttr ($gFurDescThree[0] + ".TipWidth") (($TipWidthOne * (1 - $styleSliderValue)) + ($styleSliderValue * $TipWidthTwo));
+
+	//Blend BaseCurl
+	float $BaseCurlOne = `getAttr ($gFurDescOne[0] + ".BaseCurl")`;
+	float $BaseCurlTwo = `getAttr ($gFurDescTwo[0] + ".BaseCurl")`;
+	setAttr ($gFurDescThree[0] + ".BaseCurl") (($BaseCurlOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaseCurlTwo));
+
+	//Blend TipCurl
+	float $TipCurlOne = `getAttr ($gFurDescOne[0] + ".TipCurl")`;
+	float $TipCurlTwo = `getAttr ($gFurDescTwo[0] + ".TipCurl")`;
+	setAttr ($gFurDescThree[0] + ".TipCurl") (($TipCurlOne * (1 - $styleSliderValue)) + ($styleSliderValue * $TipCurlTwo));
+
+	//Blend Scraggle
+	float $ScraggleOne = `getAttr ($gFurDescOne[0] + ".Scraggle")`;
+	float $ScraggleTwo = `getAttr ($gFurDescTwo[0] + ".Scraggle")`;
+	setAttr ($gFurDescThree[0] + ".Scraggle") (($ScraggleOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleTwo));
+	
+	//Blend ScraggleFrequency
+	float $ScraggleFrequencyOne = `getAttr ($gFurDescOne[0] + ".ScraggleFrequency")`;
+	float $ScraggleFrequencyTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleFrequency")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleFrequency") (($ScraggleFrequencyOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleFrequencyTwo));	
+	
+	//Blend ScraggleCorrelation
+	float $ScraggleCorrelationOne = `getAttr ($gFurDescOne[0] + ".ScraggleCorrelation")`;
+	float $ScraggleCorrelationTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleCorrelation")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleCorrelation") (($ScraggleCorrelationOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleCorrelationTwo));	
+	
+	//Blend Clumping
+	float $ClumpingOne = `getAttr ($gFurDescOne[0] + ".Clumping")`;
+	float $ClumpingTwo = `getAttr ($gFurDescTwo[0] + ".Clumping")`;
+	setAttr ($gFurDescThree[0] + ".Clumping") (($ClumpingOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpingTwo));	
+	
+	//Blend ClumpingFrequency
+	float $ClumpingFrequencyOne = `getAttr ($gFurDescOne[0] + ".ClumpingFrequency")`;
+	float $ClumpingFrequencyTwo = `getAttr ($gFurDescTwo[0] + ".ClumpingFrequency")`;
+	setAttr ($gFurDescThree[0] + ".ClumpingFrequency") (($ClumpingFrequencyOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpingFrequencyTwo));	
+
+	//Blend ClumpShape
+	float $ClumpShapeOne = `getAttr ($gFurDescOne[0] + ".ClumpShape")`;
+	float $ClumpShapeTwo = `getAttr ($gFurDescTwo[0] + ".ClumpShape")`;
+	setAttr ($gFurDescThree[0] + ".ClumpShape") (($ClumpShapeOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpShapeTwo));	
+	
+	//Blend Segments
+	float $SegmentsOne = `getAttr ($gFurDescOne[0] + ".Segments")`;
+	float $SegmentsTwo = `getAttr ($gFurDescTwo[0] + ".Segments")`;
+	setAttr ($gFurDescThree[0] + ".Segments") (($SegmentsOne * (1 - $styleSliderValue)) + ($styleSliderValue * $SegmentsTwo));	
+	
+	//Blend Attraction
+	float $AttractionOne = `getAttr ($gFurDescOne[0] + ".Attraction")`;
+	float $AttractionTwo = `getAttr ($gFurDescTwo[0] + ".Attraction")`;
+	setAttr ($gFurDescThree[0] + ".Attraction") (($AttractionOne * (1 - $styleSliderValue)) + ($styleSliderValue * $AttractionTwo));	
+	
+	//Blend Offset
+	float $OffsetOne = `getAttr ($gFurDescOne[0] + ".Offset")`;
+	float $OffsetTwo = `getAttr ($gFurDescTwo[0] + ".Offset")`;
+	setAttr ($gFurDescThree[0] + ".Offset") (($OffsetOne * (1 - $styleSliderValue)) + ($styleSliderValue * $OffsetTwo));	
+
+	//Blend Density (special case - does not have Noise attributes)
+	int $DensityOne = `getAttr ($gFurDescOne[0] + ".Density")`;
+	int $DensityTwo = `getAttr ($gFurDescTwo[0] + ".Density")`;
+	setAttr ($gFurDescThree[0] + ".Density") (($DensityOne * (1 - $styleSliderValue)) + ($styleSliderValue * $DensityTwo));	
+	
+//
+// Noise Amplitude Style Attributes	
+//
+
+	//Blend LengthNoise
+	float $LengthNoiseOne = `getAttr ($gFurDescOne[0] + ".LengthNoise")`;
+	float $LengthNoiseTwo = `getAttr ($gFurDescTwo[0] + ".LengthNoise")`;
+	setAttr ($gFurDescThree[0] + ".LengthNoise") (($LengthNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $LengthNoiseTwo));
+	
+	//Blend BaldnessNoise
+	float $BaldnessNoiseOne = `getAttr ($gFurDescOne[0] + ".BaldnessNoise")`;
+	float $BaldnessNoiseTwo = `getAttr ($gFurDescTwo[0] + ".BaldnessNoise")`;
+	setAttr ($gFurDescThree[0] + ".BaldnessNoise") (($BaldnessNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaldnessNoiseTwo));
+
+	//Blend InclinationNoise
+	float $InclinationNoiseOne = `getAttr ($gFurDescOne[0] + ".InclinationNoise")`;
+	float $InclinationNoiseTwo = `getAttr ($gFurDescTwo[0] + ".InclinationNoise")`;
+	setAttr ($gFurDescThree[0] + ".InclinationNoise") (($InclinationNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $InclinationNoiseTwo));	
+
+	//Blend RollNoise
+	float $RollNoiseOne = `getAttr ($gFurDescOne[0] + ".RollNoise")`;
+	float $RollNoiseTwo = `getAttr ($gFurDescTwo[0] + ".RollNoise")`;
+	setAttr ($gFurDescThree[0] + ".RollNoise") (($RollNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $RollNoiseTwo));	
+
+	//Blend PolarNoise
+	float $PolarNoiseOne = `getAttr ($gFurDescOne[0] + ".PolarNoise")`;
+	float $PolarNoiseTwo = `getAttr ($gFurDescTwo[0] + ".PolarNoise")`;
+	setAttr ($gFurDescThree[0] + ".PolarNoise") (($PolarNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $PolarNoiseTwo));	
+
+	//Blend BaseWidthNoise
+	float $BaseWidthNoiseOne = `getAttr ($gFurDescOne[0] + ".BaseWidthNoise")`;
+	float $BaseWidthNoiseTwo = `getAttr ($gFurDescTwo[0] + ".BaseWidthNoise")`;
+	setAttr ($gFurDescThree[0] + ".BaseWidthNoise") (($BaseWidthNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaseWidthNoiseTwo));
+
+	//Blend TipWidthNoise
+	float $TipWidthNoiseOne = `getAttr ($gFurDescOne[0] + ".TipWidthNoise")`;
+	float $TipWidthNoiseTwo = `getAttr ($gFurDescTwo[0] + ".TipWidthNoise")`;
+	setAttr ($gFurDescThree[0] + ".TipWidthNoise") (($TipWidthNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $TipWidthNoiseTwo));
+
+	//Blend BaseCurlNoise
+	float $BaseCurlNoiseOne = `getAttr ($gFurDescOne[0] + ".BaseCurlNoise")`;
+	float $BaseCurlNoiseTwo = `getAttr ($gFurDescTwo[0] + ".BaseCurlNoise")`;
+	setAttr ($gFurDescThree[0] + ".BaseCurlNoise") (($BaseCurlNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaseCurlNoiseTwo));
+
+	//Blend TipCurlNoise
+	float $TipCurlNoiseOne = `getAttr ($gFurDescOne[0] + ".TipCurlNoise")`;
+	float $TipCurlNoiseTwo = `getAttr ($gFurDescTwo[0] + ".TipCurlNoise")`;
+	setAttr ($gFurDescThree[0] + ".TipCurlNoise") (($TipCurlNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $TipCurlNoiseTwo));
+
+	//Blend ScraggleNoise
+	float $ScraggleNoiseOne = `getAttr ($gFurDescOne[0] + ".ScraggleNoise")`;
+	float $ScraggleNoiseTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleNoise")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleNoise") (($ScraggleNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleNoiseTwo));
+	
+	//Blend ScraggleFrequencyNoise
+	float $ScraggleFrequencyNoiseOne = `getAttr ($gFurDescOne[0] + ".ScraggleFrequencyNoise")`;
+	float $ScraggleFrequencyNoiseTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleFrequencyNoise")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleFrequencyNoise") (($ScraggleFrequencyNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleFrequencyNoiseTwo));	
+	
+	//Blend ScraggleCorrelationNoise
+	float $ScraggleCorrelationNoiseOne = `getAttr ($gFurDescOne[0] + ".ScraggleCorrelationNoise")`;
+	float $ScraggleCorrelationNoiseTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleCorrelationNoise")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleCorrelationNoise") (($ScraggleCorrelationNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleCorrelationNoiseTwo));	
+	
+	//Blend ClumpingNoise
+	float $ClumpingNoiseOne = `getAttr ($gFurDescOne[0] + ".ClumpingNoise")`;
+	float $ClumpingNoiseTwo = `getAttr ($gFurDescTwo[0] + ".ClumpingNoise")`;
+	setAttr ($gFurDescThree[0] + ".ClumpingNoise") (($ClumpingNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpingNoiseTwo));	
+	
+	//Blend ClumpingFrequencyNoise
+	float $ClumpingFrequencyNoiseOne = `getAttr ($gFurDescOne[0] + ".ClumpingFrequencyNoise")`;
+	float $ClumpingFrequencyNoiseTwo = `getAttr ($gFurDescTwo[0] + ".ClumpingFrequencyNoise")`;
+	setAttr ($gFurDescThree[0] + ".ClumpingFrequencyNoise") (($ClumpingFrequencyNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpingFrequencyNoiseTwo));	
+
+	//Blend ClumpShapeNoise
+	float $ClumpShapeNoiseOne = `getAttr ($gFurDescOne[0] + ".ClumpShapeNoise")`;
+	float $ClumpShapeNoiseTwo = `getAttr ($gFurDescTwo[0] + ".ClumpShapeNoise")`;
+	setAttr ($gFurDescThree[0] + ".ClumpShapeNoise") (($ClumpShapeNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpShapeNoiseTwo));	
+	
+	//Blend SegmentsNoise
+	float $SegmentsNoiseOne = `getAttr ($gFurDescOne[0] + ".SegmentsNoise")`;
+	float $SegmentsNoiseTwo = `getAttr ($gFurDescTwo[0] + ".SegmentsNoise")`;
+	setAttr ($gFurDescThree[0] + ".SegmentsNoise") (($SegmentsNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $SegmentsNoiseTwo));	
+	
+	//Blend AttractionNoise
+	float $AttractionNoiseOne = `getAttr ($gFurDescOne[0] + ".AttractionNoise")`;
+	float $AttractionNoiseTwo = `getAttr ($gFurDescTwo[0] + ".AttractionNoise")`;
+	setAttr ($gFurDescThree[0] + ".AttractionNoise") (($AttractionNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $AttractionNoiseTwo));	
+	
+	//Blend OffsetNoise
+	float $OffsetNoiseOne = `getAttr ($gFurDescOne[0] + ".OffsetNoise")`;
+	float $OffsetNoiseTwo = `getAttr ($gFurDescTwo[0] + ".OffsetNoise")`;
+	setAttr ($gFurDescThree[0] + ".OffsetNoise") (($OffsetNoiseOne * (1 - $styleSliderValue)) + ($styleSliderValue * $OffsetNoiseTwo));	
+	
+//	
+// Noise Frequency Style Attributes	
+//
+
+	//Blend LengthNoiseFreq
+	float $LengthNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".LengthNoiseFreq")`;
+	float $LengthNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".LengthNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".LengthNoiseFreq") (($LengthNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $LengthNoiseFreqTwo));
+	
+	//Blend BaldnessNoiseFreq
+	float $BaldnessNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".BaldnessNoiseFreq")`;
+	float $BaldnessNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".BaldnessNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".BaldnessNoiseFreq") (($BaldnessNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaldnessNoiseFreqTwo));
+
+	//Blend InclinationNoiseFreq
+	float $InclinationNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".InclinationNoiseFreq")`;
+	float $InclinationNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".InclinationNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".InclinationNoiseFreq") (($InclinationNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $InclinationNoiseFreqTwo));	
+
+	//Blend RollNoiseFreq
+	float $RollNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".RollNoiseFreq")`;
+	float $RollNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".RollNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".RollNoiseFreq") (($RollNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $RollNoiseFreqTwo));	
+
+	//Blend PolarNoiseFreq
+	float $PolarNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".PolarNoiseFreq")`;
+	float $PolarNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".PolarNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".PolarNoiseFreq") (($PolarNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $PolarNoiseFreqTwo));	
+
+	//Blend BaseWidthNoiseFreq
+	float $BaseWidthNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".BaseWidthNoiseFreq")`;
+	float $BaseWidthNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".BaseWidthNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".BaseWidthNoiseFreq") (($BaseWidthNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaseWidthNoiseFreqTwo));
+
+	//Blend TipWidthNoiseFreq
+	float $TipWidthNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".TipWidthNoiseFreq")`;
+	float $TipWidthNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".TipWidthNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".TipWidthNoiseFreq") (($TipWidthNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $TipWidthNoiseFreqTwo));
+
+	//Blend BaseCurlNoiseFreq
+	float $BaseCurlNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".BaseCurlNoiseFreq")`;
+	float $BaseCurlNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".BaseCurlNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".BaseCurlNoiseFreq") (($BaseCurlNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $BaseCurlNoiseFreqTwo));
+
+	//Blend TipCurlNoiseFreq
+	float $TipCurlNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".TipCurlNoiseFreq")`;
+	float $TipCurlNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".TipCurlNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".TipCurlNoiseFreq") (($TipCurlNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $TipCurlNoiseFreqTwo));
+
+	//Blend ScraggleNoiseFreq
+	float $ScraggleNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".ScraggleNoiseFreq")`;
+	float $ScraggleNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleNoiseFreq") (($ScraggleNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleNoiseFreqTwo));
+	
+	//Blend ScraggleFrequencyNoiseFreq
+	float $ScraggleFrequencyNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".ScraggleFrequencyNoiseFreq")`;
+	float $ScraggleFrequencyNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleFrequencyNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleFrequencyNoiseFreq") (($ScraggleFrequencyNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleFrequencyNoiseFreqTwo));	
+	
+	//Blend ScraggleCorrelationNoiseFreq
+	float $ScraggleCorrelationNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".ScraggleCorrelationNoiseFreq")`;
+	float $ScraggleCorrelationNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".ScraggleCorrelationNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".ScraggleCorrelationNoiseFreq") (($ScraggleCorrelationNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ScraggleCorrelationNoiseFreqTwo));	
+	
+	//Blend ClumpingNoiseFreq
+	float $ClumpingNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".ClumpingNoiseFreq")`;
+	float $ClumpingNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".ClumpingNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".ClumpingNoiseFreq") (($ClumpingNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpingNoiseFreqTwo));	
+	
+	//Blend ClumpingFrequencyNoiseFreq
+	float $ClumpingFrequencyNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".ClumpingFrequencyNoiseFreq")`;
+	float $ClumpingFrequencyNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".ClumpingFrequencyNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".ClumpingFrequencyNoiseFreq") (($ClumpingFrequencyNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpingFrequencyNoiseFreqTwo));	
+
+	//Blend ClumpShapeNoiseFreq
+	float $ClumpShapeNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".ClumpShapeNoiseFreq")`;
+	float $ClumpShapeNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".ClumpShapeNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".ClumpShapeNoiseFreq") (($ClumpShapeNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $ClumpShapeNoiseFreqTwo));	
+	
+	//Blend SegmentsNoiseFreq
+	float $SegmentsNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".SegmentsNoiseFreq")`;
+	float $SegmentsNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".SegmentsNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".SegmentsNoiseFreq") (($SegmentsNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $SegmentsNoiseFreqTwo));	
+	
+	//Blend AttractionNoiseFreq
+	float $AttractionNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".AttractionNoiseFreq")`;
+	float $AttractionNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".AttractionNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".AttractionNoiseFreq") (($AttractionNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $AttractionNoiseFreqTwo));	
+	
+	//Blend OffsetNoiseFreq
+	float $OffsetNoiseFreqOne = `getAttr ($gFurDescOne[0] + ".OffsetNoiseFreq")`;
+	float $OffsetNoiseFreqTwo = `getAttr ($gFurDescTwo[0] + ".OffsetNoiseFreq")`;
+	setAttr ($gFurDescThree[0] + ".OffsetNoiseFreq") (($OffsetNoiseFreqOne * (1 - $styleSliderValue)) + ($styleSliderValue * $OffsetNoiseFreqTwo));	
+	
+	
+	}
+
+	
+global proc furBlender()
+{
+	global string $gFurDescOne[];
+	global string $gFurDescTwo[];
+	global string $gFurDescThree[];
+
+	getFur;
+	
+	// Create Fur Blender UI
+
+	if (`window -exists furBlendWnd`)
+	{ deleteUI furBlendWnd;}
+
+	{
+		window 
+		-title "Fur Blender"
+		-resizeToFitChildren 1
+		furBlendWnd;
+		
+			setParent furBlendWnd;
+			
+			formLayout furBlendForm;
+
+        	rowLayout 
+        	-numberOfColumns 1 
+        	-columnWidth 1 120 
+        	furBlendRow;
+        	
+        	setParent furBlendForm;
+			
+			
+        	button savePresetButton;
+        	button closeButton;
+				
+			columnLayout furBlendCol;
+
+        		floatSliderGrp
+				-label "Color"
+				-field 1
+				-min 0.0
+				-max 1.0
+				-cc "furMagiMixColor"
+				furColorWidget;
+
+        		floatSliderGrp
+				-label "Style"
+				-field 1
+				-min 0.0
+				-max 1.0
+				-cc "furMagiMixStyle"
+				furStyleWidget;
+        		
+        		formLayout -e 
+				-attachForm 	furBlendCol "top" 5 
+				-attachForm 	furBlendCol "left" 5
+				-attachControl 	furBlendCol "bottom" 5 closeButton
+				-attachForm 	furBlendCol "right" 5
+				
+				-attachNone     savePresetButton     "top"
+ 				-attachForm     savePresetButton     "left"   5
+ 				-attachForm     savePresetButton     "bottom" 5
+				-attachControl  savePresetButton     "right"  5 closeButton
+ 		
+				-attachNone     closeButton     "top"
+				-attachPosition closeButton     "left"   0 50
+				-attachForm     closeButton     "bottom" 5
+				-attachForm     closeButton     "right"  5
+		
+				furBlendForm;
+				
+				button -edit -label "Save Preset" -command "saveAttrPresetWin $gFurDescThree[0]" savePresetButton;
+				button -edit -label "Close" -command "deleteUI furBlendWnd" closeButton;
+     }
+	showWindow furBlendWnd;
+	
+	// Set initial slider values to 0.5
+	floatSliderGrp -e -v 0.5 furColorWidget;
+	floatSliderGrp -e -v 0.5 furStyleWidget;
+	
+	// Run procs to get initial blend
+	furMagiMixColor;
+	furMagiMixStyle;
+}

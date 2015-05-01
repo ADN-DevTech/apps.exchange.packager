@@ -1,0 +1,161 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// bgIsometricRender.mel
+
+
+
+global proc isometricPreRender(string $roots[], string $worldNode){
+
+	for ($root in $roots){
+		parent -relative $root $worldNode;
+	}
+
+}
+
+
+global proc isometricPostRender(string $roots[]){
+
+	for ($root in $roots){
+		parent -world -relative $root;
+	}
+
+}
+
+//	global proc bgIsometricRender
+//		renders the current view as if it were an isometric projection
+//
+//		The rendered view should be an orthographic window - the
+//		default is for the front window. To render from a different
+//		window, change the shear attributes on the IsometricWorldNode
+//
+//		The resolution gate for orthographic does not work well. To get
+//		an idea of the resolution gate for an orthographic view, 
+//		Panels->Tear Off or Tear Off Copy. Then apply some MEL:
+//
+//			lsUI -windows;	//lists all the current windows
+//
+//		The freshly torn off window will likely be at the end of the 
+//		list with a name like "modelPanel6Window". Edit the window's
+//		width and height. The width and height may be calculated as 
+//		follows:
+//
+//			width = x resolution + 12
+//			height = y resolution + 52
+//
+//		To determine the windows current width and height:
+//
+//			window -query -width modelPanel6Window;
+//			window -query -height modelPanel6Window;
+//
+//		To set the width and height (for a 320x240 render):
+//
+//			window -edit -width 332 modelPanel6Window;
+//			window -edit -height 292 modelPanel6Window;	
+//
+//	string $operation: the operation to perform
+//		preview: parent the nodes under the IsometricWorldNode
+//				so the render is visible
+//		reset: unparent the nodes from under the IsometricWorldNode
+//				so that's it's easy to work
+//		render: preview, render the current view and reset
+//
+//	The isometric "look" is a result of adjusting the shear attributes
+//	on the IsometricWorldNode. The default values are:
+//		Shear XY: 0
+//		Shear XZ: -0.5
+//		Shear YZ: -0.5
+//	This results in a perspective that is viewable in the front window
+//	that recedes to the upper right. To reced to the upper left in the 
+//	front window, set the values as follows:
+//		Shear XY: 0
+//		Shear XZ: 0.5
+//		Shear YZ: -0.5
+
+
+global proc bgIsometricRender(string $operation){
+	global string $gWorldNode;
+	global string $gWorldSet;
+	//global string $gWorldScriptJob;
+
+	string $worldNode[] = `ls IsometricWorldNode`;
+	string $worldSet[] = `ls IsometricWorldSet`;
+
+	if (size ($worldNode) == 1 && $gWorldNode == ""){
+		$gWorldNode = "IsometricWorldNode";
+	}
+
+	//	create node and set in case they don't exist
+	if ($gWorldNode == ""){
+		$gWorldNode = `createNode transform -name IsometricWorldNode`;
+		setAttr -keyable true ($gWorldNode + ".shearXY");
+		setAttr -keyable true ($gWorldNode + ".shearXZ");
+		setAttr -keyable true ($gWorldNode + ".shearYZ");
+		setAttr ($gWorldNode + ".shearXZ") -0.5;
+		setAttr ($gWorldNode + ".shearYZ") -0.5;
+	}
+
+	if (size ($worldSet) == 1 && $gWorldSet == ""){
+		$gWorldSet = "IsometricWorldSet";
+	}
+
+	if ($gWorldSet == ""){
+		$gWorldSet = `sets -name IsometricWorldSet -empty`;
+	}
+	//	edit set membership - user may have changed it
+	//	add root of all hierarchies
+	sets -edit -addElement $gWorldSet `ls -assemblies`;
+	//	add lights
+	select -replace `ls -lights`;
+	pickWalk -direction up;
+	sets -edit -addElement $gWorldSet `ls -selection`;
+	//	remove any cameras from the set
+	select -replace `ls -cameras`; 
+	pickWalk -direction up;
+	sets -remove $gWorldSet `ls -selection`;
+	sets -remove $gWorldSet $gWorldNode;
+
+	string $roots[] = `sets -query $gWorldSet`;
+
+	//	preRender
+	if ($operation == "preview" || $operation == "render"){
+		isometricPreRender $roots $gWorldNode;
+	}
+
+	//	render
+	if ($operation == "render"){
+		RenderIntoNewWindow;
+	}
+
+	// postRender
+	if ($operation == "reset" || $operation == "render"){
+		isometricPostRender $roots;
+	}
+
+	//	scriptJob resets global variables on scene open 
+	global int $gIsometricRenderScriptJob;
+	if ($gIsometricRenderScriptJob == 0){
+		$gIsometricRenderScriptJob = `scriptJob -protected 
+			-event "SceneOpened" 
+			"$gWorldNode = \"\"; $gWorldSet = \"\""`;
+	}
+}
+

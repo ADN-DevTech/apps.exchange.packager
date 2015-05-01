@@ -1,0 +1,375 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+/*
+ |
+ |	 Source: publish.mel 
+ |
+ |   Author: jschleifer 
+ |   Date: 1999/06/24
+ |	 Modified: March 2003, CPAM (tweaked UI)
+ |
+ |   Original Author:
+ |       Jason Schleifer
+ |
+ |   Description:
+ |		 Creates a "publish" popup in the channel box which
+ |		 allows the user to have quick access to making connections on
+ |		 certain attributes.
+ |	
+ |	 Usage:
+ |		 Select an attribute you want to access elsewhere in the system
+ |		 and ctrl-click with the right mouse button to bring up the publish menu 
+ |
+ |		 To get the menu to appear, place the script in your scripts directory,
+ |		 and put the following line in your userSetup.mel
+ |
+ |			publish;
+ |
+ |
+ */
+
+global proc int aMatch (string $regExpr, string $array[])
+{
+	// this proc returns a 1 if the $regExpr is in the array, 0 if not.
+	int $return = 0;
+	for ($item in $array)
+		if ($item == $regExpr)
+		{
+			$return = 1;
+			break;
+		}
+	return ($return);
+}
+global proc clearPublishAttr ()
+{
+	global string $gPublishedObjects[];
+	clear ($gPublishedObjects);
+	savePublishAttr;
+
+}
+global proc removePublishAttr (string $objAttr)
+{
+	global string $gPublishedObjects[];
+	string $tmpPublishedObjects[];
+
+	int $count = 0;
+	for ($obj in $gPublishedObjects)
+	{
+		if ($obj != $objAttr)
+		{
+			$tmpPublishedObjects[$count] = $obj;
+			$count++;
+		}
+	}
+	clear ($gPublishedObjects);
+	$count = 0;
+	for ($tmp in $tmpPublishedObjects)
+	{
+		$gPublishedObjects[$count] = $tmp;
+		$count++;
+	}
+	clear ($tmpPublishedObjects);
+
+	savePublishAttr;
+}
+global proc savePublishAttr ()
+{
+	global string $gPublishedObjects[];
+	// now check and see if there is already a scriptNode for publishing attributes
+	$foo = `ls publishAttrScriptNode`;
+	if (size($foo) == 0)
+	{	
+		scriptNode -scriptType 2 -n "publishAttrScriptNode";
+	}
+	$script = "{";
+	int $max = `size($gPublishedObjects)`;
+	
+	for ($x=0; $x < $max; $x++)
+	{
+		$script = ($script + " \"" + $gPublishedObjects[$x]+"\"" );
+		if ($x < $max-1)
+			$script = ($script + ",");	
+	}
+	$script = ($script + "}");
+	scriptNode -e -bs ("global string $gPublishedObjects[0]; $gPublishedObjects = " + $script + ";") publishAttrScriptNode;
+
+}
+global proc publishAttr (string $objAttr)
+{
+	// this proc actually saves the published objectAttr into a script node for 
+	// use later
+
+	global string $gPublishedObjects[];
+
+	// check and see if $objAttr already exists in $gPublishedObjects
+	if (!`aMatch $objAttr $gPublishedObjects`)	
+	{
+		$size = size($gPublishedObjects);
+		$gPublishedObjects[$size] = $objAttr;
+		print ("// Result: " +$objAttr + " is published.\n");
+	}
+	else
+	{
+		warning ($objAttr + " is already published.\n");	
+	}
+	savePublishAttr;
+}
+global proc makeConnection (string $input, string $output)
+{
+	if ($input != $output)
+		connectAttr -f $input $output;
+	else
+		warning ("You can't connect " + $input + " to itself!\n");
+}
+global proc connectPublishAttr (string $objAttr)
+{
+	// this procedure finds out what attributes are selected, and tries to connect
+	// them to the $objAttr
+
+	// first find out what object/attributes are selected
+	string $objList[] = `channelBox -q -mainObjectList mainChannelBox`;
+	string $attrList[] = `channelBox -q -selectedMainAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			makeConnection $objAttr ($obj+"."+$attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+
+	$objList = `channelBox -q -shapeObjectList mainChannelBox`;
+	$attrList = `channelBox -q -selectedShapeAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			makeConnection  $objAttr ($obj+"."+$attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+
+	$objList = `channelBox -q -historyObjectList mainChannelBox`;
+	$attrList = `channelBox -q -selectedHistoryAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			makeConnection $objAttr ($obj+"."+$attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+
+	$objList = `channelBox -q -outputObjectList mainChannelBox`;
+	$attrList = `channelBox -q -selectedOutputAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			makeConnection $objAttr ($obj+"."+$attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+}
+global proc publishSelectedAttr ()
+{
+	// this procedure finds the selected attribute and then publishes it
+	
+	// first find out what object/attributes are selected
+	string $objList[] = `channelBox -q -mainObjectList mainChannelBox`;
+	string $attrList[] = `channelBox -q -selectedMainAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			publishAttr ($obj + "." + $attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+
+	$objList = `channelBox -q -shapeObjectList mainChannelBox`;
+	$attrList = `channelBox -q -selectedShapeAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			publishAttr ($obj + "." + $attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+
+	$objList = `channelBox -q -historyObjectList mainChannelBox`;
+	$attrList = `channelBox -q -selectedHistoryAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			publishAttr ($obj + "." + $attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+
+	$objList = `channelBox -q -outputObjectList mainChannelBox`;
+	$attrList = `channelBox -q -selectedOutputAttributes mainChannelBox`;
+
+	for ($obj in $objList)
+	{
+		for ($attr in $attrList)
+		{
+			publishAttr ($obj + "." + $attr);
+		}
+	}
+	clear ($objList);
+	clear ($attrList);
+}
+
+global proc enableDisablePublishMenu ( string $parent)
+{
+	// enables or disables menu items in the publish menu, based
+	// on whether channels are selected or not.
+	int $channelsSelected = `selectedChannels`;
+	global string $gPublishedObjects[];
+
+	menuItem -e -enable $channelsSelected ($parent + "|publishAttrMenuItem"); 
+	menuItem -e -enable $channelsSelected ($parent + "|connectToMenuItem"); 
+		if (size($gPublishedObjects) > 0)
+		{
+			menuItem -e -enable 1 connectToMenuItem;
+			menuItem -e -enable 1 removePublishedMenuItem;
+		}
+		else
+		{
+			menuItem -e -enable 0 connectToMenuItem;
+			menuItem -e -enable 0 removePublishedMenuItem;
+		}
+}
+global proc buildPublishedList (string $parent)
+{
+	global string $gPublishedObjects[];
+	setParent -m $parent;
+	menu -e -dai $parent;	
+	if ($parent != "connectToMenuItem")
+	{
+		menuItem -l "Remove All Drivers" 
+			-c "clearPublishAttr" 
+			removeAllPubMenuItem;
+		if (size($gPublishedObjects) > 0)
+		{
+			menuItem -e -enable 1 removeAllPubMenuItem;
+		}
+		else
+		{
+			menuItem -e -enable 0 removeAllPubMenuItem;
+		}
+		menuItem -d true;
+	}
+	for ($obj in $gPublishedObjects)
+	{
+		$tmp = `menuItem -l $obj`;
+		if ($parent == "connectToMenuItem")
+		{
+			// when they choose an item make the connect command happen
+			$objAttr = `menuItem -q -l $tmp`;
+			menuItem -e -c ("connectPublishAttr " + $objAttr) $tmp;	
+		}
+		else
+		{
+			// when they choose an item remove the published attribute
+			$objAttr = `menuItem -q -l $tmp`;
+			menuItem -e -c ("removePublishAttr " + $objAttr) $tmp;
+		}
+	}	
+}
+global proc buildPublishMenu (string $parent)
+{
+	// generates the menu on ctrl-RMB when the user asks for it.
+	
+	global string $gPublishedObjects[];
+	setParent -m $parent;
+	if (0 != `menu -q -ni $parent `) {
+		// the menu already exists - just set the
+		// enable/disable state for
+		// each of the menuItems that operate on
+		// the selected channels.
+		//
+		enableDisablePublishMenu $parent;
+	}
+	else
+	{
+	menuItem -l "Quick Connect Attributes";
+	menuItem -d true;
+	menuItem -d true;
+	menuItem -l "Add to Driver List" 
+		-c "publishSelectedAttr" 
+		publishAttrMenuItem;
+	menuItem -sm on-l "New Attribute Driver" 
+		-pmc "buildPublishedList connectToMenuItem" 
+		connectToMenuItem;
+	setParent -m ..;
+	menuItem -sm on -l "Remove Driver" 
+		-pmc "buildPublishedList removePublishedMenuItem" 
+		removePublishedMenuItem;
+
+	enableDisablePublishMenu $parent;
+	}
+}
+global proc publish ()
+{
+	// this procedure duplicates the publish functionality in Fusion for 
+	// Maya.
+
+	// To use, ctrl-RMB in the channel box
+
+	source generateChannelMenu;
+
+	// first get the two menus I need to add this to.. the first one
+	// is the one which shows up in the channel box under Channels,
+	// the second is dynamically created when the user ctrl+clicks with the rmb
+	// over the channel box.
+
+	global string $gChannelBoxForm;
+	string $menus[0];
+	//$tmpLayout = `formLayout -q -ca $gChannelBoxForm`;
+	//$tmpLayout2 = `formLayout -q -ca $tmpLayout[0]`;
+	//$tmpMenus = `menuBarLayout -q -ma $tmpLayout2[1]`;
+	//$menus[0] = $tmpMenus[0];
+
+	$popupMenu = `popupMenu -parent $gChannelBoxForm -ctl 1`;
+	popupMenu -e -pmc ("buildPublishMenu " + $popupMenu) $popupMenu;
+		
+	scriptJob -e "NewSceneOpened" "clearPublishAttr";	
+	
+}

@@ -1,0 +1,123 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// international treaties.
+//
+
+//  bt_createSceneAnnotation.mel
+//
+//  This tool orginally came from layoutTools and has now been separated out as a bonusTool
+//  The purpose is for creating Scene annotations/notes that will save with a given scene
+//  and will be displayed again when the Scene is opened.  This can be useful for sharing
+//  Annotation and details about a given scene between multiple people or simply reminding yourslf
+//  about something the next time you work with the scene again
+//
+//  Updated 01/23/12 - Added confirmation for delete annotation to avoid accidental deletion
+//
+
+// Created by Steven T. L. Roselle 
+// Last updated:      ( 02/01/12 )
+
+global proc bt_showSceneAnnotation()
+{
+	global string $bt_SceneAnnotationMenu;
+
+	if (`window -exists bt_SceneAnnotation`)
+		{
+		warning "Scene Annotation window is already open\n";
+		//deleteUI bt_SceneAnnotation;
+ 		//windowPref -remove bt_SceneAnnotation;
+		}
+	else
+		{
+		string $Annotation = `getAttr bt_SceneAnnotation.notes`;
+		window -tbm 0 -title "Scene Annotation" -menuBar true -width 400 -height 350 bt_SceneAnnotation;
+			menu -tearOff 0 -label "Edit";
+			    	$bt_SceneAnnotationMenu = `menuItem -label "Save and Close"`;
+				menuItem -label "Close Without Saving" - command "deleteUI bt_SceneAnnotation"; 
+				menuItem -d 1;
+				menuItem -label "Delete Scene Annotation" -command "bt_deleteSceneAnnotation";
+			columnLayout -width 400;
+
+			string $AnnotationField = `scrollField -width 400 -height 280 -ww 0 -text $Annotation`;
+			text -align center -label "                    Note:  Save scene annotation from Edit menu above.";
+			text -align center -label "           Once saved, annotation will be automatically displayed when reopened.";
+
+			string $saveCmd = "{ string $Annotation = `scrollField -query -text "  + $AnnotationField + "`;  setAttr bt_SceneAnnotation.notes -type \"string\" $Annotation ; deleteUI bt_SceneAnnotation; }";
+			menuItem -e -command $saveCmd $bt_SceneAnnotationMenu; 
+
+		showWindow bt_SceneAnnotation;
+		}
+}
+
+
+global proc bt_deleteSceneAnnotation()
+{
+    $response = `confirmDialog -title "Confirm" -message "Are you sure you want to delete this scene annotation?  This cannot be undone." -button "Yes" -button "No" -defaultButton "Yes"-cancelButton "No" -dismissString "No"`;
+
+    if ($response == "Yes")
+        {
+    	if (`window -exists bt_SceneAnnotation`)
+    		deleteUI bt_SceneAnnotation ; 
+    	if (`objExists "bt_SceneAnnotationScript"`) 
+    		delete bt_SceneAnnotationScript ; 
+    	if (`objExists "bt_SceneAnnotation"`) 
+    		delete bt_SceneAnnotation;
+    	warning ("All Scene Annotation nodes were deleted and will no longer be saved with this Scene.");
+    	}
+    else
+        print ("Cancelling scene annotation delete");
+}
+
+
+global proc bt_createSceneAnnotation()
+{
+	//Create node and attr for storing Annotation
+	if ( `objExists "bt_SceneAnnotation"` == 0)
+		{
+		print ("Creating node bt_SceneAnnotation.\n");
+		createNode -name "bt_SceneAnnotation" unknown;
+		}
+	if ( `attributeQuery -exists -node "bt_SceneAnnotation" "notes"` == 0)
+		{
+		print ("Adding notes attribute to node.\n");
+		addAttr -ln "notes" -dt "string" bt_SceneAnnotation;
+		setAttr bt_SceneAnnotation.notes -type "string" "Replace with Annotation specific to the current Scene";
+		}
+	if ( `objExists "bt_SceneAnnotationScript"` == 0)
+		{
+		//create scriptNode for diplaying Annotation
+		print ("Creating scriptNode for opening Scene Annotation window.\n");
+
+		//this is really confusing, but the scriptNode will contain entire body of all 3 procs : bt_deleteSceneAnnotation, bt_showSceneAnnotation, createSceneAnnotation with line for creating itself... trust me.
+		scriptNode  -beforeScript  "\r\nglobal proc bt_showSceneAnnotation()\r\n{\r\n\tglobal string $bt_SceneAnnotationMenu;\r\n\r\n\tif (`window -exists bt_SceneAnnotation`)\r\n\t\t{\r\n\t\twarning \"Scene Annotation window is already open\\n\";\r\n\t\t//deleteUI bt_SceneAnnotation;\r\n \t\t//windowPref -remove bt_SceneAnnotation;\r\n\t\t}\r\n\telse\r\n\t\t{\r\n\t\tstring $Annotation = `getAttr bt_SceneAnnotation.notes`;\r\n\t\twindow -tbm 0 -title \"Scene Annotation\" -menuBar true -width 410 -height 350 bt_SceneAnnotation;\r\n\t\t\tmenu -tearOff 0 -label \"Edit\";\r\n\t\t\t    \t$bt_SceneAnnotationMenu = `menuItem -label \"Save and Close\"`;\r\n\t\t\t\tmenuItem -label \"Close Without Saving\" - command \"deleteUI bt_SceneAnnotation\";    \t\r\n\t\t\t\tmenuItem -d 1;\r\n\t\t\t\tmenuItem -label \"Delete Scene Annotation\" -command \"bt_deleteSceneAnnotation\";\r\n\t\t\tcolumnLayout -width 445;\r\n\r\n\t\t\tstring $AnnotationField = `scrollField -width 400 -height 280 -ww 0 -text $Annotation`;\r\n\t\t\ttext -align center -label \"Annotation can be saved with scene from Edit menu, and will be displayed when reopened.\";\r\n\r\n\t\t\tstring $saveCmd = \"{ string $Annotation = `scrollField -query -text \"  + $AnnotationField + \"`;  setAttr bt_SceneAnnotation.notes -type \\\"string\\\" $Annotation ; deleteUI bt_SceneAnnotation; }\";\r\n\t\t\tmenuItem -e -command $saveCmd $bt_SceneAnnotationMenu; \r\n\r\n\t\tshowWindow bt_SceneAnnotation;\r\n\t\t}\r\n}\r\n\r\n\r\nglobal proc bt_deleteSceneAnnotation()\r\n{\r\n\tif (`window -exists bt_SceneAnnotation`)\r\n\t\tdeleteUI bt_SceneAnnotation ; \r\n\tif (`objExists \"bt_SceneAnnotationScript\"`) \r\n\t\tdelete bt_SceneAnnotationScript ; \r\n\tif (`objExists \"bt_SceneAnnotation\"`) \r\n\t\tdelete bt_SceneAnnotation;\r\n}\r\n\r\n\r\nglobal proc createSceneAnnotation()\r\n{\r\n\t//Create node and attr for storing Annotation\r\n\tif ( `objExists \"bt_SceneAnnotation\"` == 0)\r\n\t\t{\r\n\t\tprint (\"Creating node bt_SceneAnnotation.\\n\");\r\n\t\tcreateNode -name \"bt_SceneAnnotation\" unknown;\r\n\t\t}\r\n\tif ( `attributeQuery -exists -node \"bt_SceneAnnotation\" \"notes\"` == 0)\r\n\t\t{\r\n\t\tprint (\"Adding notes attribute to node.\\n\");\r\n\t\taddAttr -ln \"notes\" -dt \"string\" bt_SceneAnnotation;\r\n\t\tsetAttr bt_SceneAnnotation.notes -type \"string\" \"Replace with Annotation specific to the current Scene\";\r\n\t\t}\r\n\tif ( `objExists \"bt_SceneAnnotationScript\"` == 0)\r\n\t\t{\r\n\t\t//create scriptNode for diplaying Annotation\r\n\t\tprint (\"Creating scriptNode for opening Scene Annotation window.\\n\");\r\n\t\tscriptNode  -beforeScript  \"\\r\\nglobal proc bt_showSceneAnnotation()\\r\\n{\\r\\n\\tglobal string $bt_SceneAnnotationMenu;\\r\\n\\r\\n\\tif (`window -exists bt_SceneAnnotation`)\\r\\n\\t\\t{\\r\\n\\t\\twarning \\\"Scene Annotation window is already open\\\\n\\\";\\r\\n\\t\\t//deleteUI bt_SceneAnnotation;\\r\\n \\t\\t//windowPref -remove bt_SceneAnnotation;\\r\\n\\t\\t}\\r\\n\\telse\\r\\n\\t\\t{\\r\\n\\t\\tstring $Annotation = `getAttr bt_SceneAnnotation.notes`;\\r\\n\\t\\twindow -tbm 0 -title \\\"Scene Annotation\\\" -menuBar true -width 410 -height 350 bt_SceneAnnotation;\\r\\n\\t\\t\\tmenu -tearOff 0 -label \\\"Edit\\\";\\r\\n\\t\\t\\t    \\t$bt_SceneAnnotationMenu = `menuItem -label \\\"Save and Close\\\"`;\\r\\n\\t\\t\\t\\tmenuItem -label \\\"Revert to Saved\\\" -command \\\"deleteUI bt_SceneAnnotation; bt_showSceneAnnotation\\\";\\r\\n\\t\\t\\t\\tmenuItem -label \\\"Close Without Saving\\\" - command \\\"deleteUI bt_SceneAnnotation\\\";    \\t\\r\\n\\t\\t\\t\\tmenuItem -d 1;\\r\\n\\t\\t\\t\\tmenuItem -label \\\"Delete Scene Annotation\\\" -command \\\"deleteSceneAnnotation\\\";\\r\\n\\t\\t\\tcolumnLayout -width 445;\\r\\n\\r\\n\\t\\t\\tstring $AnnotationField = `scrollField -width 400 -height 280 -ww 0 -text $Annotation`;\\r\\n\\t\\t\\ttext -align center -label \\\"Annotation can be saved with scene from Edit menu, and will be displayed when reopened.\\\";\\r\\n\\r\\n\\t\\t\\tstring $saveCmd = \\\"{ string $Annotation = `scrollField -query -text \\\"  + $AnnotationField + \\\"`;  setAttr bt_SceneAnnotation.notes -type \\\\\\\"string\\\\\\\" $Annotation ; deleteUI bt_SceneAnnotation; }\\\";\\r\\n\\t\\t\\tmenuItem -e -command $saveCmd $bt_SceneAnnotationMenu; \\r\\n\\r\\n\\t\\tshowWindow bt_SceneAnnotation;\\r\\n\\t\\t}\\r\\n}\\r\\n\\r\\n\\r\\nglobal proc deleteSceneAnnotation()\\r\\n{\\r\\n\\tif (`window -exists bt_SceneAnnotation`)\\r\\n\\t\\tdeleteUI bt_SceneAnnotation ; \\r\\n\\tif (`objExists \\\"bt_SceneAnnotationScript\\\"`) \\r\\n\\t\\tdelete bt_SceneAnnotationScript ; \\r\\n\\tif (`objExists \\\"bt_SceneAnnotation\\\"`) \\r\\n\\t\\tdelete bt_SceneAnnotation;\\r\\n}\\r\\n\\r\\n\\r\\nglobal proc createSceneAnnotation()\\r\\n{\\r\\n\\t//Create node and attr for storing Annotation\\r\\n\\tif ( `objExists \\\"bt_SceneAnnotation\\\"` == 0)\\r\\n\\t\\t{\\r\\n\\t\\tprint (\\\"Creating node bt_SceneAnnotation.\\\\n\\\");\\r\\n\\t\\tcreateNode -name \\\"bt_SceneAnnotation\\\" unknown;\\r\\n\\t\\t}\\r\\n\\tif ( `attributeQuery -exists -node \\\"bt_SceneAnnotation\\\" \\\"notes\\\"` == 0)\\r\\n\\t\\t{\\r\\n\\t\\tprint (\\\"Adding notes attribute to node.\\\\n\\\");\\r\\n\\t\\taddAttr -ln \\\"notes\\\" -dt \\\"string\\\" bt_SceneAnnotation;\\r\\n\\t\\tsetAttr bt_SceneAnnotation.notes -type \\\"string\\\" \\\"Replace with Annotation specific to the current Scene\\\";\\r\\n\\t\\t}\\r\\n\\tif ( `objExists \\\"bt_SceneAnnotationScript\\\"` == 0)\\r\\n\\t\\t{\\r\\n\\t\\t//create scriptNode for diplaying Annotation\\r\\n\\t\\tprint (\\\"Creating scriptNode for opening Scene Annotation window.\\\\n\\\");\\r\\n\\t\\t//setAttr bt_SceneAnnotationScript.scriptType 1;\\r\\n\\t\\t}\\r\\n\\r\\n\\tbt_showSceneAnnotation;\\r\\n}\\r\\n\\r\\ncreateSceneAnnotation;\" -n bt_SceneAnnotationScript;\r\n\t\tsetAttr bt_SceneAnnotationScript.scriptType 1;\r\n\t\t}\r\n\r\n\tbt_showSceneAnnotation;\r\n}\r\n\r\ncreateSceneAnnotation;" -n bt_SceneAnnotationScript;
+		setAttr bt_SceneAnnotationScript.scriptType 1;
+		}
+
+	bt_showSceneAnnotation;
+}
+
+	

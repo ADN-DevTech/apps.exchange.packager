@@ -1,0 +1,560 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Creation Date:  15 May 1997
+//
+// Updated: 01/20/11 by SRoselle (Removed Named Filters UI because of unknown bugs)
+//
+//  File Name:
+//      filterActionWindow.mel
+//
+//  Description:
+//		Scripts for creation of the filterActionWindow, a window
+//	That lists all objects in the model matching a given filter,
+//	and allows the user to select/delete them.
+//
+
+global proc objectListCommand()
+//
+//  Procedure Name:
+//      objectListCommand
+//
+//  Description:
+//		What happens when clicks or mult selects
+//	are made in the object list
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+{
+	string $objects[] = `textScrollList -q -selectItem
+		"filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|objectList"`;
+
+	string $cmd = "select -r ";
+	string $targets = "";
+	string $objectType;
+	int $issueCmd = false;
+	int $addNE = 0;
+	for($object in $objects) {
+		$targets += " " + $object;
+		$issueCmd = true;
+		$objectType = `nodeType $object`;
+		if($objectType == "objectSet") {
+			$addNE--;
+		} else if($objectType == "shadingEngine") {
+			$addNE++;
+		}
+	}
+	if($issueCmd) {
+		if($addNE >= 0) {
+			$cmd += "-ne"; 
+		}
+		$cmd +=	$targets;
+		eval $cmd;
+	}
+}
+
+global proc refreshFilterList()
+//
+//  Procedure Name:
+//      refreshFilterList
+//
+//  Description:
+//		refill the filter window.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+{
+	string $bt_filterType = "lsFlags";
+	if(`optionVar -exists "bt_filterType"`) {
+		$bt_filterType = `optionVar -q "bt_filterType"`;
+	} else {
+		optionVar -stringValue "bt_filterType" $bt_filterType;
+	}
+
+	string $filterWindowContents[];
+	int $count = 0;
+	
+	//  Broken
+	/*
+	if($bt_filterType == "filterNames") {
+		//string $filters[] = `lsUI  -filters`;   // broken because -filters no longer exists
+		string $filters[];  // so make empty instead
+		string $bt_filterType,$annote,$cmd;
+		int $count = 0;
+		
+		for($filter in $filters) {
+			$bt_filterType = `itembt_filterType -q -type $filter`;
+			if($bt_filterType != "attributeFilter") {
+				if($bt_filterType == "renderFilter") {
+					$cmd = ("itemFilterRender -q -text " +$filter);
+				} else {
+					$cmd = ($bt_filterType + " -q -text " +$filter);
+				}
+				$annote = `eval $cmd`;
+				if($bt_filterType != "itemFilterAttr" && $annote != "hidden") {
+					$filterWindowContents[$count] = $filter;
+					$count++;
+				}
+			}
+		}
+	} else if($bt_filterType == "objectTypes") {
+    */	
+	
+    if($bt_filterType == "objectTypes") {
+		$filterWindowContents = `ls -nodeTypes`;
+	} 
+	else if($bt_filterType == "lsFlags") {		
+		// use a hardcoded selection of flags for the ls command.
+		$filterWindowContents[$count] = "geometry";
+		$count++;
+		$filterWindowContents[$count] = "dependency nodes";
+		$count++;
+		$filterWindowContents[$count] = "DAG objects";
+		$count++;
+		$filterWindowContents[$count] = "full DAG paths";
+		$count++;
+		$filterWindowContents[$count] = "leaf DAG nodes";
+		$count++;
+		$filterWindowContents[$count] = "assemblies";
+		$count++;
+		$filterWindowContents[$count] = "transforms";
+		$count++;
+		$filterWindowContents[$count] = "shapes";
+		$count++;
+		$filterWindowContents[$count] = "lights";
+		$count++;
+		$filterWindowContents[$count] = "cameras";
+		$count++;
+		$filterWindowContents[$count] = "planes";
+		$count++;
+		$filterWindowContents[$count] = "partitions";
+		$count++;
+		$filterWindowContents[$count] = "sets";
+		$count++;
+		$filterWindowContents[$count] = "textures";
+		$count++;
+		$filterWindowContents[$count] = "materials";
+		$count++;
+	}
+
+	string $cmd = "textScrollList -e -removeAll ";
+
+	for($filter in $filterWindowContents) {
+		$cmd += (" -append \"" + $filter + "\"");
+	}
+
+	$cmd +=	" filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|filterList";
+	eval $cmd;
+
+	refreshObjectList;
+}
+
+global proc refreshObjectList() 
+//
+//  Procedure Name:
+//      refreshObjectList
+//
+//  Description:
+//		refill the object list based on the input value.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+{
+	textScrollList -e -removeAll 
+		"filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|objectList";
+
+	string $bt_filterType = "filterNames";
+	if(`optionVar -exists "bt_filterType"`) {
+		$bt_filterType = `optionVar -q "bt_filterType"`;
+	} else {
+		optionVar -stringValue "bt_filterType" $bt_filterType;
+	}
+
+	string $filters[] = `textScrollList -q -selectItem
+		"filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|filterList"`;
+
+	int $numFilters = `size $filters`;
+	string $cmd = "textScrollList -e -deselectAll";
+	string $objects[];
+	if($numFilters > 0) {
+		$cmd = "ls";
+		/*
+		if($bt_filterType == "filterNames") {
+			// window is designed to disallow more than one filter
+			$cmd = ("lsThroughFilter " + $filters[0] + "\n");			
+			$objects = `eval $cmd`;
+
+		} else if($bt_filterType == "objectTypes") {
+		*/
+		if($bt_filterType == "objectTypes") {
+			for($filter in $filters) {
+				$cmd += " -type " + $filter;
+			}
+			$objects = `eval $cmd`;
+		} else if($bt_filterType == "lsFlags") {		
+			string $tokens[];
+			int $numTokens;
+			int $dagFlag = false;
+			for($filter in $filters) {
+				$numTokens = tokenize($filter," ",$tokens);
+				if($numTokens < 2) {
+					$cmd += " -" + $filter;
+				} else {
+					if($tokens[0] == "dependency") {
+						$cmd += " -dependencyNodes";
+					} else {
+						if( ! $dagFlag){
+							$cmd += " -dag";
+							$dagFlag = true;
+						}
+						
+						if($tokens[0] == "DAG") {
+							$cmd += " -dagObjects";
+						} else if($tokens[0] == "full") {
+							$cmd += " -allPaths";
+						} else if($tokens[0] == "leaf") {
+							$cmd += " -leaf";
+						}
+					}
+				}
+			}
+			$objects = `eval $cmd`;
+		}
+
+		$cmd = "textScrollList -e -deselectAll";
+		for($object in $objects) {
+			$cmd += (" -append \"" + $object + "\"");
+		}
+	}
+	
+	$objects = `ls -sl`;
+	for($target in $objects) {
+		$cmd += (" -selectItem " + $target);
+	}
+	$cmd += " filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|objectList";
+	eval $cmd;
+}
+
+proc buildFilterActionWindowMenu() 
+//
+//  Procedure Name:
+//      buildFilterActionWindowMenu
+//
+//  Description:
+//		Create the filterActionWindow Menu
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+{
+	// assume that the menu parent is properly set.
+	string $bt_filterType = "lsFlags";
+	if(`optionVar -exists "bt_filterType"`) {
+		$bt_filterType = `optionVar -q "bt_filterType"`;
+	} else {
+		optionVar -stringValue "bt_filterType" $bt_filterType;
+	}
+
+	int $radioVal;
+	string $typeMenu = `menu -l "Filter Types" 
+				-familyImage "menuIconbt_filterTypes.xpm"`;
+		radioMenuItemCollection -p $typeMenu;
+
+        // Broken so removing from UI
+        /*
+		if($bt_filterType == "filterNames") {
+			$radioVal = true;
+		} else {
+			$radioVal = false;			
+		}
+		
+		string $command = "optionVar -stringValue bt_filterType filterNames;" + 
+						  "refreshFilterList;"+ 
+						  "textScrollList -e -allowMultiSelection false " +
+						  "filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|filterList";
+		
+		menuItem -l "Named Filters" 
+			-rb $radioVal 
+			-command $command
+			-familyImage "menuIconNamedFilters.xpm";
+		*/
+
+		if($bt_filterType == "objectTypes") {
+			$radioVal = true;
+		} else {
+			$radioVal = false;			
+		}
+
+		string $command = "optionVar -stringValue bt_filterType objectTypes;" + 
+						  "refreshFilterList;"+ 
+						  "textScrollList -e -allowMultiSelection true " +
+						  "filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|filterList";
+		menuItem -l "Object Types" 
+			-rb $radioVal 
+			-command $command
+			-familyImage "menuIconObjectTypes.xpm";
+
+		if($bt_filterType == "lsFlags") {
+			$radioVal = true;
+		} else {
+			$radioVal = false;			
+		}
+
+		string $command = "optionVar -stringValue bt_filterType lsFlags;" + 
+						  "refreshFilterList;"+ 
+						  "textScrollList -e -allowMultiSelection true " +
+						  "filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|filterList";
+		menuItem -l "Classifications" -rb $radioVal -command $command -en 1;
+
+	setParent -menu ..;
+
+	string $actionMenu = `menu -l "Listed"
+				-familyImage "menuIconListed.xpm"`;
+		menuItem -l "Select"
+			-command "filterActionMenuCB -selectListed";
+
+		menuItem -l "Delete"
+			-command "filterActionMenuCB -deleteListed";
+
+		menuItem -l "Make Set ..."
+			-command "filterActionMenuCB -setListed";
+
+		menuItem -l "Make Shading Group ..."
+			-command "filterActionMenuCB -shadingGroupListed";
+
+	setParent -menu ..;
+
+	string $actionMenu = `menu -l "Selected"
+				-familyImage "menuIconSelected.xpm"`;
+
+		menuItem -l "Delete"
+			-command "filterActionMenuCB -deleteSelected";
+
+		menuItem -l "Make Set ..."
+			-command "filterActionMenuCB -setSelected";
+
+		menuItem -l "Make Shading Group ..."
+			-command "filterActionMenuCB -shadingGroupSelected";
+
+	setParent -menu ..;
+
+}
+
+global proc filterActionMenuCB(string $action) 
+//
+//  Procedure Name:
+//      filterActionMenuCB
+//
+//  Description:
+//		performs an action on the objects in the object list.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+{
+	string $first4 = substring($action,1,4);
+	int $actionSize = `size $action`;
+	string $last4 = substring($action,$actionSize-3,$actionSize);
+
+	string $targetObjects[];
+	string $oldSelection[];
+	string $cmd = "";
+	
+	// determine the command to be executed
+	if($first4 == "-sel" && $last4 != "-sted") {
+		$cmd = "select -r -ne";
+	} else if($first4 == "-del") {
+		$cmd = "delete";
+	} else {
+		string $setName = `promptDialog -title "Enter Name" -message "Enter Name For New Set:"
+				   -button "OK" -button "Cancel"
+				   -defaultButton "OK" -cancelButton "Cancel"
+				   -dismissString "Cancel"
+				   -parent filterActionWindow`;
+
+		if($setName == "OK") {
+			$setName = `promptDialog -q`;
+
+			if($first4 == "-sha") {
+				$cmd = ("sets -renderable true -name " + $setName);
+			} else if($first4 == "-set") {
+				$cmd = ("sets -name " + $setName);
+			}
+		}
+	}
+
+	// if action is on listed objects, save the old selection list
+	// and select the listed objects for later reselection.
+	if($last4 == "sted") {
+		$oldSelection = `ls -sl`;
+		$targetObjects = `textScrollList -q -allItems 
+						 "filterActionWindow|filterAWMB|filterAWTopForm|filterAWPane|objectList"`;
+		
+		$cmd = "select -r -ne";
+		for($target in $targetObjects) {
+			$cmd += " " + $target;
+		}
+		evalEcho $cmd;
+	}
+
+	// execute the command
+	if($cmd != "") {
+		evalEcho $cmd;
+	}
+	
+	// reset the selection list, if necessary
+	if($last4 == "sted" && $first4 != "-sel") {
+		$cmd = "select -r -ne";
+		for($thing in $oldSelection) {
+			$cmd += " " + $thing;
+		}
+		evalEcho $cmd;
+	}
+
+	refreshObjectList;
+}
+
+global proc bt_filterActionWindow( ) 
+//
+//  Procedure Name:
+//      filterActionWindow
+//
+//  Description:
+//		Creates a window that lists all objects 
+//  in the model matching a given filter,
+//	and allows the user to select/delete them.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+{
+	if(!`window -exists filterActionWindow`) {
+		window -rtf 0 
+			-title "Filter Objects Window" 
+			-iconName "Filter Ed." filterActionWindow;	
+
+		// Use a specific set of templates 
+		setUITemplate -pushTemplate ShaderTemplateItems;
+
+		string $menuBarLayout = `menuBarLayout filterAWMB`;
+		buildFilterActionWindowMenu;
+		
+			string $topForm = `formLayout -parent $menuBarLayout filterAWTopForm`;
+			
+				string $labelForm = `formLayout -p filterAWTopForm filterAWLabelForm`;
+       				string $filterText = `text -p $labelForm -l "Filters" 
+										-al "center" filterAWFilterText`;
+					string $objectText = `text -p $labelForm -l "Objects" 
+										 -al "center" filterAWObjectText`;
+				setParent ..;
+
+				formLayout -e 
+					-af filterAWFilterText "top" 1
+					-af filterAWFilterText "bottom" 1
+					-ap filterAWFilterText "left" 0 1
+					-ap filterAWFilterText "right" 0 49
+					
+					-af filterAWObjectText "top" 1 
+					-af filterAWObjectText "bottom" 1
+					-ap filterAWObjectText "left" 0 50
+					-ap filterAWObjectText "right" 0 99
+				$labelForm;
+
+				// 
+				// GG: on NT, must always set width for pane layouts. It does not
+				// size to the controls it contains.
+				//			
+				string $filterPane = `paneLayout  -p $topForm -configuration "vertical2" 
+									  -separatorThickness 5 -height 300 -width 350 -paneSize 1 50 100 
+									  -paneSize 1 50 100
+									  filterAWPane`;
+
+					string $filterList = `textScrollList -p $filterPane 
+										 //-allowAutomaticSelection false  //Obsolete
+										 -allowMultiSelection true
+										 -selectCommand refreshObjectList
+										 filterList`;
+					
+					string $objectList = `textScrollList -p $filterPane 
+										 -doubleClickCommand "editSelected"
+										 //-allowAutomaticSelection false  //Obsolete
+										 -allowMultiSelection true
+										 -selectCommand objectListCommand
+										 objectList`;
+
+				setParent ..;
+				
+          		button -l "Close" -p $topForm 
+					-command "deleteUI filterActionWindow" filterAWClose;
+           		button -l "Select" -p $topForm 
+					-command "filterActionMenuCB -selectListed" filterAWSelect;
+			setParent ..;				
+		setParent ..;
+		
+		// now the attachments
+		formLayout -e
+ 			-af filterAWLabelForm "top" 1
+ 			-af filterAWLabelForm "left" 1
+ 			-af filterAWLabelForm "right" 1
+
+			-ac filterAWPane "top" 1 filterAWLabelForm
+ 			-af filterAWPane "left" 1
+ 			-af filterAWPane "right" 1
+			-ac filterAWPane "bottom" 5 filterAWSelect
+
+  			-ap filterAWSelect "left" 0 1
+  			-ap filterAWSelect "right" 0 49
+  			-af filterAWSelect "bottom" 5
+
+  			-ap filterAWClose "left" 0 51
+  			-ap filterAWClose "right" 0 99
+  			-af filterAWClose "bottom" 5
+		$topForm;
+
+		setUITemplate -popTemplate;
+	}
+
+	// attach a script job to respond to active list changes
+	
+	// Removed due to problems with scriptJob
+	//scriptJob -p filterActionWindow -e "SelectionChanged" "refreshObjectList";
+
+	// refresh the filter side.
+	refreshFilterList;
+
+	showWindow filterActionWindow;
+}

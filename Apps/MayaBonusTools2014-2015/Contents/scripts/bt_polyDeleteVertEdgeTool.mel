@@ -1,0 +1,79 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// international treaties.
+//
+
+
+// Created by Steven T. L. Roselle 
+// Last updated:      ( 03/21/13 )
+// Tool now deletes all connected edges to the selected component
+//
+
+proc bt_polyDeleteVertEdgeToolCtx(){
+
+		
+	scriptCtx
+		-title "Poly Delete Connected Edges"
+		-image1 "polyDelEdgeVertex.png"
+		-totalSelectionSets 1
+        -setSelectionCount	0
+		
+        -ts ("headsUpMessage -t 4 \"Select a vertex, edge or face and all connected edges will be deleted.\"")
+		
+		-expandSelectionList true
+		-finalCommandScript ("ConvertSelectionToVertices; ConvertSelectionToEdges; delete; headsUpMessage -t 4 \"Select a vertex, edge or face and all connected edges will be deleted.\"")
+
+		-setNoSelectionPrompt "Select a vertex, edge or face and all connected edges will be deleted"
+		-setAutoComplete true
+		-polymeshEdge true
+		-toolCursorType "create"
+		-exitUponCompletion false
+
+		
+		bt_polyDeleteVertEdgeTool;
+	
+}
+
+
+global proc bt_polyDeleteVertEdgeTool(){
+	
+	if (!`contextInfo -exists bt_polyDeleteVertEdgeTool`)
+	{
+	    bt_polyDeleteVertEdgeToolCtx;
+	}
+	setSelectMode components Components; selectType -smp 0 -sme 1 -smf 0 -smu 0 -pv 1 -pe 1 -pf 1 -puv 0;
+	select -cl;
+	setToolTo bt_polyDeleteVertEdgeTool;
+    print ("Select a vertex, edge or face and all connected edges will be deleted\n");
+	
+}
+
+
+/*
+deleteUI bt_polyDeleteVertEdgeTool;
+*/
+

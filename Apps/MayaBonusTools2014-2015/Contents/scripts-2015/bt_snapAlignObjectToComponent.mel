@@ -1,0 +1,208 @@
+// Author:		Steven T. L. Roselle
+//
+// Created:        ( 04/01/14 )
+
+
+global proc bt_snapAlignToComponentCenter(int $orient, int $constrain, int $parent)
+{
+	string $selected[] = `ls -sl`;
+    string $transforms[] = `ls -sl -tr`;
+	string $component[] = `filterExpand -sm 31 -sm 32 -sm 34`;
+	float $xtotal = 0;
+	float $ytotal = 0;
+	float $ztotal = 0;
+	
+	if (`size $transforms` == 0)
+		{
+		select -r $selected;
+		error ("Need transforms to snapAlign.");	
+		}
+			
+	if (`size $component` != 1)
+		{
+		select -r $selected;
+		error ("Need 1 component to snapAlign to.");
+		}
+	else
+		{
+		float $pos[] = `xform -q -ws -t -r $component`; 
+
+
+		//get object from component for later
+		string $bufferTemp[];
+		tokenize $component[0] "." $bufferTemp;
+		select -r $bufferTemp[0];
+		$componentObj = `ls -sl`;
+		if (`nodeType $componentObj[0]` == "mesh")  //get mesh transform if shape selected
+			pickWalk -d up; 
+		$componentObj = `ls -sl`;
+
+		//Get average position of all verts for selected component
+		for ($i = 0; $i <= `size $pos`; $i += 3)
+			{
+			$xtotal += $pos[$i];
+			$ytotal += $pos[$i+1];
+			$ztotal += $pos[$i+2];			
+			}
+		float $xavg = ($xtotal / (`size $pos`/3));
+		float $yavg = ($ytotal / (`size $pos`/3));
+		float $zavg = ($ztotal / (`size $pos`/3));
+
+		//Move objects to component
+		//reselect all but last component
+
+		for ($obj in $transforms)
+			{
+			float $pivotx = `getAttr ($obj + ".rotatePivotX")`;
+			float $pivoty = `getAttr ($obj + ".rotatePivotY")`;
+			float $pivotz = `getAttr ($obj + ".rotatePivotZ")`;
+			select -r $obj;
+
+			// move object and compensate for pivot
+			move -a ($xavg-$pivotx) ($yavg-$pivoty) ($zavg-$pivotz);
+			
+			// check for orient option
+			//
+			if ($orient == 1 || $constrain == 1)
+				{
+				print "Orient enabled. \n";
+				select -r $obj $componentObj[0];
+				print ($obj + " to " + $componentObj[0]);
+				bt_geometrySnap ($orient, $constrain, $parent);
+				}
+ 
+			//if ($parent == 1)  //bt_geometrySnap above already handles parenting
+			if ($parent == 1 && $orient == 0 && $constrain == 0)  //bt_geometrySnap above already handles parenting
+		    	{
+			    select -r $obj;
+			    select -add $componentObj[0];
+			    parent;
+		   		 }	
+		   		    
+			}
+														
+		$i++;			
+			
+		select -r $selected;
+		//select -d $lastSelected;
+		}
+}
+
+
+global proc bt_geometrySnap(int $orient, int $contsrain, int $parent)
+{
+	//use geometry and normal constraints to snapAlign one object to another
+	
+	string $list[] = `ls -sl -tr`;
+	int $size = `size $list`;
+	
+	// Geo and Normal snapAlign all select to last selected
+	//
+	int $i = 0;
+	while ($i < ($size-1))
+		{
+		select -r $list[$size-1]; //target object
+		select -add $list[$i]; //current item
+		geometryConstraint -weight 1;
+		if ($orient == 1)
+			normalConstraint -weight 1 -aimVector 0 1 0 -upVector 1 0 0 -worldUpType "scene";
+		
+		// delete constraint if needed
+		//
+		if ($contsrain == 0)
+		    {
+			select -r $list[$i];
+			DeleteConstraints;	
+			print "Temporary geometry and Normal constraint not deleted.\n";
+			}
+		else
+			warning "Geometry and Normal constraint created.";
+						
+		$i++;
+		}
+		
+	// check for parent option
+	//
+				
+	if ($parent == 1)
+	    {
+		select -r $list;
+		parent;
+		}
+		
+	select -cl;
+
+}
+
+
+global proc bt_deleteSnapAlignOptionVars()
+
+{
+		optionVar -intValue bt_snapAlignConstrain 0;
+		optionVar -intValue bt_snapAlignParent 0;
+		optionVar -intValue bt_snapAlignOrient 1;
+}
+
+
+global proc bt_snapAlignObjectToComponent()
+{
+
+	//////////////////////
+	//		snapAlign Option Vars
+	//
+
+	if (`optionVar -ex bt_snapAlignConstrain` == 0)
+		optionVar -intValue bt_snapAlignConstrain 0;
+	if (`optionVar -ex bt_snapAlignParent` == 0)
+		optionVar -intValue bt_snapAlignParent 0;
+	if (`optionVar -ex bt_snapAlignOrient`  == 0)
+		optionVar -intValue bt_snapAlignOrient 1;
+		
+
+    int $width = 500;
+    
+	if( `window -exists bt_snapAlignObjectOnMesh` )
+		{
+		deleteUI bt_snapAlignObjectOnMesh;
+		//windowPref -remove bt_snapAlignObjectOnMesh;
+		}
+		
+    window -w $width -h 150  -menuBar true -s true -t "Snap Object to Component" bt_snapAlignObjectOnMesh;
+    
+        menu -tearOff 0 -l "Edit";
+    	    menuItem -l "Reset Settings" -ann "Reset all setting to default values." -c "bt_deleteSnapAlignOptionVars ; bt_snapAlignObjectToComponent";
+	        
+        columnLayout -adjustableColumn true;
+						    
+            frameLayout -cl 0 -bs "etchedIn" -l "Description";
+                text -al left -h 20 "        Snap / Align the selected object(s) to one selected component (face, vert, edge)";
+			setParent ..;  //column     
+
+            frameLayout -cl 0 -bs "etchedIn"  -l "General Settings";
+       			rowColumnLayout -numberOfColumns 4 -columnWidth 1 ($width/4) -columnWidth 2 ($width/4) -columnWidth 3 ($width/4) -columnWidth 4 ($width/4);
+    					
+    					text -l "   Options : " -al right;
+    					checkBox -l "Orient" -al "left" -ann "Orient all selected objects to target curve/geo after snapAlignping" -v `optionVar -q bt_snapAlignOrient` -onc "optionVar -iv bt_snapAlignOrient 1" -ofc "optionVar -iv bt_snapAlignOrient 0";						
+    					checkBox -l "Constrain" -al "left" -ann "Constrain snapAlignd objects to target curve/geo after snapAlignping" -v `optionVar -q bt_snapAlignConstrain` -onc "optionVar -iv bt_snapAlignConstrain 1" -ofc "optionVar -iv bt_snapAlignConstrain 0";
+    					checkBox -l "Parent" -al "left" -ann "Parent snapAlign snapAlignd objects to target curve/geo after snapAlignping" -v `optionVar -q bt_snapAlignParent` -onc "optionVar -iv bt_snapAlignParent 1" -ofc "optionVar -iv bt_snapAlignParent 0";
+    					separator -st none;
+					separator -st none;
+					
+				setParent ..;  //column     
+     
+                             
+    					rowColumnLayout -numberOfColumns 2 -columnWidth 1 ($width/2) -columnWidth 2 ($width/2);
+                            separator -st none -h 20;
+                            separator -st none -h 20;
+                            button -l "snapAlign Object" -ann "Copy or instance source object to location of each target vert (orient, constrain, parent are optional)" -c "bt_snapAlignToComponentCenter (`optionVar -q bt_snapAlignOrient`, `optionVar -q bt_snapAlignConstrain`, `optionVar -q bt_snapAlignParent`)";						        					    						
+            				button -label "Close" -c "deleteUI bt_snapAlignObjectOnMesh";                 
+    
+    
+                    setParent ..;  //frame 
+                
+    
+            setParent ..;
+    
+    showWindow bt_snapAlignObjectOnMesh;    				
+}
+

@@ -1,0 +1,436 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//
+//
+//      bgHideShowFaces.mel (hide selected polygon objects and faces)
+//
+// ---------------------------------------------------------------------------
+//
+// toggleHideShowFaces: Toggles between hiding and showing polygon objects 
+// and faces.  Also triggers refresh if necessary.
+//
+// hideFaces: hides any selected poly objects and/or poly faces for all 
+// modeling panels.  You can continue to additively select and hide polys 
+// and faces.  It will ignore anything selected that is not a face or poly.  
+// It also creates a HUD that indicates that you have hidden faces in your scene. 
+// IsolateSelect is used to do the hiding.  It also creates a scriptJob for 
+// each panel that will autoload any new objects into the isolateSelect as well.
+//
+// disableHideFaces: disables everything and makes all hidden faces and polys 
+// visible again.  It also kills the HUD and the scriptJobs.
+//
+// refreshHideFaces: A problem comes up if you perform an undo (z) right
+// after you run disableHideFaces.  The undo will re-hide any previously hidden 
+// faces but it will not bring back the HUD or re-create the scriptJobs so any 
+// new object will automatically get hidden.  The other problem occurs if you 
+// duplicate an object that has hidden faces, the same faces will not be hidden on 
+// the new duplicate object.  So to address these problems, refreshHideFaces 
+// will recreate the HUD and scriptJobs without hiding anything new, it will 
+// also refresh any duplicated objects that should have hidden faces.
+//
+// autoShowNewToggle: global proc that is used by the other procs.  
+//
+// ---------------------------------------------------------------------------
+//
+//                     
+//
+// Creation Date:      ( 4/16/02 )
+// Last Update:        ( 11/29/06)   added HUD button for toggling display
+//
+// Updates: Added ability to toggle between hiding and showing.
+//			Fixed bug: you can now hide faces on a skinned mesh.
+//
+// Input Arguments: NONE
+//
+// works with Maya Versions: 6.0 and beyond...
+
+
+global proc refreshHideFaces()
+{
+	    // This proc is now called when hideSet exists but HUD does not.
+
+		select -cl;
+
+        if (`objExists "hideSet"`)
+                select -add hideSet;
+        else
+                {
+                warning ("Nothing to refresh");
+                return;
+                }
+
+        //get selected facesa in component selection
+        $hideFaces = `filterExpand -sm 34 -ex 0`;       
+
+        //get selected poly objects
+        $hideObjects = `filterExpand -sm 12`;
+
+        //get remaining selected objects
+        select -d $hideFaces $hideObjects;
+        $remainingObjects = `ls -sl`;
+
+        //get base object of selected faces
+        select -r $hideFaces ;
+		$shapeList = `selectedNodes -dagObjects`;  //fix for skinned characters	
+        $baseObjectsAll = `listRelatives -f -parent $shapeList`;
+
+        //get list of all shapes (minus filters)
+        select -r "*Shape*";
+        select -d "*Filter*";
+		$allShapes = `listRelatives -ap -f`;
+		select -r $allShapes;
+		select -add `ls -type joint`; //include joints
+
+        //separate polys and non-poly
+        string $polyObjects[] = `filterExpand -sm 12`;
+        select -d $polyObjects;
+        string $nonPolyObjects[] = `ls -sl`;
+
+        //set up appropriate selecttion for inverse isolateSelect
+        select -r $baseObjectsAll;
+        select -d $hideObjects; 
+        ConvertSelectionToFaces;
+        select -d hideSet;
+
+        select -add $polyObjects;
+        select -d hideSet;
+        select -d $baseObjectsAll;
+        select -add $nonPolyObjects;
+
+        //made set of non-hidden faces and objects
+        if (`objExists "showSet"`)
+                {
+                delete showSet;
+                }
+        sets -name showSet;
+ 
+
+        //get list of all model panels
+        $panelList = `getPanel -type modelPanel`;
+
+        //perform isolate select for each modeling panel
+        for ($currentPanel in $panelList)
+                {
+                $state = `isolateSelect -query -state $currentPanel`;
+                
+                select -r showSet;
+
+                if ($state) //if it's on
+                        {
+                        enableIsolateSelect $currentPanel 0;
+                        enableIsolateSelect $currentPanel 1;
+                        // make sure new objects are shown
+                        autoShowNewToggle $currentPanel 0;
+                        autoShowNewToggle $currentPanel 1;
+                        select -cl;
+                        }
+
+                else  //if not on already
+                        {
+                        enableIsolateSelect $currentPanel 1;
+                        // make sure new objects are shown
+                        autoShowNewToggle $currentPanel 0;
+                        autoShowNewToggle $currentPanel 1;
+                        select -cl;
+                        }
+                }
+
+        //Create HUD if it doesn't already exist
+        if (`headsUpDisplay -ex HUDHiddenFaces` == 0)
+                {
+                headsUpDisplay
+                        -section          2
+                        -block           `headsUpDisplay  -nextFreeBlock 2`
+						-ba	"center"
+                        -label            "Hidden Faces Enabled"
+                HUDHiddenFaces;
+                }
+
+		if (`headsUpDisplay -exists HUDshowHideFaces`) headsUpDisplay -remove HUDshowHideFaces;
+			//clear other HUDs
+			headsUpDisplay -rp 2 1;
+			headsUpDisplay -rp 2 2;
+			hudButton -s 2
+				  -b 1
+				  -vis 1
+				  -l " Show / Hide"
+				  -ba       "center"
+				  -bw 90
+				  -bsh "roundRectangle"
+				  -rc ("toggleHideShowFaces")
+				  HUDshowHideFaces;
+	
+	
+        print ("Heads Up Display and scriptJobs have been refreshed for hidden polygon objects and faces.\n");
+
+}
+
+global proc autoShowNewToggle(string $panel, int $state) {
+
+    int $scriptJobNum;
+    string $optionVarName = ("autoShowNew_"+$panel);
+
+    if ($state) {
+        if (`optionVar -ex $optionVarName`) {
+                //warning ("scriptJob already exists for : "+$optionVarName);
+        }
+        else
+            optionVar -iv $optionVarName `scriptJob -protected 
+                -event "DagObjectCreated" ("isolateSelect -addSelected " + $panel)`;
+    }
+    else 
+    {
+        if (`optionVar -ex $optionVarName`) {
+            $scriptJobNum = `optionVar -q $optionVarName`;
+            scriptJob -force -kill $scriptJobNum;
+            optionVar -rm $optionVarName;
+        }
+        else
+                {
+                //warning ("No scriptJob to kill : "+$optionVarName);
+                }
+        }
+}
+
+
+global proc disableHideFaces() {     
+
+    // This proc is now called when nothing is selected.
+
+    if (`objExists "showSet"`)
+        delete showSet;
+
+    if (`objExists "hideSet"`) {
+        select -r hideSet;
+        // get selected faces
+        $hideFaces = `filterExpand -sm 34 -ex 0`;       
+        // get selected objects
+        $hideObjects = `filterExpand -sm 12`;
+        select -r $hideObjects;
+        PolySelectConvert 1;    // To Face
+        $extraFaces = `ls -sl`;
+
+        select -r $hideFaces;
+        select -d $extraFaces;
+        select -add $hideObjects;
+        delete hideSet;
+	    print ("Previously hidden polygon objects and faces are now shown and selected in all panels.\n");
+    }
+    else {
+        warning ("No hidden faces to show");
+		//delete HUD if it exists
+    	if (`headsUpDisplay -ex HUDHiddenFaces`)
+        	headsUpDisplay -rem HUDHiddenFaces;  
+    	if (`headsUpDisplay -ex HUDshowHideFaces`)
+        	headsUpDisplay -rem HUDshowHideFaces; 		
+		return;
+    }
+
+    //get list of all model panels
+    $panelList = `getPanel -type modelPanel`;
+
+    //turn off isolate select for each modeling panel
+    for ($currentPanel in $panelList) {
+        enableIsolateSelect $currentPanel 0;
+        // turn off autoShow scriptJob
+        autoShowNewToggle $currentPanel 0;
+    }
+
+    //delete HUD if it exists
+    if (`headsUpDisplay -ex HUDHiddenFaces`)
+        headsUpDisplay -rem     HUDHiddenFaces;
+   	if (`headsUpDisplay -ex HUDshowHideFaces`)
+       	headsUpDisplay -rem HUDshowHideFaces; 
+		
+	print ("Previously hidden polygon objects and faces are now shown and selected in all panels.\n");
+
+}
+
+
+global proc hideFaces() {
+
+    // This proc is now called when polygon objects or faces are selected.
+
+	$selected = `ls -sl`;
+	
+	// Store current face selection for later
+	$currentFaces = `filterExpand -sm 34 -ex 0`;
+	$shapeList = `selectedNodes -dagObjects`;  //fix for skinned characters
+    $baseObjectsCurrent = `listRelatives -f -parent $shapeList`;
+	
+    //add current selection to already hidden
+    if (`objExists "hideSet"`)
+        select -r hideSet;
+	select -add $selected;
+
+    //get selected faces in component selection
+    $hideFaces = `filterExpand -sm 34 -ex 0`;   
+
+    //get selected poly objects in object selection.
+    $hideObjects = `filterExpand -sm 12`;       
+
+    //get remaining selected objects
+    select -deselect $hideFaces $hideObjects;
+    $remainingObjects = `ls -sl`;
+
+    //get base object of selected faces
+    select -r $hideFaces ;
+	$shapeList = `selectedNodes -dagObjects`;  //fix for skinned characters
+    $baseObjectsAll = `listRelatives -f -parent $shapeList`;
+
+    //make or add to set of hidden faces
+    if (`objExists "hideSet"`) 
+        delete hideSet;
+    select -r $hideFaces $hideObjects;
+    sets -name hideSet;
+
+     //get list of all shapes (minus filters)
+     select -r "*Shape*";
+     select -d "*Filter*";
+	$allShapes = `listRelatives -ap -f`;
+	select -r $allShapes;
+	select -add `ls -type joint`; //include joints
+
+    //separate polys and non-poly
+    string $polyObjects[] = `filterExpand -sm 12`;
+    select -d $polyObjects;
+    string $nonPolyObjects[] = `ls -sl`;
+    
+    //set up appropriate selecttion for inverse isolateSelect
+    select -r $baseObjectsAll;
+    select -d $hideObjects; 
+    ConvertSelectionToFaces;
+    select -d hideSet;
+    
+    select -add $polyObjects;
+    select -d hideSet;
+    select -d $baseObjectsAll;
+    select -add $nonPolyObjects;
+    
+    //made set of non-hidden faces and objects
+    if (`objExists "showSet"`)
+        delete showSet;
+    sets -name showSet;
+       
+             
+    //get list of all model panels
+    $panelList = `getPanel -type modelPanel`;
+
+    //perform isolate select for each modeling panel
+    for ($currentPanel in $panelList) {
+        $state = `isolateSelect -query -state $currentPanel`;
+                
+        select -r showSet;
+
+        if ($state) //if it's on 
+        {
+            enableIsolateSelect $currentPanel 0;
+            enableIsolateSelect $currentPanel 1;
+            // make sure new objects are shown
+            autoShowNewToggle $currentPanel 0;
+            autoShowNewToggle $currentPanel 1;
+            // select -cl;
+        }
+
+        else  //if not on already
+        {
+                enableIsolateSelect $currentPanel 1;
+                // make sure new objects are shown
+                autoShowNewToggle $currentPanel 0;
+                autoShowNewToggle $currentPanel 1;
+                // select -cl;
+        }
+    }
+
+    //Create HUD if it doesn't already exist
+    if (`headsUpDisplay -ex HUDHiddenFaces` == 0) {
+        headsUpDisplay
+                -section          2
+                -block            `headsUpDisplay  -nextFreeBlock 2`
+				-ba "center"
+                -label            "Hidden Faces Enabled"
+                HUDHiddenFaces;
+        }
+
+	if (`headsUpDisplay -exists HUDshowHideFaces`) headsUpDisplay -remove HUDshowHideFaces;
+		//clear other HUDs
+		headsUpDisplay -rp 2 1;
+		headsUpDisplay -rp 2 2;
+		hudButton -s 2
+			  -b 1
+			  -vis 1
+			  -l " Show / Hide"
+			  -ba       "center"
+			  -bw 90
+			  -bsh "roundRectangle"
+			  -rc ("toggleHideShowFaces")
+			  HUDshowHideFaces;
+			
+
+    //The command below keeps the poly object(s) in component selection mode
+    //if (`size ($hideFaces)`)
+    for ($obj in $baseObjectsCurrent)
+		doMenuComponentSelection( $obj, "facet");
+	
+	
+    print ("Selected polygon objects and faces have been hidden.\n");
+
+    //reselect non-poly ojects unable to hide if necessary
+    select -r $remainingObjects;
+    if (`size $remainingObjects`)
+        warning ("Only hiding polygon objects and faces - other selected objects and components ignored");
+   
+}
+
+global proc toggleHideShowFaces () {
+
+    $selectedObjects = `ls -sl`;
+    //get selected faces in component selection
+    $hideFaces = `filterExpand -sm 34 -ex 0`;
+    //get selected poly objects in object selection.
+    $hideObjects = `filterExpand -sm 12`;
+		
+	if ((`size $hideFaces` ) || (`size $hideObjects`))
+		//hide any selected polys of faces
+        hideFaces; 
+    else if ((!`headsUpDisplay -ex HUDHiddenFaces`) && (`objExists  hideSet`))
+		{
+		//refresh hidden faces display only if necessary
+		refreshHideFaces;
+		select -r $selectedObjects;
+		}	
+	else if (`size $selectedObjects`)
+		//quit and do nothing if invalid non-polys are selected
+		warning ("Hide/Show Faces only works on polygon objects and faces.");
+	else
+		//show (un-hide) all hidden faces if nothing is selected
+        disableHideFaces;  
+}
+
+
+
+
+	
+
+
+

@@ -1,0 +1,279 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// 
+// 
+
+//
+//  Creation Date:  April 15 2004.
+//
+//
+//  Procedure Name: tcPolyBridge
+//
+//  Input Arguments: User Selects 2 faces and 2 Edges, 1 from each face.
+//
+//  Return Value: Zero or One.
+//
+
+//Take user selection sort the edges and the faces.
+
+proc string[] tcSortUserSel()
+{
+	string $usrSelFacesAndEdges[] = `ls -sl` ;
+	string $guideEdges[] = `filterExpand -ex 1 -sm 32` ;
+	string $bridgeFaces[] = `filterExpand -ex 1 -sm 34` ;
+	string $eachface ;
+	string $eF1eF2[] ;
+	string $faceToEdge[] ;
+	string $faceToEdgeSet ;
+	string $guideEdgeSet ;
+	string $adjcntEdge[] ;
+	string $parentMesh[] = `listRelatives -p -typ "mesh"`;
+	int $cntr = 0;
+	if ((`size($parentMesh)`) != 1)
+	{
+		clear($eF1eF2);
+	}
+	else if ((`size($guideEdges)`)!= 2)
+	{
+		clear($eF1eF2);
+	}
+	else if ((`size($bridgeFaces)`)!= 2) 
+	{
+		clear($eF1eF2);
+	}
+	else
+	{
+		for ($eachFace in $bridgeFaces)
+		{
+			$faceToEdge = `polyListComponentConversion -ff -te $eachFace`;
+			$faceToEdgeSet = `sets $faceToEdge` ;
+			$guideEdgeSet = `sets  $guideEdges` ;
+			$adjcntEdge = `sets -int $faceToEdgeSet $guideEdgeSet` ;
+			$eF1eF2[$cntr++] = $adjcntEdge[0];
+			$eF1eF2[$cntr++] = $eachFace ;
+			delete $faceToEdgeSet $guideEdgeSet ;
+		}
+	}
+	
+	if  (`size($eF1eF2)` != 4)
+	{
+		clear($eF1eF2);
+	}
+	else 
+	{
+		string $faceToEdge1[] = `polyListComponentConversion -ff -te $eF1eF2[1]`;
+		$faceToEdge1 = `filterExpand -ex 1 -sm 32 $faceToEdge1`;
+		int $numberOfEdgesFace1 = (size($faceToEdge1));
+		string $faceToEdge1Set = `sets $faceToEdge1`;
+		string $faceToEdge2[] = `polyListComponentConversion -ff -te $eF1eF2[3]`;
+		$faceToEdge2 = `filterExpand -ex 1 -sm 32 $faceToEdge2`;
+		string $faceToEdge2Set = `sets $faceToEdge2`;
+		string $sharedEdgeSet[] = `sets -int $faceToEdge1Set $faceToEdge2Set`;
+		if ((`size($sharedEdgeSet)`) != 0)
+		{
+			delete $faceToEdge1Set $faceToEdge2Set;
+			clear($eF1eF2);
+		}
+		else
+		{
+			delete $faceToEdge1Set $faceToEdge2Set;
+			int $numberOfEdgesFace2 = (size($faceToEdge2));
+			if ($numberOfEdgesFace1 != $numberOfEdgesFace2)
+			{
+				if ($numberOfEdgesFace1 < $numberOfEdgesFace2)
+				{
+					string $edgeDivisions = ($numberOfEdgesFace2 - $numberOfEdgesFace1);
+					string $guideEdgeVerts[] = `polyListComponentConversion -fe -tv $eF1eF2[0]`;
+					string $guideVertsEdges[] = `polyListComponentConversion -fv -te $guideEdgeVerts[0]`;
+					string $guideVertsEdgesSet = `sets $guideVertsEdges`;
+					sets -rm $guideVertsEdgesSet $eF1eF2[0];
+					$faceToEdge = `polyListComponentConversion -ff -te $eF1eF2[1]`;
+					$faceToEdgeSet = `sets $faceToEdge`;
+					sets -rm $faceToEdgeSet $eF1eF2[0];
+					string $edgeToDivide[] = `sets -int $guideVertsEdgesSet $faceToEdgeSet`;
+					$edgeToDivide = `filterExpand -ex 1 -sm 32 $edgeToDivide`;
+					string $divideEdgeThis = "polySubdivideEdge -ws 0 -s 0 -dv " + $edgeDivisions + " -ch 1 " + $edgeToDivide[0];
+					eval($divideEdgeThis);
+					delete $guideVertsEdgesSet $faceToEdgeSet;
+				}
+				else if ($numberOfEdgesFace1 > $numberOfEdgesFace2)
+				{
+					string $edgeDivisions = ($numberOfEdgesFace1 - $numberOfEdgesFace2);
+					string $guideEdgeVerts[] = `polyListComponentConversion -fe -tv $eF1eF2[2]`;
+					string $guideVertsEdges[] = `polyListComponentConversion -fv -te $guideEdgeVerts[0]`;
+					string $guideVertsEdgesSet = `sets $guideVertsEdges`;
+					sets -rm $guideVertsEdgesSet $eF1eF2[2] ;
+					$faceToEdge = `polyListComponentConversion -ff -te $eF1eF2[3]`;
+					$faceToEdgeSet = `sets $faceToEdge`;
+					sets -rm $faceToEdgeSet $eF1eF2[2] ;
+					string $edgeToDivide[] = `sets -int $guideVertsEdgesSet $faceToEdgeSet`;
+					$edgeToDivide = `filterExpand -ex 1 -sm 32 $edgeToDivide`;
+					string $divideEdgeThis = "polySubdivideEdge -ws 0 -s 0 -dv " + $edgeDivisions + " -ch 1 " + $edgeToDivide[0];
+					eval($divideEdgeThis);
+					delete $guideVertsEdgesSet $faceToEdgeSet;
+				}
+			}
+		}
+	}
+	return $eF1eF2;
+} ;
+
+
+//Extrude the selected faces in order to preserve the models current form
+//by adding new faces to create the Bridge.
+
+proc string[] tcExtrude()
+{
+	string $eF1eF2[] = `tcSortUserSel`;
+	if ((`size($eF1eF2)`) == 4)
+		polyExtrudeFacet -ch 1 -kft 0 $eF1eF2[1] $eF1eF2[3];
+	return $eF1eF2 ;
+};
+
+//Get edges to merge first and
+//remove the originally selected faces
+
+global proc int tcPolyBridge()
+{
+	string $eF1eF2[] = `tcExtrude`;
+	int $successIndicator;
+	if ((`size($eF1eF2)`) == 0)
+	{
+		print "// Error: Your selection is incorrect. //\n" ;
+		print	"// From a polygon, select 2 Faces and 1 border edge from each face. //\n" ;
+		print	"// Ie. 2 Faces and 2 Edges from a single Mesh. //\n" ;
+		print	"// When Bridgeing between faces that share an edge, //\n" ;
+		print	"// Extrude with keepFacesTogether [off],  and then Bridge. //\n" ;
+		$successIndicator = 0;
+	}
+	else 
+	{
+		string $firstEdges[] ;
+		string $firstEdgesAccum[];
+		for ($cntr = 0; $cntr < 4;)
+		{
+			string $eToFace[] = `polyListComponentConversion -fe -tf $eF1eF2[$cntr++]`;
+			string $eToFaceSet = `sets $eToFace` ;
+			string $FToEdge[] = `polyListComponentConversion -ff -te $eF1eF2[$cntr++]`;
+			string $FToEdgeSet = `sets $FToEdge`;
+			string $FToEdgeToFace[] = `polyListComponentConversion -fe -tf $FToEdge`;
+			string $FToEdgeToFaceSet = `sets $FToEdgeToFace`;
+			string $faceWithMergeEdge[] = `sets -int $eToFaceSet $FToEdgeToFaceSet`;
+			string $potentialMergeEdges[] = `polyListComponentConversion -ff -te $faceWithMergeEdge`;
+			string $potentialMergeEdgesSet = `sets $potentialMergeEdges` ;
+			$firstEdges = `sets -int $FToEdgeSet $potentialMergeEdgesSet`;
+			appendStringArray($firstEdgesAccum, $firstEdges, 1);
+			delete $eToFaceSet $FToEdgeSet $FToEdgeToFaceSet $potentialMergeEdgesSet ;
+		}
+		delete $eF1eF2[1] $eF1eF2[3];
+		select $firstEdgesAccum ;
+		string $tcReloadZipper[];
+		string $tcZipper[];
+		do      {
+			$tcZipper = `tcZipper`;
+			$tcReloadZipper = `tcReloadZipper`;
+		}while (size($tcReloadZipper) == 2);
+		$successIndicator = 1;
+	}
+	return $successIndicator ;
+};
+
+//do the  merge of edges
+
+global proc string[] tcZipper() {
+	string $firstEdgesAccum[] = `ls -sl`;
+	string $eachAdjFace ;
+	string $adjacentFacesPreMerge[] = `polyListComponentConversion -fe -tf $firstEdgesAccum`;
+	$adjacentFacesPreMerge = `filterExpand -ex 1 -sm 34 $adjacentFacesPreMerge`;
+	string $parentMeshShape[] = `listRelatives -p` ;
+	string $buffr[];
+	int $edgeIndex[];
+	int $cntr = 0;
+	for ($eachEdge in $firstEdgesAccum)
+	{
+		tokenize ($eachEdge, "[]", $buffr) ;
+		$edgeIndex[$cntr] = $buffr[1] ;
+		$cntr++;
+	}
+	string $polyMergeEdgeThis = "polyMergeEdge -mm 1 -fe " + $edgeIndex[0] + " -se " + $edgeIndex[1] + " " + $parentMeshShape[0] + ";\n" ;
+	print $polyMergeEdgeThis;
+	eval ($polyMergeEdgeThis);
+	int $setCntr = 0;
+	string $guideFaceToEdge[];
+	string $adjFaceToEdgeSet;
+	string $firstAdjFaceToEdgeSet;
+	for ($eachAdjFace in $adjacentFacesPreMerge)
+	{
+		$guideFaceToEdge = `polyListComponentConversion -ff -te $eachAdjFace`;
+		$adjFaceToEdgeSet = `sets  $guideFaceToEdge` ;
+		if ($setCntr == 0)
+			$firstAdjFaceToEdgeSet = $adjFaceToEdgeSet;
+		$setCntr++;
+	};
+	string $newMergedEdge[] = `sets -int $firstAdjFaceToEdgeSet $adjFaceToEdgeSet`;
+	delete $firstAdjFaceToEdgeSet $adjFaceToEdgeSet;
+	select $newMergedEdge;
+	return $newMergedEdge;
+};
+
+// Get 1 of the verts of the merged edge
+// and supply a new set of $guideEdges
+
+global proc string[] tcReloadZipper()
+{
+	string $newMergedEdge[] = `ls -sl`;
+	string $vertsOfMergNewEdge[] = `polyListComponentConversion -fe -tv $newMergedEdge`;
+	$vertsOfMergNewEdge = `filterExpand -ex 1 -sm 31 $vertsOfMergNewEdge`;
+	select $vertsOfMergNewEdge;
+	polySelectConstraint -m 2 -t 0x0001 -w 1;
+	polySelectConstraint -dis -m 0;
+	$vertsOfMergNewEdge = `ls -sl`;
+	string $firstEdgesAccum[];
+	if(size($vertsOfMergNewEdge)!=0)
+	{
+		$vertsOfMergNewEdge = `filterExpand -ex 1 -sm 31 $vertsOfMergNewEdge`;
+		$firstEdgesAccum = `polyListComponentConversion -fv -te $vertsOfMergNewEdge[0]` ;
+		select $firstEdgesAccum;
+		polySelectConstraint -m 2 -t 0x8000 -w 1;
+		$firstEdgesAccum = `ls -sl`;
+		polySelectConstraint -dis -m 0;
+		string $adjacentFacesToPendingMerge[] = `polyListComponentConversion -fe -tf $newMergedEdge`;
+	}
+	else
+		clear($firstEdgesAccum) ;
+	return $firstEdgesAccum;
+} ;
+
+//This proc zips merges edges together until it cannot find any more to merge.
+//Could be made smarter but it effective in closed
+
+global proc int tcPolyZipper()
+{
+	string $tcReloadZipper[];
+	string $tcZipper[];
+	do      {
+		$tcZipper = `tcZipper`;
+		$tcReloadZipper = `tcReloadZipper`;
+	}while (size($tcReloadZipper) == 2);
+	return 1;
+}

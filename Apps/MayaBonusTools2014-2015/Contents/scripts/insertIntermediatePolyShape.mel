@@ -1,0 +1,119 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+// for active mesh, select an input node in the channel box and 
+// run the command. A new poly shape node will be inserted
+// upstream of the selected input node so that intermediate history
+// can be adjusted.
+
+
+global proc insertIntermediatePolyShape(){
+	
+	//get transform - needed for createNode command
+	string $transformNode[] = `ls -sl -type transform`;
+	//get shape
+	string $shapeNode[] = `listRelatives -shapes -type mesh`;
+	//get selected channelBox input node
+	string $targetNode[] = `channelBox -q -hol mainChannelBox`;
+
+	
+	string $inputConnection[];
+	$inputConnection = `listConnections -s 1 -c 0 -p 1 -d 0 -t polyBase $targetNode[0]`;
+	
+	//if we get nothing then check to see if the input is a mesh node
+	if (`size($inputConnection)` == 0){
+		$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t mesh $targetNode[0]`;
+		//should consider deleteComponent node, too
+		if (`size($inputConnection)` == 0){
+			$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t deleteComponent $targetNode[0]`;
+			//should consider createColorSet node, too
+			if (`size($inputConnection)` == 0){
+				$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t createColorSet $targetNode[0]`;
+			}
+		}
+	}
+	
+	/*
+	string $outputConnection[];
+	$outputConnection = `listConnections -s 0 -c 0 -p 1 -d 1 -t polyBase $targetNode[0]`;
+	
+	//if we get nothing then check to see if the input is a mesh node
+	if (`size($outputConnection)` == 0){
+		$outputConnection = `listConnections -s 0 -c 0 -p 0 -d 1 -t mesh $targetNode[0]`;
+		//should consider deleteComponent node, too
+		if (`size($outputConnection)` == 0){
+			$outputConnection = `listConnections -s 0 -c 0 -p 0 -d 1 -t deleteComponent $targetNode[0]`;
+			//should consider createColorSet node, too
+			if (`size($outputConnection)` == 0){
+				$outputConnection = `listConnections -s 0 -c 0 -p 0 -d 1 -t createColorSet $targetNode[0]`;
+			}
+		}
+	}
+	
+	string $inputConnection2[];
+	$inputConnection2 = `listConnections -s 1 -c 0 -p 1 -d 0 -t polyBase $outputConnection[0]`;
+	
+	//if we get nothing then check to see if the input is a mesh node
+	if (`size($inputConnection2)` == 0){
+		$inputConnection2 = `listConnections -s 1 -c 1 -p 1 -d 0 -t mesh $outputConnection[0]`;
+		//should consider deleteComponent node, too
+		if (`size($inputConnection2)` == 0){
+			$inputConnection2 = `listConnections -s 1 -c 1 -p 1 -d 0 -t deleteComponent $outputConnection[0]`;
+			//should consider createColorSet node, too
+			if (`size($inputConnection)` == 0){
+				$inputConnection2 = `listConnections -s 1 -c 1 -p 1 -d 0 -t createColorSet $outputConnection[0]`;
+			}
+		}
+	}
+	*/
+	
+	string $outputConnection2[] = `listConnections -s 0 -c 0 -p 1 -d 1 $inputConnection[0]`;
+	
+	/*	
+	print "\n con1 ";
+	print $inputConnection[0];
+	print "\n con out ";
+	print $outputConnection[0];
+	print "\n con2 ";
+	print $inputConnection2[0];
+	print "\n con out2 ";
+	print $outputConnection2[0];
+	*/
+	
+	
+	string $newMesh = `createNode -parent $transformNode[0] -name intermediatePolyShape mesh`;
+	
+	connectAttr -f ($newMesh + ".outMesh") ($outputConnection2[0]);
+	connectAttr ($inputConnection[0]) ($newMesh + ".inMesh");
+	
+	//connectAttr -f ($newMesh + ".outMesh") ($targetNode[0] + ".inputPolymesh");
+	//connectAttr -f ($newMesh + ".outMesh") ($inputConnection2[0]);
+	//connectAttr -f ($newMesh + ".outMesh") ($outputConnection2[0]);
+	
+	//setAttr ($newMesh + ".intermediateObject") 1;
+		
+	//
+	
+	//setAttr ($shapeNode[0] + ".overrideEnabled") 1;
+	//setAttr ($shapeNode[0] + ".overrideDisplayType") 2;
+
+}

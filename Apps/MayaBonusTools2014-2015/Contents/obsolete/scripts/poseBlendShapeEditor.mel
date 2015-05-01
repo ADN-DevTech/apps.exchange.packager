@@ -1,0 +1,187 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//  Procedure Name:
+//		updatePoseBlendShapeEditor
+//
+//  Description:
+//		Updates the editor for user operations
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+global proc updatePoseBlendShapeEditor(){
+	//get active blendshape
+	//find shape and check for existing blendShape
+	string $transform[] = `ls -sl -exactType transform`;
+	if (`size $transform`){
+		string $shapes[] = `listRelatives -c $transform[0]`;
+		string $blendShape[];
+		$blendShape = `listConnections -type blendShape $shapes[0]`;
+		
+		//find all targets
+		string $targets[];
+		$targets = `listConnections -type mesh -s 1 -d 0 -p 0 $blendShape`;
+		
+		//delete all entried on scrolllist
+		//	clear the set list
+		//
+		textScrollList -e -ra poseBlendShapeList;
+		
+		//repopulate scrolllist
+		if (`size $targets`){
+	
+			for( $target in $targets ) {
+				textScrollList -e -a $target poseBlendShapeList;
+			}
+		}
+	}
+	
+}
+
+
+//  Procedure Name:
+//		poseBlendShapeEditor
+//
+//  Description:
+//		Creates the poseBlendShapeEditor for creating and adding
+//		blendShapes to smooth skinned meshes
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+global proc poseBlendShapeEditor( )
+{
+
+	source poseBlendShapeCreate;
+	
+	string $window = "poseBlendShapeEditor";
+
+
+	if( `window -exists $window` ) {
+		deleteUI -window $window;
+	}
+
+   // GG: don't hardcode the HEIGHT! It doesn't work X-platform
+	window -t "Pose Blend Shape Editor" 
+		-menuBar true
+		-w 223
+		-s true 
+		$window;
+
+
+
+	formLayout poseBlendShapeEditorForm;
+
+		textScrollList 
+			-ams true 
+			//-deleteKeyCommand  "colorSetEditCmd delete poseBlendShapeList"
+			//-doubleClickCommand "colorSetEditCmd rename poseBlendShapeList"
+			//-selectCommand "colorSetEditCmd setCurrent poseBlendShapeList"
+			poseBlendShapeList;	
+
+		separator -style "in" scrollButtonsSeparator;
+
+		columnLayout poseBlendShapeEditorButtonLayout;
+
+			button -h 26 -w 80 -l "New"
+				-ann "Create a new pose - select joint and mesh in target position"
+				-enable true
+				-c "poseBlendShapeCreatePrompt;updatePoseBlendShapeEditor"
+				newButton;
+
+			button -h 26 -w 80 -l "Show Original"
+				-ann "Show the original shape"
+				-c "poseBlendShapeShowOriginal;" 
+				-enable true 
+				showOriginalButton;
+
+			button -h 26 -w 80 -l "Show Selected"
+				-ann "Show the selected pose"
+				-c "poseBlendShapeShowPoseFromEditor" 
+				-enable true 
+				showSelectedButton;
+
+			button -h 26 -w 80 -l "Blend Shape"
+				-ann "Select the Blend Shape node"
+				-c "poseBlendShapeSelectBlendShape" 
+				-enable true 
+				selectBlendShapeButton;
+
+			setParent ..;
+			
+
+		button -h 26 -w 80 -l "Update" 		
+			-c "updatePoseBlendShapeEditor" 
+			-ann "Select mesh to update editor with"
+			updateButton;
+
+		button -h 26 -w 80 -l "Close" 		
+			-c ("deleteUI -window " + $window)
+			closeButton;
+
+		setParent ..;
+
+		formLayout -e
+			-af poseBlendShapeList top 5
+			-ac poseBlendShapeList right 5 poseBlendShapeEditorButtonLayout
+			-af poseBlendShapeList left 5
+			-ac poseBlendShapeList bottom 5 scrollButtonsSeparator
+
+			-af poseBlendShapeEditorButtonLayout top 5
+			-af poseBlendShapeEditorButtonLayout right 5
+			-an poseBlendShapeEditorButtonLayout left
+			-ac poseBlendShapeEditorButtonLayout bottom 5 scrollButtonsSeparator
+	
+			-af scrollButtonsSeparator left 0
+			-af scrollButtonsSeparator right 0
+			-ac scrollButtonsSeparator bottom 5 updateButton
+			-an scrollButtonsSeparator top
+
+			-af updateButton left 5
+			-af updateButton bottom 5
+			-ap updateButton right 3 50
+			-an updateButton top 
+
+			-ap closeButton left 2 50
+			-af closeButton bottom 5
+			-af closeButton right 5
+			-an closeButton top 
+			poseBlendShapeEditorForm;
+	
+
+	//	Create script jobs to keep the color set editor up to date
+	//	when the selection changes
+	//
+	//scriptJob 
+	//	-parent "colorEditor"
+	//	-event "SelectionChanged"
+	//	"updateColorSetEditor";
+
+	updatePoseBlendShapeEditor;
+	showWindow $window;
+}

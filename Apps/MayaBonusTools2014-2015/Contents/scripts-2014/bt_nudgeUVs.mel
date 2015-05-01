@@ -1,0 +1,93 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//	bt_nudgeUVs.mel 
+//	This script may be freely distributed. Use and modify at your own risk.
+//
+//	Associated command:	bt_nudgeUVs;
+//
+//	Description:
+//
+//	This tool can be used to quickly and easily nudge (move) selected UVs along either 
+//  the U or V axis in either direction.  The increment value will let you control
+//  the amount of movement with each nudge
+
+
+global proc float bt_nudgeIncrement()
+{
+    float $increment = 0.0005;
+    float $bt_nudgeIncrement = `intField -q -value nudgeIncrementNumber` * $increment;
+    
+    return $bt_nudgeIncrement;
+}
+
+global proc bt_nudgeUVs()
+{
+    float $increment = 0.001;
+
+    
+	if( `window -exists bt_nudgeWindow` )
+		{
+		deleteUI bt_nudgeWindow;
+		//windowPref -remove bt_nudgeWindow;
+		}
+		
+    window -w 150 -h 30 -s true -t "Nudge UVs" bt_nudgeWindow;
+    
+        columnLayout;
+ 
+/*
+            rowColumnLayout -numberOfColumns 3 -cw 1 40 -cw 2 100 -cw 3 25;
+
+                separator -st none;
+                text -label "Nudge UVs" -align center -font "boldLabelFont";
+                separator -st none;
+       
+            setParent ..;
+*/
+            rowColumnLayout -numberOfColumns 3 -cw 1 120 -cw 2 5 -cw 3 50;
+    
+                text -label "Nudge Multiplier:  " -align right;
+                separator -st none;
+                intField -minValue 0 -maxValue 100 -step 1 -value 1 nudgeIncrementNumber;
+                
+            setParent ..;
+            
+            gridLayout -nrc 3 3 -cwh 70 25;
+            
+            
+                separator -st none;          
+                button -l "+ V" -c "polyEditUV -v `bt_nudgeIncrement`" up;
+                separator -st none;                
+                button -l "- U" -c "polyEditUV -u (-1 * `bt_nudgeIncrement`)" left;               
+                text -label "nudge" -align center;
+                button -l "+ U" -c "polyEditUV -u `bt_nudgeIncrement`" right;
+                separator -st none;               
+                button -l "- V" -c "polyEditUV -v (-1 * `bt_nudgeIncrement`)" down;
+                separator -st none;    
+    
+            setParent ..;
+    
+    showWindow bt_nudgeWindow;
+
+}
+
+//bt_nudgeUVs;

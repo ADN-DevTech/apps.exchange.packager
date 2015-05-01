@@ -1,0 +1,180 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//make ik chain stretchy for selected ik handle
+//
+//the basic procedure is this:
+//create a dimension from the chain root to ik handle location
+//connect the dimension.distance to a multiplyDivide node doing division
+//connect the multiplyDivide to a plusMinusAverage set to subtract
+//connect the plusMinusAverage to each joint's scale
+//
+//user should specify axis that points down bone so scaling is correct
+
+//allow user to specify limits?
+
+// TBD
+// * hide dimension locators
+
+global proc stretchyIK( string $axis ){
+
+	//get selected ikHandle
+	string $ikHandle[] = `ls -selection -type "ikHandle"`;
+
+	//get joints in chain
+	string $joints[] = `ikHandle -query -jointList $ikHandle[0]`;
+	
+	//get start and end points of chain
+	float $startPoint[] = `xform -query -worldSpace -translation $joints[0]`;
+	float $endPoint[] = `xform -query -worldSpace -translation $ikHandle[0]`;
+	
+	//get chain length
+	float $chainLength = 0;
+	int $numJoints = (`size($joints)`) - 1 ;
+	//int $i = 0;
+	for ($i = 0; $i <= $numJoints; $i++){
+		float $startJoint[] = `xform -query -worldSpace -translation $joints[$i]`;
+		float $endJoint[] ;
+		if ($i <  $numJoints){
+			$endJoint = `xform -query -worldSpace -translation $joints[$i+1]`;
+		} else {
+			$endJoint = `xform -query -worldSpace -translation $ikHandle[0]`;
+		}		
+		$chainLength = $chainLength + (`distance2Pts $startJoint $endJoint`);
+	}
+	
+	//add dimension
+	string $dimension = `distanceDimension -startPoint $startPoint[0] $startPoint[1] $startPoint[2] -endPoint $endPoint[0] $endPoint[1] $endPoint[2]`;
+	float $dimensionLength = `getAttr ($dimension + ".distance")`;
+	//hide dimension
+	hide `listRelatives -parent $dimension`;
+	//parent it somewhere useful?
+
+	//parent locators from dimension command
+	//find locators
+	string $locators[] = `listConnections $dimension`;
+	parent $locators[0] $joints[0];
+	parent $locators[1] $ikHandle[0];
+	
+	//create multiplyDivide node
+	string $multiplyDivide = `createNode multiplyDivide`;
+	//set operation to divide
+	setAttr ($multiplyDivide + ".operation") 2;
+	
+	//set input attrs on multiplyDivide
+	setAttr ($multiplyDivide + ".input1") $chainLength $chainLength $chainLength;
+	setAttr ($multiplyDivide + ".input2") $chainLength $chainLength $chainLength;
+	//set axes for connections
+	string $multiplyDivideAxes[3];
+	float $plusMinusAverageAxes[3];
+	float $offset = ($chainLength / $dimensionLength) - 1;
+	switch( $axis ){
+		case "X":
+			$multiplyDivideAxes[0] = ".input1X";
+			$multiplyDivideAxes[1] = ".input2Y";
+			$multiplyDivideAxes[2] = ".input2Z";			
+			$plusMinusAverageAxes[0] = 0;
+			$plusMinusAverageAxes[1] = $offset;
+			$plusMinusAverageAxes[2] = $offset;
+			break;
+		case "Y":
+			$multiplyDivideAxes[0] = ".input2X";
+			$multiplyDivideAxes[1] = ".input1Y";
+			$multiplyDivideAxes[2] = ".input2Z";
+			$plusMinusAverageAxes[0] = $offset;
+			$plusMinusAverageAxes[1] = 0;
+			$plusMinusAverageAxes[2] = $offset;			
+			break;
+		case "Z":
+			$multiplyDivideAxes[0] = ".input2X";
+			$multiplyDivideAxes[1] = ".input2Y";			
+			$multiplyDivideAxes[2] = ".input1Z";
+			$plusMinusAverageAxes[0] = $offset;
+			$plusMinusAverageAxes[1] = $offset;
+			$plusMinusAverageAxes[2] = 0;
+			break;		
+	}
+	//connect dimension to multiplyDivide
+	connectAttr -force ($dimension + ".distance") ($multiplyDivide + $multiplyDivideAxes[0]);
+	connectAttr -force ($dimension + ".distance") ($multiplyDivide + $multiplyDivideAxes[1]);
+	connectAttr -force ($dimension + ".distance") ($multiplyDivide + $multiplyDivideAxes[2]);
+	//refresh;
+
+	//create plusMinusAverage node
+	string $plusMinusAverage = `createNode plusMinusAverage`;
+	setAttr ($plusMinusAverage + ".operation") 2;
+	setAttr ($plusMinusAverage + ".input3D[1].input3Dx") $plusMinusAverageAxes[0];
+	setAttr ($plusMinusAverage + ".input3D[1].input3Dy") $plusMinusAverageAxes[1];
+	setAttr ($plusMinusAverage + ".input3D[1].input3Dz") $plusMinusAverageAxes[2];
+
+	//connect multiplyDivide to plusMinusAverage
+	connectAttr -force ($multiplyDivide + ".output") ($plusMinusAverage + ".input3D[0]");
+
+	
+	//loop for each joint in chain
+	for ($joint in $joints){
+		//set limits on joint scale
+		transformLimits -scaleX 1 1.26 -enableScaleX 1 1 $joint;
+		transformLimits -scaleY 1 1.26 -enableScaleY 1 1 $joint;
+		transformLimits -scaleZ 1 1.26 -enableScaleZ 1 1 $joint;
+						
+		//connect multiplyDivide to scale of joints in chain
+		connectAttr -force ($plusMinusAverage + ".output3D")	($joint + ".scale");
+		
+		//not possible to make scale limits keyable
+		//set trans and visibility non-keyable
+		setAttr -edit -keyable off ($joint + ".translateX");
+		setAttr -edit -keyable off ($joint + ".translateY");
+		setAttr -edit -keyable off ($joint + ".translateZ");				
+		setAttr -edit -keyable off ($joint + ".visibility");
+	}
+	
+}
+
+
+
+global proc stretchyIKWin( ){
+
+	string $cmd = "confirmDialog -title \"Stretchy IK Window\" ";
+	$cmd += "-message \"Which joint axis points down the bone?\" ";
+	$cmd += "-button \"X\" -button \"Y\" -button \"Z\" ";
+	$cmd += "-defaultButton \"X\" -cancelButton \"Cancel\" ";
+
+	string $axis = `eval($cmd)`;
+
+	if ($axis == "X" ||
+		$axis == "Y" ||
+		$axis == "Z")
+		stretchyIK $axis;
+
+/*
+	 	confirmDialog -title "Stretchy IK Window" 
+			-message "Which joint axis points down the bone?"
+			-button "X" 
+			-button "Y" 
+			-button "Z" 
+			-defaultButton "Yes"
+			-cancelButton "No" 
+			-dismissString "No";
+
+  */
+
+}

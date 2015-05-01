@@ -1,0 +1,212 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+/*This script creates a back setup from two selected joints, one down from the root and the top of the spine. By Rick Kogucki, April 2004, unsupported script*/
+
+global proc backSetup (int $numClust, int $useBtm, int $flip, string $custObjTop, string $custObjBtm )    {
+	
+	/*user selects top and bottom of chain, make the spline ik.*/
+	string $joints[] = `ls -sl`;
+	
+	//Rotate all joint axes so constraint assignment will work.
+	//iterate from base until you find top. 
+	select -r $joints[0];
+	string $spJnt[];
+	do	{
+		$spJnt= `ls -sl`;
+		rotate 0 0 0;
+		joint -e -oj xyz -secondaryAxisOrient zdown -zso;
+		pickWalk -d down;
+	} while ( $spJnt[0]!=$joints[1]) ;
+	
+	//Create spline ik.
+	//Get original selection first.
+	//Get # of clusters from window and put into spline creation.
+	int $ns = ($numClust - 3);
+	select -cl;
+	select $joints;
+	string $splin[] = `ikHandle -sol ikSplineSolver -pcv false -ns $ns`;  
+	//0 is handle, 1 is effector and 2 is the curve in spline ik.
+	string $curv = $splin[2]; //get the curve name.
+	select -cl ;
+	
+	
+	//Adjust the handle settings for dual twist.
+	setAttr ($splin[0] + ".dTwistControlEnable") 1; //for dual twist.
+	setAttr ($splin[0] + ".dWorldUpType") 4; //two objects.
+	setAttr ($splin[0] + ".dWorldUpAxis") 0; //for positive Y.
+	// set all axes for handle for biped
+	setAttr ($splin[0] + ".dWorldUpVectorY") 0;
+	setAttr ($splin[0] + ".dWorldUpVectorZ") -1;
+	setAttr ($splin[0] + ".dWorldUpVectorEndZ") -1;
+	setAttr ($splin[0] + ".dWorldUpVectorEndY") 0;
+	
+	/* Quad
+	setAttr "ikHandle7.dWorldUpVectorY" 1;
+	setAttr "ikHandle7.dWorldUpVectorZ" 0;
+	setAttr "ikHandle7.dWorldUpVectorEndY" 1;
+	setAttr "ikHandle7.dWorldUpVectorEndZ" 0;
+	end Quad*/
+	
+	
+	//create poly cubes and assign, disconnect shaders.
+	//get position of joints selected to know where to put poly cubes, disconnect them from shader.
+	float $baselocn[] = `xform -q -ws -t $joints[0]`; //location of first lumbar vertebra.
+	float $toplocn[] = `xform -q -t -ws $joints[1]`; //locaton of "shoulders".
+	select -r $joints[0];
+	pickWalk -d up;
+	string $rootSp[] = `ls -sl`; //root node assumed to be one joint above base.
+	select -cl  ;
+	float $rootSpLocn[] = `xform -q -t -ws $rootSp[0]`;
+	
+	
+	/*Test if user is using their own objects. */
+	string $topCube[];
+	string $baseCube[];
+	select -cl;
+	if ($flip==0) {
+		//Create poly cubes for control objects.
+		polyCube -w 1 -h 1 -d 1 -sx 1 -sy 1 -sz 1 -ax 0 1 0 -tx 1 -ch 1; //create a polycube.
+		$baseCube = `ls -sl`; //get its name
+		move -a $rootSpLocn[0] $rootSpLocn[1] $rootSpLocn[2];
+		select -cl;
+		polyCube -w 1 -h 1 -d 1 -sx 1 -sy 1 -sz 1 -ax 0 1 0 -tx 1 -ch 1; //create another polycube.
+		$topCube = `ls -sl`; //get its name
+		move -a $toplocn[0] $toplocn[1] $toplocn[2];
+	}   else if ($flip==1){
+		$topCube[0] = $custObjTop;
+		$baseCube[0]= $custObjBtm;
+	}
+	
+	
+	//disconnect shaders from poly cubes.
+	//get top shape node and disconnect
+	select -r $topCube[0];
+	pickWalk -d down;
+	sets -e -remove initialShadingGroup ; 
+	//get base cube shape and disconnect
+	select -r $baseCube[0];
+	pickWalk -d down;
+	sets -e -remove initialShadingGroup ;
+	
+	
+	/*scale poly cubes to fit model better*/
+	//get distance between root and top and scale appropriately, lay down a locator and blow away.
+	distanceDimension -sp $rootSpLocn[0] $rootSpLocn[1] $rootSpLocn[2] -ep $toplocn[0] $toplocn[1] $toplocn[2];
+	string $dim[]= `ls -sl`;
+	select -cl;
+	float $distanceSp = `getAttr ($dim[1]+".distance")`;
+	//now get rid of the dimension locator since we have the measurement
+	select -r $dim[1];
+	pickWalk -d down;
+	string $dimLocs[] = `listConnections`;
+	select -r $dim[0] $dimLocs[0] $dimLocs[1];
+	delete;
+	
+	
+	//Test if custom objects are used so you can skip scaling. 
+	if ($flip==0) {
+		//scale the top and base cubes:
+		scale -a (.72*$distanceSp) (.26*$distanceSp) (.34*$distanceSp) $topCube[0];
+		scale -a (.52*$distanceSp) (.26*$distanceSp) (.34*$distanceSp) $baseCube[0];
+	}
+	
+	//Assign cubes to spine for twist controls.              
+	connectAttr -f ($baseCube[0] + ".worldMatrix[0]")  ($splin[0]+ ".dWorldUpMatrix"); //base 
+	connectAttr -f ($topCube[0]  + ".worldMatrix[0]")  ($splin[0]+ ".dWorldUpMatrixEnd"); //top
+	
+	//Create clusters from curve. Curve is drawn from base to top. Not "relative" clusters.
+	//How many cvs in curve? Need for loop to create clusters.
+	int $crvspan = `getAttr ($splin[2]+".spans")`;
+	int $crvdeg = `getAttr ($splin[2]+".degree")`;
+	int $its = $crvspan + $crvdeg -1 ; //number of clusters to make
+	int $i=0;
+	string $clusts[]; //array of clusters in spline ik curve.
+	string $selCl[]; //current cluster to assign to array.
+	//walk the curve, make cluster and drop into array.
+	for ($i=0;$i<=$its;$i++){
+		select -r ($splin[2]+".cv[" + $i + "]");
+		cluster;
+		$selCl = `ls -sl`;
+		$clusts[$i] = $selCl[0];
+	}
+	
+	//Parent clusters to cubes. Get from array. 
+	/* How man clusters are there? Divide by two and first ones go to bottom, last ones to top control */
+	select -cl;
+	//Test to see if an odd or even number of clusters exist.
+	int $clustsSize = size($clusts); //Will come back as 6 if clusts is 13.
+	int $clustsDiv = $clustsSize/2; //rounds off low to keep it an int vs float.
+	int $p=0;
+	if ($clustsDiv * 2<= $clustsSize) { //odd number of clusters
+		for ($p=0;$p<=$clustsDiv-1; $p++){
+			select $clusts[$p] $baseCube[0];
+			parent;
+		}
+		select -cl;
+		for ($p=($clustsDiv);$p<=($clustsSize-1); $p++){
+			select $clusts[$p] $topCube[0];
+			parent;
+		}
+	}else	{			//even number of clusters
+		//int $arSzHalf = size($clusts)/2+1;
+		for ($p=0;$p<=$clustsDiv-1; $p++){
+			select $clusts[$p] $baseCube[0];
+			parent;
+		}
+		select -cl;
+		for ($p=($clustsDiv+1);$p<=($clustsSize-1); $p++){
+			select $clusts[$p] $topCube[0];
+			parent;
+		}
+	}
+	
+	//NEED AN IF STATEMENT HERE LOOK AT $USEBTM VALUE.
+	//Assign base cube as point and orient constraint to root. Assumed parent of fist selected joint.
+	if ($useBtm==1){
+		select -cl;
+		select -r $baseCube[0];
+		select -tgl $rootSp[0];
+		pointConstraint -mo -weight 1; 
+		setAttr -lock 0 ($rootSp[0]+".tx"); 
+		setAttr -lock 0 ($rootSp[0]+".ty");  
+		setAttr -lock 0 ($rootSp[0]+".tz");  
+		orientConstraint -mo -weight 1;
+	}
+	select -cl;
+	select -r $baseCube[0];
+	/*              FIN             */
+	
+	
+	/*Improvements to script:
+	Handle different orientations of joints. Probably have to reorient them to make spine spline work. joint -e -oj xyz -secondaryAxisOrient zdown -zso; points x down bone and +y to -z world.
+	Allow different number of spans in curve or number of clusters.
+	Allow different objects to use as controls.
+	Allow different dimensions of automatic control objects.
+	Use Lock length on curve? LockCurveLength;
+	Have a ui for all these choices.
+	Add ramp to ui to adjust roatation of each spine joint.
+	Add ability for fk.
+	Build character moving control, as opposed to pelvis and shoulder control alone. 
+	Hide clusters?
+	Hide ikHandle.
+	*/
+}

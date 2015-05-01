@@ -1,0 +1,135 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// polyNormalManipTool Plugin for Maya 4.5/5.0 for Windows2000/XP, Linux, MAC OSX
+// 
+// By: Quoc Tran (quoctran@alias.com)
+// 
+// 
+// DESCRIPTION
+// 
+// This plugin is a polygon normal manipulator tool which is used to manipulate poly normals
+// in the 3D view.
+// 
+// 
+// USAGE
+// 
+// 1) Copy the plugin (.mll or .so) to your plugin directory.
+// 2) Copy the MEL script to you script directory.
+// 3) Copy the icon to your user prefs icon directory
+//    (e.g. C:\Documents and Settings\quoctran\My Documents\maya\5.0\prefs\icons)
+// 4) Start Maya.
+// 5) Load the plugin using the plugin manager.
+// 6) Source the script if necessary.
+// 7) Create a polygon mesh and select some vertices or face vertices.
+// 8) Run the following command in the Maya script editor:
+//    createPolyNormalManipTool;
+// 
+// You should now see the polyNormalManipTool. The tool starts in direction mode.
+// You can move around the start point and end points to change the normals of the
+// mesh. You can drag the length manipulator to adjust the length of the direction
+// manipulator without altering the normal. You can also click on the lock length
+// toggle manipulator which is just below the length manipulator to lock the length
+// of the direction manipulator so when you drag around the end point, the length
+// remains fixed.
+// 
+// Now click on the direction mode toggle manipulator at the bottom of the manipulator.
+// 
+// The tool is now in attract/repel mode. The direction manipulator is now gone and
+// the only thing you can drag around is the start point manipulator. The tool starts
+// off in attract mode so when you drag around the start point the normals should
+// point directly at the start point manipulator. Click on the attract toggle
+// manipulator to put the tool in repel mode. The normals should now be pointing
+// directly away from the start point as you drag it around.
+// 
+// You can switch back and forth between direction mode and attract/repel mode.
+// 
+// 
+// FEATURES
+// 
+// - This tool can operate in 2 different modes: direction mode and attract/repel mode. The
+//   directionMode toggle manipulator at the bottom of the tool allows you to toggle back and
+//   forth between the modes.
+//   1) In direction mode, the user manipulates a direction manipulator in which the mesh's
+//      normals will point in the same direction as the manipulators direction vector. A
+//      length manipulator gives the ability to adjust the length of the direction manipulator
+//      and a lock length manipulator gives the ability to lock the length while the end
+//      point of the direction manipulator is being dragged around.
+//   2) In attract/repel mode, the user moves around a point and the normals will either be
+//      attracted to that point or be repelled away from that point. The attract manipulate
+//      allows you to toggle back and forth between attract mode and repel mode.
+//      
+// - The manipulator operates on a polyNormalModifierNode which the plugin creates and adds to
+//   the mesh's construction history. The node has the following attributes:
+//     inMesh(mesh) - incoming mesh connection from the construction history
+//     outMesh(mesh) - outgoing mesh connection to the mesh
+//     startPoint(double3) - controlled by the start point manipulator. 
+//     direction(double3) - controlled by the direction manipulator. This will be the mesh's normal
+//                          in world space. This vector is normalized.
+//     length(double) - controls the length of the direction manipulator.
+//     lockLength(boolean) - determines whether to lock the length when the direction manipulator
+//                           is dragged around.
+//     directionMode(boolean) - determines whether the manipulator is in direction mode or
+//                              attract/repel mode.
+//     attract(boolean) - determines whether the manipulator will attract or repel when its in
+//                        attract/repel mode.
+//     vertexIndices(intArray) - list of vertex indices of the affected components.
+//     faceIndices(intArray) - list of face indices of the affected components. This array will be
+//                             empty if vertices were selected and will be the same size as
+//                             vertexIndices if face vertices were selected.
+//     worldMatrix(matrix) - connection from the mesh's worldMatrix.
+//     worldInverseMatrix(matrix) - connection from teh mesh's worldInverseMatrix.
+//     
+// - Undo functionality supported.
+// 
+// - Everytime you select on a different set of vertices or face vertices, the tool will create
+//   a separate polyNormalModifierNode for that set of components. Using the outliner or hypergraph,
+//   you can select on any one of the polyNormalModifierNode's in the construction history and use
+//   the tool to modify the normals for that set of components.
+// 
+// - This tool will work on a mesh whether it has construction history or not. If the mesh does not
+//   have construction history, the tool will create construction history for it. If you do not
+//   want construction history then you will have to manually delete it.
+// 
+// - This tool fully supports snapping the manipulator points to grid, curves or surfaces for
+//   precise results.
+// 
+// - If you select on the polyNormalModiferNode you can manually enter values for the nodes
+//   attributes. All these attributes are keyable as well which you can use to easily animate
+//   the normals of the mesh.
+// 
+///////////////////////////////////////////////////////////////////////////////////////////
+
+
+global proc createPolyNormalManipTool()
+{
+	// Check that plugin is loaded
+	if (!`pluginInfo -q -l "polyNormalManipTool"`)
+		error "polyNormalManipTool plugin is not loaded. Please load the plugin and try again.\n";
+	
+	// Create the tool context
+	if (!`contextInfo -exists polyNormalManipToolCtx`)
+		polyNormalManipTool polyNormalManipToolCtx;
+	
+	// Set the tool to the polyNormalManipTool context
+	setToolTo polyNormalManipToolCtx;
+}

@@ -1,0 +1,105 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// bt_rotateUVsAroundLastWin.mel
+
+
+
+
+proc bt_rotateUVAbout(float $pu, float $pv, float $angle)
+{
+	string $cmd="polyEditUV ";
+	$cmd += "-pu " + $pu + " ";
+	$cmd += "-pv " + $pv + " ";
+	$cmd += "-a "  + $angle;
+
+	eval($cmd);
+}
+global proc bt_polyRotateUVsAroundLast(float $angle)
+{	
+    float $UVs[];
+    
+	string $inList[]=`ls -fl -orderedSelection`;
+	$size = `size $inList`;
+	
+	if ($size == 0)
+	    error "Select UVs to Rotate";
+	
+	$lastUV =  `filterExpand -ex false -sm 35 $inList[$size-1]`;
+	
+	if (`size $lastUV` != 0)
+    	$UVs = `polyEditUV -q  $lastUV`;
+    else 
+        error "Last selection must be a UV.";
+
+
+	
+	// Get selected uvs.
+	string $map[] = `filterExpand -ex false -sm 35`;
+
+
+	// Rotate the uvs now.
+	float $pu = $UVs[0];
+	float $pv = $UVs[1];
+	bt_rotateUVAbout($pu, $pv, $angle);
+}
+
+
+
+global proc bt_rotateUVsAroundLastWin(){
+
+	if (`window -exists bt_polyRotateUVsAroundLastWin`)
+		{
+		deleteUI -wnd bt_polyRotateUVsAroundLastWin;
+		windowPref -remove  bt_polyRotateUVsAroundLastWin;
+		}
+
+	window -t "Rotate UVs around last selected"
+		-w 100 -h 40
+		bt_polyRotateUVsAroundLastWin;
+
+		columnLayout -adj 1;
+
+	    textFieldGrp -l "Rotation Value: "
+			-tx "90"
+			rotationValue;
+
+        separator -st none;
+        
+        text -l "";
+        
+		text -l "(Negative values rotate clockwise)";
+		
+		separator -st none;
+
+        text -l "";
+
+		button -l "Rotate UVs"
+			-c "bt_polyRotateUVsAroundLast `textFieldGrp -q -tx rotationValue`";
+
+		showWindow;
+
+};

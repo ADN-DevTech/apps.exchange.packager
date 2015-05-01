@@ -1,0 +1,199 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//     bgComponentTransformManip.mel (creates handle for moving/snapping polygon
+//     components in a relative manner)
+//
+//	--------------------------
+//
+// 	Suggested hotkey: Map to Ctrl w press
+//
+//
+//	This tool will create a polyMoveVertex node for all valid selected 
+//  polygon components (vertex,face,edge) from the same object.  It will also 
+//  create a handle (similar to a cluster) for controlling the translation and
+//  scale.  This handle has a similar functionality to a cluster.  However, 
+//  unlike a cluster, when you delete the handle, its effect is not removed.
+//
+//	It is provided because of the snapping and pivot limitations of the 
+//  manipulator for the Polygon->moveComponent tool.  All translation, scaling,
+//  snapping, and pivot movement will be done on the handle itself.  
+//
+//	Additionally you can also rotate the handle to change the orientation 
+//  of the move axis.  You will need to translate in object mode to take advantage 
+//  of this. 
+//
+//	You can also easily change the relative snap "from" point by moving the 
+//  pivot of the handle itself.
+//
+//  When using this handle, you will not have to toggle from a local manipulator 
+//  to a global manipulator, which is necessary when using the standard moveComponent.  
+//  It will also allow you to snap along a specific axis when moving, which is
+//  something you can not do when using standard moveComponent manip.  
+//
+//
+//
+//
+// Input Arguments: NONE
+//
+
+global proc string createHandle()
+{
+	// Create dummy node for handle
+	$handleName = `createNode transform -name "snapHandle#"`;
+
+	// Enable pivot icon, selection handle and local axis
+	//
+	setAttr ($handleName + ".displayHandle") 1;
+	setAttr ($handleName + ".displayRotatePivot") 1;
+	setAttr ($handleName + ".displayLocalAxis") 1;
+
+	addAttr -ln expr -at bool  $handleName;
+	setAttr -e -keyable true ($handleName+".expr");
+
+	return $handleName;
+
+}
+
+global proc float[] getCenter(string $vertices[])
+{
+	//Return the center of selected verts
+	//Get center based on average
+	//
+	float $center[];
+	float $tmpLocation[];
+	float $xtotal = 0;
+	float $ytotal = 0;
+	float $ztotal = 0;
+
+	$size = `size $vertices`;
+	print $size;
+
+	for ($vert in $vertices)
+		{
+		$tmpLocation = `xform -q -ws -t $vert`;
+		$xtotal +=  $tmpLocation[0];
+		$ytotal +=  $tmpLocation[1];
+		$ztotal +=  $tmpLocation[2];
+		}
+
+	$center[0] = ($xtotal / ($size));
+	$center[1] = ($ytotal / ($size));
+	$center[2] = ($ztotal / ($size));
+
+	return $center;
+}
+
+global proc int pivotWarning(float $dummy)
+{
+	string $selected[] = `ls -sl`;
+	string $handleName;
+
+	// dummy var is just used to trigger expr
+
+	for ($handleName in $selected)
+	{
+		$scaleVal = `getAttr ($handleName+ ".sx")`;
+		if ($scaleVal != 1)
+			{
+			warning ("Either create a new handle or reset the scale of the current handle back to 1 1 1 before moving pivot");
+			warning ("Moving the pivot on " + $handleName + " could have adverse effects with current scale value.");
+			}
+	}
+	return 1;
+}
+
+
+global proc bgComponentTransformManip()
+{
+
+	global string $gMove;
+	global string $gRotate;
+
+	//Filter out non-poly components and objects
+	//
+	$components = `filterExpand -sm 31 -sm 32 -sm 34`;
+	if (`size $components` == 0)
+		error("Nothing valid selected. Select one or more poly verts, faces or edges.");
+
+	//Convert all to vertices
+	//
+	select -r `polyListComponentConversion -ff -fe -fvf -fv -tv`;
+	string $verts[] = `filterExpand -sm 31`;
+
+	//Get object name
+	//select -r $verts;
+	//$shape = `selectedNodes`;
+	//$object = `listRelatives -f -parent $shape`;
+
+	//Create visual handle
+	//
+	$handle = `createHandle`;
+
+	//Create polyMoveVertex node
+	//
+	select -r $verts;
+	$pmvPivot = `getCenter ($verts)`;
+	$tmp =  `polyMoveVertex -pvt $pmvPivot[0] $pmvPivot[1] $pmvPivot[2] `;
+	rename $tmp[0] ($handle + "_pmv");
+	string $pmv = ($handle + "_pmv");
+	//$pmvPivot = `getAttr ($pmv + ".pivot")`;
+
+	//Connect Handle to PolyMoveVertex
+	//
+	select -r $handle;
+	setAttr ($handle + ".translate") $pmvPivot[0] $pmvPivot[1] $pmvPivot[2] ;
+	FreezeTransformations;
+	performFreezeTransformations(0);
+	setAttr ($handle + ".selectHandle") $pmvPivot[0] $pmvPivot[1] $pmvPivot[2] ;
+	connectAttr -f ($handle + ".translate") ($pmv + ".translate");
+	connectAttr -f ($handle + ".scale") ($pmv + ".scale");
+	connectAttr -f ($handle + ".scalePivot") ($handle + ".selectHandle");
+	connectAttr -f ($handle + ".scalePivot") ($pmv + ".pivot");
+
+	//Create add nodes to calculate and drive pivot of PolyMoveVertex manip
+	//
+	$addX = `shadingNode -asUtility plusMinusAverage`;
+	connectAttr -f ($handle + ".rotatePivotX") ($addX + ".input1D[0]");
+	connectAttr -f ($handle + ".translateX") ($addX + ".input1D[1]");
+	connectAttr -f ($addX + ".output1D") ($pmv + ".pivotX");
+	$addY = `shadingNode -asUtility plusMinusAverage`;
+	connectAttr -f ($handle + ".rotatePivotY") ($addY + ".input1D[0]");
+	connectAttr -f ($handle + ".translateY") ($addY + ".input1D[1]");
+	connectAttr -f ($addY + ".output1D") ($pmv + ".pivotY");
+	$addZ = `shadingNode -asUtility plusMinusAverage`;
+	connectAttr -f ($handle + ".rotatePivotZ") ($addZ + ".input1D[0]");
+	connectAttr -f ($handle + ".translateZ") ($addZ + ".input1D[1]");
+	connectAttr -f ($addZ + ".output1D") ($pmv + ".pivotZ");
+
+	//put expressoin here to check handle for pivot-scale problem and print warning
+	//
+	select -r $handle;
+	$expr = "expression -n " + $handle + "_expr -s \"" + $handle + ".expr = `pivotWarning (" + $handle + ".scalePivotX)`;\\r\"  -o \"\" -ae 1 -uc all;";
+	eval $expr;
+
+	//Ensure that move pivot is disabled and transform manip enabled
+	//
+	setToolTo $gRotate;
+	setToolTo $gMove;
+
+}

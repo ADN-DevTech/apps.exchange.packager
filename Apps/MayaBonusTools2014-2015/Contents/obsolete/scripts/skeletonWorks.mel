@@ -1,0 +1,1546 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//
+// Procedure Name:
+//
+//    skeletonWorks
+//
+// Description:
+//
+//    This script allows you to create skeletons from presets out of a skeleton Library.
+//    
+//    Create a shelf button with this command or execute following command from the command line :
+//    
+//        source skeletonWorks.mel;
+//    
+// 
+//
+//  Last change: value boxes. (30/6)
+//
+//  Todo: more examples
+//  Todo: expand analyze function.
+//  Todo: version numbers
+//
+//	Modified: April 2004 CPAM
+//		Added extra controls to tweak tab
+//		Tweaked existing controls
+//
+//      Load Skeleton file and initialize controls.
+//
+
+global proc swLoadSkeleton()
+{
+    global string $myInputFile;
+    global string $swControlList[];
+    global string $swControlData[];
+    global int $verbose;
+
+    string $myInputFiles[] = `textScrollList -q -si swSkeletonList`;
+    $myInputFile = $myInputFiles[0];
+
+    if ($verbose) print ("Input file =" + $myInputFile + "\n");
+
+    floatSliderGrp -e -v 1 globalScale;
+    floatSliderGrp -e -v 1 globalScaleX;
+    floatSliderGrp -e -v 1 globalScaleY;
+    floatSliderGrp -e -v 1 globalScaleZ;
+
+    floatSliderGrp -e -v 0 tweakX;
+    floatSliderGrp -e -v 0 tweakY;
+    floatSliderGrp -e -v 0 tweakZ;
+
+    floatSliderGrp -e -v 1 scaleX;
+    floatSliderGrp -e -v 1 scaleY;
+    floatSliderGrp -e -v 1 scaleZ;
+    
+    for ($control in $swControlList) 
+    {
+        deleteUI $control;
+        deleteUI ($control +"_xyz");
+    }
+    
+    clear $swControlList;
+    clear $swControlData;
+
+    if (`rowColumnLayout -exists swControls`) 
+        deleteUI -layout swControls; 
+
+    rowColumnLayout -p swEdit -nc 2 -cw 1 80 -cw 2 320 swControls;
+    
+
+    if ($myInputFile != "")
+    {
+       swCreateSkeleton;
+       
+       if (`checkBox -q -v ikCheckBox` == 1 ) swCreateIK;
+       if (`checkBox -q -v cmdCheckBox` == 1 ) swExecPostCmds;       
+    }
+}
+
+
+
+
+//
+//      Create skeleton from .skl file
+//
+
+global proc swCreateSkeleton()
+{
+    global string $myInputFile;
+    global string $swCurrentLib;
+    global string $skeletonData[];
+    global string $swJointList[];
+    global string $swIkList[];
+    global string $swControlList[];
+    global string $swControlData[];
+
+    global int $verbose;
+    global int $totalItems;
+    global int $swPostCmd;
+    global int $swIk;
+
+    string $jointData[];
+
+    clear $skeletonData;
+    clear $jointData;
+    clear $swJointList;
+    clear $swIkList;
+
+
+    int $numItem = 0;
+    int $numJoint = 0;
+    int $numControl = 0;
+   
+    $swPostCmd = 0;    
+    $swIk = 0;
+    
+    string $swOrientJoint;
+    $swOrientJoint = `textField -q -tx swJointOrientation`;
+    
+    string $swLibrary = `optionVar -q swLibrary`; 
+    if ( `about -win` ) $swLibrary += "\\";
+       
+    string $swSkeletonFileName = $swCurrentLib + $myInputFile + ".skl";
+      
+    int $fileID = fopen($swSkeletonFileName, "r");
+
+    while (!`feof $fileID`)
+    {
+        $skeletonData[$numItem ] = `fgetline $fileID`;
+        if ($verbose) print $skeletonData[$numItem ];
+        
+        if (`substring $skeletonData[($numItem)] 1 2` == "ik") $swIk = 1;
+        if (`substring $skeletonData[($numItem)] 1 7` == "postCmd") $swPostCmd = 1;
+        
+
+        if (`substring $skeletonData[($numJoint)] 1 2` == "//") $numItem = $numItem - 1;
+        if (`substring $skeletonData[($numJoint)] 1 2` == "  ") $numItem = $numItem - 1;
+        if (`substring $skeletonData[($numJoint)] 1 5` == "joint") $numJoint = $numJoint + 1;
+        
+        $numItem = $numItem + 1;
+
+        if (`feof $fileID`)
+        {
+            if ($verbose) print ("\n" + "\n" + "Reached end of " + $myInputFile + "\n");
+            if ($verbose) print ("Total number of lines read     : " + $numItem + "\n");
+            if ($verbose) print ("Total number of joints         : " + $numJoint+ "\n");
+
+
+            int $i = 0;
+            $totalItems = $numItem;
+            $numJoint = 0;
+
+            while ($i < $totalItems )
+            {
+                tokenize($skeletonData[$i], $jointData);
+
+//
+//      Create joints.
+//
+
+                if ( $jointData[0] == "joint")
+                {
+
+                    $swJointList[$numJoint] = $jointData[1];
+                    
+                    if ( $jointData[2] == "none" ) select -cl;
+                    else select $jointData[2];
+
+                    float $posX = $jointData[3];
+                    float $posY = $jointData[4];
+                    float $posZ = $jointData[5];
+
+                    joint -a -p $posX $posY $posZ -name $jointData[1];
+                                       
+					addAttr -at "float" -multi -ln "swOrig";
+                                         
+                    setAttr -k off ($jointData[1] + ".swOrig[0]");
+                    setAttr -k off ($jointData[1] + ".swOrig[1]");
+                    setAttr -k off ($jointData[1] + ".swOrig[2]");
+                              
+                    float $pos[] = `joint -q -r -p $jointData[1]`;
+                    
+                    setAttr ($jointData[1] + ".swOrig[0]") $pos[0];
+                    setAttr ($jointData[1] + ".swOrig[1]") $pos[1];
+                    setAttr ($jointData[1] + ".swOrig[2]") $pos[2];
+                         
+                    addAttr -at "float" -dv 1.0 -multi -ln "swScale";
+                                         
+                    setAttr -k off ($jointData[1] + ".swScale[0]");
+                    setAttr -k off ($jointData[1] + ".swScale[1]");
+                    setAttr -k off ($jointData[1] + ".swScale[2]");
+ 
+                    addAttr -at "float" -dv 0.0 -multi -ln "swTweak";
+
+                    setAttr -k off ($jointData[1] + ".swTweak[0]");
+                    setAttr -k off ($jointData[1] + ".swTweak[1]");
+                    setAttr -k off ($jointData[1] + ".swTweak[2]");
+  
+                    addAttr -dt "string" -ln "swOrient";
+                    setAttr -k off ($jointData[1] + ".swOrient");
+                    setAttr -type "string" ($jointData[1] + ".swOrient") $swOrientJoint;
+       
+                    //
+                    // Read in and set Joint-options -if necessary
+                    //
+                
+                    for ( $swNumOptions = 6; $swNumOptions < (size ($jointData)); $swNumOptions++ )
+                    {
+                
+                        string $swOptions[];
+                        tokenize $jointData[$swNumOptions] "=" $swOptions;
+                        
+                        if ($swOptions[0] == "oj" ) setAttr -type "string" ($jointData[1] + ".swOrient")$swOptions[1]; 
+                        else 
+                        {
+                            $swCmd = ("joint -e -" + $swOptions[0] + " " + $swOptions[1]);
+                            eval $swCmd;
+                        }                 
+                     }
+                   
+                     
+           
+                     $numJoint++;
+                   
+//
+//      Orient joints routine (Orients parentJoint to currentJoint).
+//                
+
+
+                    if ( $jointData[2] != "none" )
+                    {
+                        $type = `nodeType $jointData[2]`;
+     
+                        if ( $type == "joint")
+                        {  
+                        
+                           $orientation = getAttr ($jointData[2] + ".swOrient");
+                           joint -e -oj $orientation $jointData[2];    
+                                                      
+                        }
+                    } 
+                    
+                   
+                                    
+                }
+
+
+
+//
+//      Create empty Groups.
+//
+
+                if ( $jointData[0] == "group")
+                {
+                    if ( $jointData[2] == "none" )  
+                        group -em -n $jointData[1];
+                    else
+                        group -em -n $jointData[1] -p $jointData[2] ;
+                   
+                    float $Xpos = $jointData[3];
+                    float $Ypos = $jointData[4];
+                    float $Zpos = $jointData[5];
+
+                    setAttr ($jointData[1] + ".translateX") $Xpos;
+                    setAttr ($jointData[1] + ".translateY") $Ypos;
+                    setAttr ($jointData[1] + ".translateZ") $Zpos;
+                }
+
+
+//
+//      print info lines
+//
+
+                if ( $jointData[0] == "info")
+                {
+
+                    string $info = `substring $skeletonData[$i] 5  (size ( $skeletonData[$i]))`;
+                    print ($info + "\n");
+
+                }
+
+
+//
+//      execute embbeded commands
+//
+
+
+                if ( $jointData[0] == "cmd")
+                { 
+                
+                    string $cmd = `substring $skeletonData[$i] 5  (size ( $skeletonData[$i]))`;
+                    eval $cmd;
+                    
+                }    
+                
+
+//
+//      Create Control sliders.
+//
+
+                if ( $jointData[0] == "control")
+                {
+
+                    $xyzCheckBox = $jointData[1] + "_slider_xyz";
+                    checkBoxGrp -p swControls -ncb 3 -cw3 27 27 27 -la3 "x" "y" "z" -va3 0 0 0 $xyzCheckBox;
+
+                    if (`gmatch $jointData[2] "*x*"` == 1) checkBoxGrp -e -v1 on $xyzCheckBox;
+                    if (`gmatch $jointData[2] "*y*"` == 1) checkBoxGrp -e -v2 on $xyzCheckBox;
+                    if (`gmatch $jointData[2] "*z*"` == 1) checkBoxGrp -e -v3 on $xyzCheckBox;
+
+                    $controlSlider = $jointData[1] + "_slider";
+
+                    $swControlData[$numControl] = $skeletonData[$i];
+                    $swControlList[$numControl] = $controlSlider;
+
+                    $cmd = "swControlSkeleton("+ $numControl +")";
+
+                    floatSliderGrp -p swControls -l $jointData[1] -cw 1 60 -field true
+                                   -min -0.0 -max 2.0 -v 1.0 -step 0.01 -cc $cmd -dc $cmd $controlSlider;
+
+                    $numControl++;
+                }
+                $i++;
+            }
+        }
+    }
+    
+    fclose $fileID;   
+    select -cl;
+    
+    
+    if ($swIk == 1) disable -v 0 swCreateIKButton;
+    disable -v 1 swDeleteIKButton;
+    disable -v 1 swDisableIKButton;
+    disable -v 1 swEnableIKButton;
+    
+    disable -v 0 swFreezeSkeletonButton;
+    disable -v 0 swReorientJointsButton;
+    disable -v 0 swMirrorCopyButton;
+    disable -v 1 swExecPostCmdsButton;
+ 
+}
+
+
+
+
+
+//
+//      Procedure to switch IK-solvers on/off.
+//
+
+global proc swSwitchSolver(int $switch)
+{
+    global string $swIkList[];
+    int $i;
+    for ( $i = 0; $i < (size ($swIkList)); $i++ )
+    {
+        string $swIkHandle = $swIkList[$i];
+        setAttr ($swIkHandle + ".solverEnable") $switch;
+    }
+    
+     disable -v 1 swCreateIKButton;
+     disable -v 0 swDeleteIKButton;
+     
+     if ($switch == 0) 
+     { 
+         disable -v 1 swDisableIKButton;
+         disable -v 0 swEnableIKButton;
+     }
+     else 
+     {  
+     	 disable -v 0 swDisableIKButton;
+         disable -v 1 swEnableIKButton;
+      }
+}
+
+
+
+
+//
+//      Freeze current skeleton-positions and reset controls/controlAttributes
+//
+
+global proc swFreezeSkeleton()
+{
+
+global string $swJointList[];
+global string $swControlList[];
+
+
+    for ($joint in $swJointList)
+    {
+        $posX = `getAttr ($joint + ".translateX")`;
+        $posY = `getAttr ($joint + ".translateY")`;
+        $posZ = `getAttr ($joint + ".translateZ")`;
+
+        setAttr ($joint + ".swOrig[0]") $posX;
+        setAttr ($joint + ".swOrig[1]") $posY;
+        setAttr ($joint + ".swOrig[2]") $posZ;
+        
+        setAttr ($joint + ".swScale[0]") 1;
+        setAttr ($joint + ".swScale[1]") 1;
+        setAttr ($joint + ".swScale[2]") 1;
+                        
+        setAttr ($joint + ".swTweak[0]") 0;
+        setAttr ($joint + ".swTweak[1]") 0;
+        setAttr ($joint + ".swTweak[2]") 0;
+
+    }
+
+    floatSliderGrp -e -v 1 globalScale;
+    floatSliderGrp -e -v 1 globalScaleX;
+    floatSliderGrp -e -v 1 globalScaleY;
+    floatSliderGrp -e -v 1 globalScaleZ;
+
+    floatSliderGrp -e -v 0 tweakX;
+    floatSliderGrp -e -v 0 tweakY;
+    floatSliderGrp -e -v 0 tweakZ;
+
+    floatSliderGrp -e -v 1 scaleX;
+    floatSliderGrp -e -v 1 scaleY;
+    floatSliderGrp -e -v 1 scaleZ;
+    
+    for ($swControlSlider in $swControlList)
+    {
+        floatSliderGrp -e -v 1.0 $swControlSlider;
+    }
+}
+
+
+
+
+//
+//      Re-orient joints (if needed after scaling/tweaking)
+//
+
+global proc swReorientJoints()
+{
+    global string $swJointList[];
+
+
+    for ($joint in $swJointList)
+    {
+       $children = `listRelatives -c $joint`;
+       $isJoint =  `ls -type "joint" $children`;
+       
+       $orientation = getAttr ($joint + ".swOrient");
+       
+       if (size($isJoint) > 0 ) joint -e -zso -oj $orientation $joint;
+    }
+}
+
+
+
+
+//
+//  procedure to edit joint positions.
+//
+
+global proc swEditSkeleton(int $tweak)
+{
+    global int $verbose;
+    global int $totalItems;
+
+    global string $skeletonData[];
+    global string $swJointList[];
+    global string $swIkList[];
+    global string $mirror;
+    global string $hierarchy;
+
+
+    float $skeletonScale, $skeletonScaleX, $skeletonScaleY, $skeletonScaleZ;
+    float $skeletonTweak, $skeletonTweakX, $skeletonTweakY, $skeletonTweakZ;
+
+    int $mirrorYZ = 1;
+    int $mirrorXZ = 1;
+    int $mirrorXY = 1;
+    int $i = 0;
+
+    $skeletonScale = `floatSliderGrp -q -v globalScale`;
+    $skeletonScaleX = `floatSliderGrp -q -v globalScaleX` * $skeletonScale;
+    $skeletonScaleY = `floatSliderGrp -q -v globalScaleY` * $skeletonScale;
+    $skeletonScaleZ = `floatSliderGrp -q -v globalScaleZ` * $skeletonScale;
+
+    $skeletonTweakX = `floatSliderGrp -q -v tweakX`;
+    $skeletonTweakY = `floatSliderGrp -q -v tweakY`;
+    $skeletonTweakZ = `floatSliderGrp -q -v tweakZ`;
+
+    $skeletonStretchX = `floatSliderGrp -q -v scaleX`;
+    $skeletonStretchY = `floatSliderGrp -q -v scaleY`;
+    $skeletonStretchZ = `floatSliderGrp -q -v scaleZ`;
+
+
+    switch ($tweak)
+    {
+        case 0:
+
+            for ($joint in $swJointList)
+            {
+                $posX = (`getAttr ($joint + ".swOrig[0]")` * $skeletonScaleX * `getAttr ($joint + ".swScale[0]")` + `getAttr ($joint + ".swTweak[0]")`);
+                $posY = (`getAttr ($joint + ".swOrig[1]")` * $skeletonScaleY * `getAttr ($joint + ".swScale[1]")` + `getAttr ($joint + ".swTweak[1]")`);
+                $posZ = (`getAttr ($joint + ".swOrig[2]")` * $skeletonScaleZ * `getAttr ($joint + ".swScale[2]")` + `getAttr ($joint + ".swTweak[2]")`);
+
+                joint -e -r -p $posX $posY $posZ $joint;
+                           
+            }
+            
+            break;
+
+
+         case 1:
+
+             string $selected[] = `ls -sl -typ "joint"`;
+             for ($joint in $selected)
+             {
+
+                 if($hierarchy == "below")
+                 {
+                     
+                   
+                         $posX = (`getAttr ($joint + ".swOrig[0]")` * $skeletonScaleX * `getAttr ($joint + ".swScale[0]")` + ($skeletonTweakX * $mirrorYZ));
+                         $posY = (`getAttr ($joint + ".swOrig[1]")` * $skeletonScaleY * `getAttr ($joint + ".swScale[1]")` + ($skeletonTweakY * $mirrorXZ));
+                         $posZ = (`getAttr ($joint + ".swOrig[2]")` * $skeletonScaleZ * `getAttr ($joint + ".swScale[2]")` + ($skeletonTweakZ * $mirrorXY));
+
+                         joint -e -r -p $posX $posY $posZ $joint;
+
+                         setAttr ($joint + ".swTweak[0]") ($skeletonTweakX * $mirrorYZ) ;
+                         setAttr ($joint + ".swTweak[1]") ($skeletonTweakY * $mirrorXZ) ;
+                         setAttr ($joint + ".swTweak[2]") ($skeletonTweakZ * $mirrorXY) ;
+              
+                 }
+
+                 else
+                 {
+
+                     $posX = (`getAttr ($joint + ".swOrig[0]")` * $skeletonScaleX * `getAttr ($joint + ".swScale[0]")` + ($skeletonTweakX * $mirrorYZ));
+                     $posY = (`getAttr ($joint + ".swOrig[1]")` * $skeletonScaleY * `getAttr ($joint + ".swScale[1]")` + ($skeletonTweakY * $mirrorXZ));
+                     $posZ = (`getAttr ($joint + ".swOrig[2]")` * $skeletonScaleZ * `getAttr ($joint + ".swScale[2]")` + ($skeletonTweakZ * $mirrorXY));
+                     
+                     
+                     setAttr ($joint + ".swTweak[0]") ($skeletonTweakX * $mirrorYZ) ;
+                     setAttr ($joint + ".swTweak[1]") ($skeletonTweakY * $mirrorXZ) ;
+                     setAttr ($joint + ".swTweak[2]") ($skeletonTweakZ * $mirrorXY) ;
+
+                     joint -e -r -co -p $posX $posY $posZ $joint;
+
+                }
+                if ($mirror == "YZ" ) $mirrorYZ = $mirrorYZ * -1;
+                if ($mirror == "XZ" ) $mirrorXZ = $mirrorXZ * -1;
+                if ($mirror == "XY" ) $mirrorXY = $mirrorXY * -1;
+
+            }
+            break;
+
+
+        case 2:
+
+
+            string $firstSelected[] = `ls -sl`;
+            select -hi;
+            for ( $cnt = 0; $cnt < (size ( $firstSelected)); $cnt++ ) select -d $firstSelected[$cnt];
+
+            string $selected[] = `ls -sl -type "joint"`;
+
+            for ($joint in $selected)
+            {
+                $posX = `getAttr ($joint + ".swOrig[0]")` * $skeletonScaleX * $skeletonStretchX + `getAttr ($joint + ".swTweak[0]")`;
+                $posY = `getAttr ($joint + ".swOrig[1]")` * $skeletonScaleY * $skeletonStretchY + `getAttr ($joint + ".swTweak[1]")`;
+                $posZ = `getAttr ($joint + ".swOrig[2]")` * $skeletonScaleZ * $skeletonStretchZ + `getAttr ($joint + ".swTweak[2]")`;
+                
+                joint -e -r -p $posX $posY $posZ $joint;
+                
+                setAttr ($joint + ".swScale[0]") $skeletonStretchX;
+                setAttr ($joint + ".swScale[1]") $skeletonStretchY;
+                setAttr ($joint + ".swScale[2]") $skeletonStretchZ;
+          
+            }
+            select $firstSelected;
+            break;
+    }
+}
+
+
+
+
+//
+//   procedure to change joint-positions based on control-groups.
+//
+
+global proc swControlSkeleton(int $numControl)
+{
+
+    global string $swControlData[];
+    global string $swJointList[];
+    string $swControl[];
+
+    float $controlX = 1.0;
+    float $controlY = 1.0;
+    float $controlZ = 1.0;
+    
+    float $posX, $posY, $posZ;
+
+
+    tokenize($swControlData[$numControl], $swControl);
+
+    $controlSlider = $swControl[1] + "_slider";
+    $xyzCheckBox   = $swControl[1] + "_slider_xyz";
+
+
+    if (`checkBoxGrp -q -v1 $xyzCheckBox` == 1) $controlX = `floatSliderGrp -q -v $controlSlider`;
+    if (`checkBoxGrp -q -v2 $xyzCheckBox` == 1) $controlY = `floatSliderGrp -q -v $controlSlider`;
+    if (`checkBoxGrp -q -v3 $xyzCheckBox` == 1) $controlZ = `floatSliderGrp -q -v $controlSlider`;
+    
+    
+    $skeletonScale  = `floatSliderGrp -q -v globalScale`;
+    $skeletonScaleX = `floatSliderGrp -q -v globalScaleX` * $skeletonScale;
+    $skeletonScaleY = `floatSliderGrp -q -v globalScaleY` * $skeletonScale;
+    $skeletonScaleZ = `floatSliderGrp -q -v globalScaleZ` * $skeletonScale;
+
+
+    for ( $cnt = 0; $cnt < (size ( $swControl)-3); $cnt++ ) $selected[$cnt] = $swControl[($cnt +3)];
+
+    for ($joint in $selected)
+    {
+       
+        if (`checkBoxGrp -q -v1 $xyzCheckBox` == 1)
+        { 
+            $posX = `getAttr ($joint + ".swOrig[0]")` * $controlX  * $skeletonScaleX + `getAttr ($joint + ".swTweak[0]")`;
+            setAttr ($joint + ".swScale[0]") $controlX;
+        }
+        
+        else $posX = `getAttr ($joint + ".translateX")`;
+        
+       
+        
+        if (`checkBoxGrp -q -v2 $xyzCheckBox` == 1) 
+        {
+            $posY = `getAttr ($joint + ".swOrig[1]")` * $controlY * $skeletonScaleY + `getAttr ($joint + ".swTweak[1]")`;
+            setAttr ($joint + ".swScale[1]") $controlY;
+        }
+        else $posY = `getAttr ($joint + ".translateY")`;
+        
+        if (`checkBoxGrp -q -v3 $xyzCheckBox` == 1) 
+        {
+            $posZ = `getAttr ($joint + ".swOrig[2]")` * $controlZ * $skeletonScaleZ + `getAttr ($joint + ".swTweak[2]")`;
+            setAttr ($joint + ".swScale[2]") $controlZ;
+        }
+        else $posZ = `getAttr ($joint + ".translateZ")`;
+
+
+
+        joint -e -r -p $posX $posY $posZ $joint;
+
+    }
+}
+
+
+
+
+//
+//  procedure to create ik-handles.
+//
+
+global proc swCreateIK()
+{
+    global int $verbose;
+    global int $totalItems;
+    global int $swPostCmd;
+    global string $skeletonData[];
+    global string $swIkList[];
+
+
+    int $i = 0;
+
+    $ikNum = 0;
+    clear $swIkList;
+
+    while ($i < $totalItems )
+    {
+        string $ikData[];
+        string $resultIK[];
+        string $resultcluster[];
+
+        tokenize($skeletonData[$i], $ikData);
+
+
+          if ( $ikData[0] == "ik")
+          {
+              select ($ikData[2]+ ".rotatePivot");
+              select -add ($ikData[3] + ".rotatePivot");
+              
+              $resultIK = `ikHandle -n $ikData[1] -sol $ikData[4]` ;
+   
+    
+               
+              $swIkList[$ikNum] = $ikData[1];
+              $ikNum++;
+
+//
+//      Parents Ik-handle if needed. (support for inverse foot,...)
+//
+ 
+              if ($ikData[5] != "none") parent $ikData[1] $ikData[5];
+
+//
+//      Creates IkSplineSolver
+//
+              if ($ikData[4] == "ikSplineSolver")
+              {
+                  
+                  select ($resultIK[2] +".cv[1]");
+                  $clusterName = ($ikData[1] + "1");
+                  $resultClusterHandle = `cluster -rel -n $clusterName`;
+                  setAttr ($resultClusterHandle[1] + ".displayHandle") 1;
+                  parent $resultClusterHandle[1] $resultIK[2];
+    
+
+                  select ($resultIK[2] +".cv[2]");
+                  $clusterName = ($ikData[1] + "2");
+                  $resultClusterHandle = `cluster -rel -n $clusterName`;
+                  setAttr ($resultClusterHandle[1] + ".displayHandle") 1;
+                  parent $resultClusterHandle[1] $resultIK[2];
+    
+                 
+                  select ($resultIK[2] +".cv[3]");
+                  $clusterName = ($ikData[1] + "3");
+                  $resultClusterHandle = `cluster -rel -n $clusterName`;
+                  setAttr ($resultClusterHandle[1] + ".displayHandle") 1;
+                  parent $resultClusterHandle[1] $resultIK[2];
+
+                  setAttr ($ikData[1] + ".visibility") 0;    
+              }          
+          }
+        $i++;
+     }
+     
+     disable -v 1 swCreateIKButton;
+     disable -v 0 swDeleteIKButton;
+     disable -v 0 swDisableIKButton;
+     disable -v 1 swEnableIKButton;
+     
+     if ($swPostCmd == 1) disable -v 0 swExecPostCmdsButton;
+
+
+}
+
+
+
+
+//
+//      Execute embedded mel-commands.
+//
+
+global proc swExecPostCmds()
+{
+    global int $verbose;
+    global int $totalItems;
+    global int $swPostCmd;
+    global string $skeletonData[];
+ 
+    for ( $i = 0; $i < $totalItems; $i++ )
+    {
+        string $swCmdData[];
+        tokenize($skeletonData[$i], $swCmdData);
+
+        if ( $swCmdData[0] == "postCmd")
+        {
+
+            string $swCmd = `substring $skeletonData[$i] 9  (size ( $skeletonData[$i]))`;
+            eval $swCmd;
+        }     
+    }   
+    
+         disable -v 1 swExecPostCmdsButton;
+         $swPostCmd = 0;
+}
+
+
+
+
+//
+//      procedure mirror copy joint placement.
+//
+
+global proc swMirrorCopy()
+{
+    global string $mirror;
+    global string $hierarchy;
+     
+    string $selected[] = `ls -sl -type "joint"`;
+	
+    float $pos[] = `joint -q -a -p $selected[0]`;
+	
+    if ($mirror == "YZ" ) $pos[0] = $pos[0] * -1;
+    if ($mirror == "XZ" ) $pos[1] = $pos[1] * -1;
+    if ($mirror == "XY" ) $pos[2] = $pos[2] * -1;
+    
+    if($hierarchy == "below") joint -e -a -p $pos[0] $pos[1] $pos[2] $selected[1];
+    else joint -e -a -co -p $pos[0] $pos[1] $pos[2] $selected[1];
+
+}
+ 
+
+
+
+//
+//      procedure to Delete all Ik-handles.
+//
+
+global proc swDeleteIK()
+{
+    global string $swIkList[];
+    int $i = 0;
+    
+    while ($i < size($swIkList))
+    {
+        select $swIkList[$i];
+        
+        string $connected[] =    `listConnections -d on -t ikHandle`;
+        string $ikSolver[] =     `listConnections -s on ($connected[0] + ".ikSolver")`;
+        string $ikSolverType[] = `ls -st $ikSolver[0]`;
+     
+        if ($ikSolverType[0] == "ikSplineSolver") delete (`listConnections -d on -t curveShape`);
+       
+        delete $swIkList[$i];
+        $i++;
+    }
+    
+    disable -v 0 swCreateIKButton;
+    disable -v 1 swDeleteIKButton;
+    disable -v 1 swDisableIKButton;
+    disable -v 1 swEnableIKButton;
+    
+    disable -v 1 swExecPostCmdsButton;
+    
+}
+
+
+
+
+//
+//      Update skl-list
+//
+
+global proc swUpdateSklList()
+{
+    global string $swCurrentLib;
+	
+    string $swSkeletonsList[] = sort ( `getFileList -folder $swCurrentLib -fs "*.skl"` );
+
+    textScrollList -e -removeAll swSkeletonList;
+
+    for ( $cnt = 0; $cnt < size ( $swSkeletonsList); $cnt++ )
+    {
+       string $name = `substring $swSkeletonsList[$cnt] 1 ( size ( $swSkeletonsList[$cnt] ) - 4 )`;
+       textScrollList -e -append $name swSkeletonList;
+    }
+}
+
+
+
+
+//
+//      Save skeleton as .skl file
+//
+
+global proc swSaveSkeleton()
+{
+    global string $swOutputFile;
+    global string $swCurrentLib;
+    global string $skeletonData[];
+ 
+    global int $verbose;
+    global int $totalItems;
+
+    string $jointData[];
+
+     
+    $swOutputFile = ($swCurrentLib + `textField -q -tx swOutputText`); 
+ 
+    int $fileOutID = `fopen $swOutputFile "w"`;
+    
+    for ( $i = 0; $i < $totalItems; $i++ )
+    {
+        
+        tokenize($skeletonData[$i], $jointData);
+       
+        switch ($jointData[0])
+        {
+        case "joint":
+          
+            float $pos[] = `joint -q -a -p $jointData[1]`;
+ 
+            $jointData[3] = $pos[0];
+            $jointData[4] = $pos[1];
+            $jointData[5] = $pos[2];
+ 
+            string $swOj = getAttr ($jointData[1] + ".swOrient");
+            $jointData[6] = ("oj=" + $swOj);
+            
+            string $swDof = `joint -q -dof $jointData[1]`;
+            $jointData[7] = ("dof=" + $swDof);           
+           
+            for ( $j = 0; $j < (size ($jointData)); $j++ )
+            {
+                fprint $fileOutID ($jointData[$j] + "\t");
+            	
+            }
+            fprint $fileOutID "\n";
+            break;
+            
+        case "group":
+            
+            float $pos[] = getAttr ($jointData[1] + ".translate");
+            
+            $jointData[3] = $pos[0];
+            $jointData[4] = $pos[1];
+            $jointData[5] = $pos[2];
+            
+           
+            for ( $j = 0; $j < (size ($jointData)); $j++ )
+            {
+                fprint $fileOutID ($jointData[$j] + "\t");
+            }
+            fprint $fileOutID "\n";
+            break;
+            
+        default:
+           
+            fprint $fileOutID $skeletonData[($i)];
+            break;
+        }    
+        
+    }
+    fclose $fileOutID;
+    if (`window -exists outputWindow`) { deleteUI -window outputWindow; }
+    swUpdateSklList;
+}
+
+
+
+
+//
+//	save .skl file
+//
+
+global proc swSaveFile(int $saveType)
+{
+    string $swSaveCmd;	
+    window outputWindow;
+    
+    rowColumnLayout -nc 3 -cw 1 135 -cw 2 240 -cw 3 40 swOutputLayout;
+            
+        if ($saveType == 0 ) $swSaveCmd = "swSaveSkeleton";
+        else if ($saveType == 1 ) $swSaveCmd = "swAnalyzeSkeleton";
+        
+        text -al right -label "Skeleton filename  ";
+        $text = `textField -w 200 -ed true -tx "new_skeleton.skl" -ec $swSaveCmd swOutputText`;
+ 
+        button -label "Save" -c $swSaveCmd;
+        
+    showWindow outputWindow;	
+}
+
+
+
+
+//
+//	delete skeleton file
+//
+
+global proc swDeleteSklFile()
+{
+    global string $swCurrentLib;
+    
+    string $myInputFiles[] = `textScrollList -q -si swSkeletonList`;
+    $myInputFile = $myInputFiles[0];
+    
+    string $swSkeletonFileName = $swCurrentLib + $myInputFile + ".skl";
+    
+    int $swResult = `sysFile -del $swSkeletonFileName`;
+    
+    if ($swResult == 0) print "\nProblem deleting file...\n";
+    
+    swUpdateSklList;
+	
+}
+
+
+
+
+//
+//      Analyze selected skeleton.
+//
+
+global proc swAnalyzeSkeleton()
+{
+    global string $swOutputFile;
+    global string $swCurrentLib;
+       
+    $swOutputFile = ($swCurrentLib + `textField -q -tx swOutputText`); 
+ 
+    int $fileOutID = `fopen $swOutputFile "w"`;
+	
+    string $selected[] = `ls -sl`;
+
+    if ($selected[0] == "") print "\nSelect Skeleton Root Node(s)\n\n";
+
+    for ($sel in $selected)
+    {
+        select $sel;
+        $type = `nodeType $sel`;
+        if ( $type == "joint")
+        {
+            float $position[] = `joint -q -a -p $sel`;
+            
+            fprint $fileOutID ("joint " + $sel + " none" + " " + $position[0]
+                                             + " " + $position[1]
+                                             + " " + $position[2]);
+            
+/*
+            string $dof = `joint -q -dof`;
+            fprint $fileOutID (" dof=" + $dof + "\n");      
+*/   
+
+            fprint $fileOutID "\n";                                                                   
+        }
+        
+        else if ($type == "transform")
+        {
+            float $position[] = getAttr ($sel + ".translate");
+
+            fprint $fileOutID ("group " + $sel + " none" + " " + $position[0]
+                                             + " " + $position[1]
+                                             + " " + $position[2] + "\n");
+        }	                                    
+        
+        select -hi;
+        select -d $sel;
+
+        string $filteredChildren[] = `ls -sl`;
+        for ($child in $filteredChildren)
+        {
+
+            $type = `nodeType $child`;
+
+            if ( $type == "joint")
+            {
+                string $parent[] = `listRelatives -p $child`;
+                float $position[] = `joint -q -a -p $child`;
+
+                fprint $fileOutID ("joint " + $child + " " + $parent[0] + " " + $position[0] 
+                                                                        + " " + $position[1] 
+                                                                        + " " + $position[2]);
+/*
+                string $dof = `joint -q -dof $child`;           
+                fprint $fileOutID (" dof=" + $dof + "\n");
+*/
+
+                fprint $fileOutID "\n";
+                    
+            }
+
+            if ($type == "transform")
+            {
+                string $parent[] = `listRelatives -p $child`;
+                float $position[] = getAttr ($child + ".translate");
+
+                fprint $fileOutID ("group " + $child + " " + $parent[0] + " " + $position[0] 
+                                                            + " " + $position[1] 
+                                                            + " " + $position[2] + "\n");
+            }
+        }
+    }
+
+    for ($sel in $selected)
+    {
+        select $sel;
+        select -hi;
+        select -d $sel;
+
+        string $filteredChildren[] = `ls -sl -type ikEffector`;
+
+        for ($child in $filteredChildren)
+        {
+            select $child;
+            string $connectedIk[] = `listConnections -d on -t ikHandle`;
+            string $ikSolver[] = `listConnections -s on ($connectedIk[0] + ".ikSolver")`;
+            string $ikSolverType[] = `ls -st $ikSolver[0]`;
+
+            string $ikHandleParent[0] = `listRelatives -p $connectedIk[0]`;
+            if ($ikHandleParent[0] == "") $ikHandleParent[0] = "none";
+
+            string $startJoint[] = `listConnections -d on -t joint ($connectedIk[0] + ".startJoint")`;
+            string $endJoint[] = `listConnections -s on -t joint ($child + ".tx")`;
+
+            fprint $fileOutID ("ik " + $connectedIk[0] + " " + $startJoint[0] + " " + $endJoint[0] + " " + $ikSolverType[1] + " " + $ikHandleParent[0] + "\n");
+        }
+     }
+  
+     fclose $fileOutID;
+     if (`window -exists outputWindow`) { deleteUI -window outputWindow; }
+     swUpdateSklList;
+}
+
+
+
+
+//
+//      Initialize and clear variables
+//
+
+global proc swInit()
+{
+
+
+    global string $myInputFile;
+    global string $skeletonData[];
+    global string $swIkList[];
+    global string $swControlList[];
+    global string $mirror = "off" ;
+    global string $hierarchy = "off" ;
+ 
+    global int $verbose = 0;
+    global int $totalItems;
+
+
+    clear $skeletonData;
+    clear $swIkList;
+    clear $swControlList;
+    
+    if ( !(`optionVar -ex "swLibrary"`)) 
+    {  
+        if ( `about -win` ) 
+            optionVar -sv swLibrary "C:\\AW\\skeletons";
+	else 
+	    optionVar -sv swLibrary "/usr/autodesk/skeletons";
+    } 
+}
+
+
+
+//
+//
+//
+
+global proc swSetLibrary()
+{
+    global string $swCurrentLib;
+    
+    
+    string $swLibrary = `textField -q -tx swSkeletonDir` ;
+ 
+    $swCurrentLib = $swLibrary;
+    
+//  print ("lib = " + $swLibrary + "\n");   
+    int $test = `filetest -d $swLibrary`;  
+//  print ("test: " + $test + "\n");
+    
+    if ($test == 1) 
+    {
+        optionVar -sv swLibrary (`textField -q -tx swSkeletonDir`);
+     
+        string $swSkeletonsList[] = sort ( `getFileList -folder $swLibrary -fs "*.skl"` );
+    
+        textScrollList -e -removeAll swSkeletonList;
+    
+        for ( $cnt = 0; $cnt < size ( $swSkeletonsList); $cnt++ )
+        {
+           string $name = `substring $swSkeletonsList[$cnt] 1 ( size ( $swSkeletonsList[$cnt] ) - 4 )`;
+           textScrollList -e -append $name swSkeletonList;
+        }
+    }
+}
+
+
+
+
+//
+//
+//
+
+global proc swSetLibrarySection(string $swLibName)
+{
+    global string $swCurrentLib;
+
+    optionVar -sv swLibrary (`textField -q -tx swSkeletonDir`);
+    string $swLibrary = `optionVar -q swLibrary`; 
+    if ( `about -win` ) $swLibrary += "\\"; 
+  
+    $swLibrary += $swLibName;
+    if ( `about -win` ) $swLibrary += "\\";
+
+    $swCurrentLib = $swLibrary ;
+
+    string $swSkeletonsList[] = sort ( `getFileList -folder $swLibrary -fs "*.skl"` );
+
+    textScrollList -e -removeAll swSkeletonList;
+
+    for ( $cnt = 0; $cnt < size ( $swSkeletonsList); $cnt++ )
+    {
+        string $name = `substring $swSkeletonsList[$cnt] 1 ( size ( $swSkeletonsList[$cnt] ) - 4 )`;
+        textScrollList -e -append $name swSkeletonList;
+  
+    }
+
+
+}
+
+//
+//      Reset Tweak Sliders to 0.
+//
+
+global proc swResetTweakSliders(){
+
+	string $joint[] = `ls -sl -type "joint"`;
+
+        floatSliderGrp -edit 
+			//-v `getAttr ($joint[0] + ".tx")` 
+			-v 0
+			tweakX;
+
+        floatSliderGrp -edit 
+			//-v `getAttr ($joint[0] + ".ty")` 
+			-v 0
+			tweakY;
+
+        floatSliderGrp -edit
+			//-v `getAttr ($joint[0] + ".tz")` 
+			-v 0
+			tweakZ;
+
+        floatSliderGrp -edit 
+			//-v `getAttr ($joint[0] + ".sx")` 
+			-v 1
+			scaleX;
+
+        floatSliderGrp -edit 
+			//-v `getAttr ($joint[0] + ".sy")` 
+			-v 1
+			scaleY;
+
+        floatSliderGrp -edit 
+			//-v `getAttr ($joint[0] + ".sz")` 
+			-v 1
+			scaleZ;
+
+
+}
+
+
+//
+//      Create and display UI.
+//
+
+global proc swCreateUI()
+{
+
+    global int $verbose = 0;
+    string $swButtonCmd;
+    string $swLibCollection;
+    
+    $myWin = "skeletonWorks";
+    if (`window -exists $myWin`) { deleteUI -window $myWin; }
+
+    window -wh 436 386 -s true $myWin;
+
+    tabLayout -innerMarginWidth 10 -innerMarginHeight 10 swTabs;
+
+        string $child1 = `columnLayout`;
+
+            string $swLibrary = `optionVar -q swLibrary`; 
+            if ( `about -win` ) $swLibrary += "\\";
+
+            separator -h 4 -style "none";
+            
+            string $swFileList[] = `getFileList -fld ($swLibrary) -fs "swLib*"`;
+            
+            if ((size ($swFileList)) > 0) 
+            {
+                string $swLibLayout = `rowColumnLayout -nr 2 -rh 1 36 `;    
+                
+                $swLibCollection = `iconTextRadioCollection`;
+                  
+                     
+                for ( $i = 0; $i < (size ($swFileList)); $i++ )
+                {
+                    string $swLibName = `substring $swFileList[$i] 8 ( size ( $swFileList[$i] ))`;
+                
+					print "\n swLibName ";
+					print $swLibName;
+
+                    $swButtonCmd =  "swSetLibrarySection(\"" + $swFileList[$i] +"\")";  
+                    $swButtonicon =  ("sw" + $swLibName + ".xpm");   
+					
+					print "\nicon ";
+					print $swButtonicon;
+
+                    iconTextRadioButton -w 36 -h 36 -st "iconAndTextVertical" -i1 $swButtonicon -onc $swButtonCmd;
+       
+                    text -al "center" -label $swLibName;  
+                } 
+                setParent ..;
+                    
+             }                        
+             
+            separator -h 4 -style "none";
+           
+            rowLayout -nc 1 -cw 1 400 -ct1 "both";
+            textScrollList -w 400 -h 160 -ams false -dcc "swLoadSkeleton" swSkeletonList;
+                    
+            string $swSkeletonsList[] = sort ( `getFileList -folder $swLibrary -fs "*.skl"` );
+            textScrollList -e -w 400 -h 160 -removeAll swSkeletonList;
+
+            for ( $cnt = 0; $cnt < size ( $swSkeletonsList); $cnt++ )
+            {
+               string $name = `substring $swSkeletonsList[$cnt] 1 ( size ( $swSkeletonsList[$cnt] ) - 4 )`;
+               textScrollList -e -w 400 -h 160 -append $name swSkeletonList;
+            }
+
+            textScrollList -e -w 400 -h 160 swSkeletonList;
+
+            
+            setParent ..;
+
+        separator -h 15 -style "none";
+        rowColumnLayout -nc 4 -cw 1 100 -cw 2 100 -cw 3 100 -cw 4 100;
+
+            button -label "Create Skeleton"  -c swLoadSkeleton;
+            button -label "Save Skeleton"    -c "swSaveFile(0)"; 
+            button -label "Analyze Existing" -c "swSaveFile(1)";
+            button -label "Delete .skl File" -c swDeleteSklFile;
+          
+ 
+            button -label "Create IK"        -c swCreateIK 		swCreateIKButton;
+            button -label "Delete IK"        -c swDeleteIK 		swDeleteIKButton;
+            button -label "Disable IK"       -c "swSwitchSolver(0)"	swDisableIKButton;
+            button -label "Enable IK"        -c "swSwitchSolver(1)"	swEnableIKButton;
+            
+            
+            disable -v 1 swCreateIKButton;
+            disable -v 1 swDeleteIKButton;
+            disable -v 1 swDisableIKButton;
+	    disable -v 1 swEnableIKButton;
+            
+            
+            button -label "Freeze Skeleton"  -c swFreezeSkeleton	swFreezeSkeletonButton;
+            button -label "Re-orient Joints" -c swReorientJoints	swReorientJointsButton;
+            button -label "Mirror Position"  -c swMirrorCopy		swMirrorCopyButton;
+            button -label "Execute postCmds" -c swExecPostCmds		swExecPostCmdsButton;
+  
+            disable -v 1 swFreezeSkeletonButton;
+            disable -v 1 swReorientJointsButton;
+            disable -v 1 swMirrorCopyButton;
+            disable -v 1 swExecPostCmdsButton;
+
+        setParent ..;
+    setParent ..;
+
+
+
+    columnLayout swEdit;
+
+        floatSliderGrp -label "Global Scale" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -dc "swEditSkeleton(0)" -cc "swEditSkeleton(0)" globalScale;
+
+        separator -height 10 -style none;
+
+        floatSliderGrp -label " Scale X" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -dc "swEditSkeleton(0)" -cc "swEditSkeleton(0)" globalScaleX;
+
+        floatSliderGrp -label " Scale Y" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -dc "swEditSkeleton(0)" -cc "swEditSkeleton(0)" globalScaleY;
+
+        floatSliderGrp -label " Scale Z" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -dc "swEditSkeleton(0)" -cc "swEditSkeleton(0)" globalScaleZ;
+
+        separator -height 10 -style none;
+
+ 
+    setParent ..;
+
+
+    string $child3 = `columnLayout`;
+	//**************
+	//***  TWEAK  
+	//**************
+
+        separator -height 5 -style none;
+
+        radioButtonGrp -nrb 4 -label "Mirror Plane" -la4 "Off" "YZ" "XY" "XZ" -sl 1
+                       -cw 1 142 -cw 2 50 -cw 3 50 -cw 4 50
+                       -on1 "$mirror = \"off\" "
+                       -on2 "$mirror = \"YZ\" "
+                       -on3 "$mirror = \"XY\" "
+                       -on4 "$mirror = \"XZ\" ";
+
+       separator -height 5 -style none;
+
+       radioButtonGrp -nrb 2 -label "Hierarchy" -la4 "Off" "Below" "Above" "Both" -sl 1
+                       -cw 1 142 -cw 2 50 -cw 3 60
+                       -on1 "$hierarchy = \"off\" "
+                       -on2 "$hierarchy = \"below\" ";
+
+        separator -height 10 -style none;
+
+        floatSliderGrp -label " Move X" -field true -min -5.0 -max 5.0 -v 0.0 -step 0.01
+                       -cc "swEditSkeleton(1)" -dc "swEditSkeleton(1)" tweakX;
+
+        floatSliderGrp -label " Move Y" -field true -min -5.0 -max 5.0 -v 0.0 -step 0.01
+                       -cc "swEditSkeleton(1)" -dc "swEditSkeleton(1)" tweakY;
+
+        floatSliderGrp -label " Move Z" -field true -min -5.0 -max 5.0 -v 0.0 -step 0.01
+                       -cc "swEditSkeleton(1)" -dc "swEditSkeleton(1)" tweakZ;
+
+        separator -height 10 -style none;
+
+
+
+        floatSliderGrp -label " Scale X" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -cc "swEditSkeleton(2)" -dc "swEditSkeleton(2)" scaleX;
+
+        floatSliderGrp -label " Scale Y" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -cc "swEditSkeleton(2)" -dc "swEditSkeleton(2)" scaleY;
+
+        floatSliderGrp -label " Scale Z" -field true -min 0.0 -max 2.0 -v 1.0 -step 0.01
+                       -cc "swEditSkeleton(2)" -dc "swEditSkeleton(2)" scaleZ;
+
+        separator -height 10 -style none;
+
+
+		rowColumnLayout -numberOfColumns 4
+			-cw 1 100 -cw 2 100 -cw 3 100 -cw 4 100;
+
+		text -label "";
+
+		button -label "Freeze/Reorient"
+			-command ("makeIdentity -apply true -t 0 -r 1 -s 0 -n 0 -jointOrient;" +
+			"OrientJoint;");
+
+		button -label "Reset Sliders"
+			-command "swResetTweakSliders";
+
+		text -label "";
+
+
+		button -label "Freeze Transforms"
+			-command "FreezeTransformations;";
+
+		button -label "Freeze Options"
+			-command "FreezeTransformationsOptions;";
+
+		button -label "Orient Joint"
+			-command "OrientJoint";
+
+		button -label "Orient Joint Options"
+			-command "OrientJointOptions";
+
+		setParent ..;
+
+    
+
+    setParent ..;
+
+
+
+    string $child4 = `rowColumnLayout -nc 2 -cw 1 135 -cw 2 240`;
+
+        text -al right -label "Skeleton Library:  ";
+        textField -w 266 -ed true -tx (`optionVar -q "swLibrary"`) -cc swSetLibrary swSkeletonDir;
+       
+        text -al right -label "Default Joint orientation  ";
+        textField -w 200 -ed true -tx "xyz" swJointOrientation;
+        
+        text -label " "; text -label " "; text -label " ";
+
+
+        checkBox -l "Create Ik" ikCheckBox;
+        checkBox -e -value off ikCheckBox;
+        text -label " "; 
+        
+        checkBox -l "execute MEL post-commands" cmdCheckBox;
+        checkBox -e -value off cmdCheckBox;
+        text -label " "; 
+
+        string $checkBox2 = `checkBox -l "verbose"`;
+        checkBox -e -value off $checkBox2;
+        string $buttonCmd = ("$verbose = !($verbose)");
+        checkBox -e -cc $buttonCmd $checkBox2;
+
+    setParent ..;
+
+    tabLayout -e -tl $child1 "Create"  -tl swEdit "Edit" -tl $child3 "Tweak"-tl $child4 "Options" swTabs;
+
+    if ((size ($swFileList)) > 0) iconTextRadioCollection -e -sl iconTextRadioButton1 $swLibCollection; 
+
+    showWindow $myWin;
+
+}
+
+
+
+
+//
+//  finally go!
+//
+
+global proc skeletonWorks()
+{
+        if ( float (`about -v`) >= 2.0 )
+        {
+            swInit;
+            swCreateUI; 
+        }
+        else
+            error "skeletonWorks 1.0 requires Maya 2.0 or higher.";
+}
+
+
+//skeletonWorks;
+
+
+
+
+
+

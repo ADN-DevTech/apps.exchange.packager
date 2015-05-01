@@ -1,0 +1,142 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// polyCopyPasteHistory.mel
+
+
+global proc polyCopyPasteHistory (string $nodesToCopy[],
+								  string $targetMeshes[])
+{
+	//get number of meshes
+	int $numberOfMeshes = `size($targetMeshes)`;
+	
+	//get number of nodes to copy
+	int $numberOfNodes = `size($nodesToCopy)`;
+	
+	//create a counter starting at one since size starts at one not zero
+	int $nodeCounter = 1;
+	
+	//store node for duplicate
+	string $duplicateNode[];
+
+	//store upstream connection node
+	string $duplicateUpstream[];
+
+	//loop for each node
+	for ($node in $nodesToCopy){
+		
+		//get nodeType
+		string $nodeType = `nodeType $node`;
+		//list immediate in connection(s) with plug
+		string $inputConnection[];
+		$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t polyBase $node`;
+		//if we get nothing then check to see if the input is a mesh node
+		if (`size($inputConnection)` == 0){
+			$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t mesh $node`;
+			//should consider deleteComponent node, too
+			if (`size($inputConnection)` == 0){
+				$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t deleteComponent $node`;
+				//should consider createColorSet node, too
+				if (`size($inputConnection)` == 0){
+					$inputConnection = `listConnections -s 1 -c 1 -p 1 -d 0 -t createColorSet $node`;
+				}
+			}
+		}
+
+		//print "\n***node: ";
+		//print $node;
+		//print "\ninputs ";
+		//print $inputConnection;
+
+
+		int $meshCounter = 0;
+
+		//loop for each mesh
+		for ($mesh in $targetMeshes){
+			
+			//if it's the first node,
+			//apply move vertex to make sure that history exists
+			//capture name of new move vertex node
+			if ($nodeCounter == 1){
+				//convert to verts
+				string $verts[] = `polyListComponentConversion -tv $mesh`;
+				//apply moveVertex
+				string $moveVertex[] = `polyMoveVertex -ch 1 $verts`;
+				$duplicateUpstream[$meshCounter] = $moveVertex[0];
+				
+			} 
+			/*else {//what is duplicateUpstream node?
+				$duplicateUpstream[$meshCounter] = $node;}
+			*/
+
+			//store out plug name
+			string $outPlug[];
+			//store in plug name
+			string $inPlug[];
+			//copy each node and connect
+			if ($nodeCounter <= $numberOfNodes){
+				
+				//duplicate node
+				string $duplicateNodes[] = `duplicate $node`;
+				$duplicateNode[$meshCounter] = $duplicateNodes[0];
+
+				//get out plug name
+				//first node will be a moveVertex so we know the outplug is output
+				if ($nodeCounter == 1){
+					$outPlug[1] = "output";
+				} else {
+					tokenize $inputConnection[1] "." $outPlug;
+				}
+			
+				//get in plug name
+				//$numTokens = `tokenize $inputConnection[0] "." $inPlug`;
+				tokenize $inputConnection[0] "." $inPlug;
+
+				//connect them
+				//print "\nconnectAttr ";
+				//print ($duplicateUpstream[$meshCounter] + "." + $outPlug[1]);
+				//print " ";
+				//print ($duplicateNode[$meshCounter] + "." + $inPlug[1]);
+				connectAttr ($duplicateUpstream[$meshCounter] + "." + $outPlug[1]) ($duplicateNode[$meshCounter] + "." + $inPlug[1]);
+			
+			}
+				
+			//if it's the last node, also make output connection once for each mesh
+			if ($nodeCounter == $numberOfNodes){
+
+				connectAttr -force ($duplicateNode[$meshCounter] + "." + $outPlug[1]) ($mesh + ".inMesh");
+				
+			}
+
+			//increment counter
+			$meshCounter++;
+
+			clear $duplicateUpstream;
+			$duplicateUpstream = $duplicateNode;
+
+		}
+		//increment counter
+		$nodeCounter++;
+		
+	}
+	
+}

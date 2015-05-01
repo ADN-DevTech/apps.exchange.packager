@@ -1,0 +1,78 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+//	bt_mergeAllVertsByDistance.mel
+//
+//	Merge all verts on the selected mesh below the tolerance
+//  specified by two selected verts
+//
+//  Updated:  01/18/12 Added support for single edge or 2 verts to define merge distance
+//
+
+global proc float bt_distance2Pts( float $p1[], float $p2[] )
+{
+	if( size($p1) != 3 )
+		warning("distance2Pts(): You must give a float array of 3 values as the 1st argument\n");
+	if( size($p2) != 3 )
+		warning("distance2Pts(): You must give a float array of 3 values as the 2nd argument\n");
+
+	float $distance;
+	float $v[3];
+	$v[0] = $p1[0] - $p2[0];
+	$v[1] = $p1[1] - $p2[1];
+	$v[2] = $p1[2] - $p2[2];
+	$distance = $v[0]*$v[0] + $v[1]*$v[1] + $v[2]*$v[2];
+	$distance = sqrt( $distance );
+
+	return $distance;
+}
+
+
+global proc bt_mergeAllVertsEdgesByDistance(){
+	
+	ConvertSelectionToVertices;
+	string $verts[] = `filterExpand -sm 31`;
+
+	if (`size $verts` > 2)
+	    error "Select either a single edge or two vertices to define merge distance.";
+
+	string $verts[] = `filterExpand -sm 31`;
+	float $pos1[] = `xform -q -ws -t $verts[0]`;
+	float $pos2[] = `xform -q -ws -t $verts[1]`;
+
+	float $mergeTolerance = `bt_distance2Pts $pos1 $pos2`;
+
+	$mergeTolerance += 0.0001;
+	print "\nmt: ";
+	print $mergeTolerance ;
+
+	string $shape[] = `listRelatives -p $verts[0]`;
+
+	polyMergeVertex  -d $mergeTolerance  
+		-ch 1 $shape[0] ;
+		
+	select -r $shape;
+}

@@ -1,0 +1,45 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// SCRIPT NAME: drawSplitSetup.mel v3.4
+// DESCRIPTION: Setup option vars for tool properties
+
+//
+global proc drawSplitSetup()
+{
+
+      if (!`optionVar -ex QT_drawSplitMinSampleSize`) optionVar -iv QT_drawSplitMinSampleSize 25;
+      if (!`optionVar -ex QT_drawSplitMultiSlices`) optionVar -iv QT_drawSplitMultiSlices 1;
+      if (!`optionVar -ex QT_drawSplitMultiSliceDropoffPower`) optionVar -fv QT_drawSplitMultiSliceDropoffPower 1;
+      if (!`optionVar -ex QT_drawSplitSubdivisions`) optionVar -iv QT_drawSplitSubdivisions 1;
+      if (!`optionVar -ex QT_drawSplitEdgeSnapping`) optionVar -iv QT_drawSplitEdgeSnapping 0;
+      if (!`optionVar -ex QT_drawSplitEdgeSnappingType`) optionVar -iv QT_drawSplitEdgeSnappingType 1;
+      if (!`optionVar -ex QT_drawSplitEdgeSnappingOffset`) optionVar -fv QT_drawSplitEdgeSnappingOffset 0.5;
+      if (!`optionVar -ex QT_drawSplitEdgeSnappingIntervals`) optionVar -iv QT_drawSplitEdgeSnappingIntervals 2;
+      if (!`optionVar -ex QT_drawSplitSelectNewVertsUponExit`) optionVar -iv QT_drawSplitSelectNewVertsUponExit 1;
+      if (!`optionVar -ex QT_drawSplitAutoBackfaceCulling`) optionVar -iv QT_drawSplitAutoBackfaceCulling 1;
+
+}

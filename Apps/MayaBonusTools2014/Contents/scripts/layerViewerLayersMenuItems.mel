@@ -1,0 +1,91 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// 
+//
+// Creation Date:  jan 2005
+
+
+
+global proc layerViewerLayersMenuItems(){
+
+	//$editMenu = `menu -label "Layers" -allowOptionBoxes true`;
+	$newEmptyMenuItem = `menuItem -label "Create Empty Layer"`;
+	$layerMenuItem = `menuItem -label "Edit Selected Layers..."
+		LayerEditorEditMenuEditMenuItem`;
+
+	menuItem -divider true;
+
+	$selectObjectsMenuItem = `menuItem -label "Select Objects in Selected Layers"
+		LayerEditorEditMenuSelectObjectsMenuItem`;
+	$removeObjectsMenuItem = `menuItem -label "Remove Selected Objects from Selected Layers"
+		LayerEditorEditMenuRemoveObjectsMenuItem`;
+	$addObjectsMenuItem = `menuItem -label "Add Selected Objects to Current Layer"
+		LayerEditorEditMenuAddObjectsMenuItem`;
+
+	menuItem -divider true;
+
+	$membershipMenuItem = `menuItem -label "Membership..."`;
+	$layerAttributesMenuItem = `menuItem -label "Attributes..."
+		LayerEditorEditMenuLayerAttributesMenuItem`;
+
+	menuItem -divider true;
+
+	$deleteMenuItem = `menuItem -label "Delete Selected Layers"
+		LayerEditorEditMenuDeleteMenuItem`;
+	$deleteUnusedMenuItem = `menuItem -label "Delete Unused Layers"`;
+
+	menuItem -divider true;
+
+	// setLayerToMenuItems;
+
+	//	Create Option menu and items.
+	//
+	//$optionsMenu = `menu -label "Options"`;
+
+	menuItem -divider true;
+	menuItem -checkBox false -label "Make New Layers Current"
+		-command ("optionVar -intValue displayLayerCurrent #1;"
+			+ "optionVar -intValue renderLayerCurrent #1;")
+		LayerEditorOptionsMenuMakeCurrentMenuItem;
+	menuItem -checkBox false -label "Use Current Layer"
+		-command ("editDisplayLayerGlobals -useCurrent #1;"
+			+ "editRenderLayerGlobals -useCurrent #1;")
+		LayerEditorOptionsMenuUseCurrentMenuItem;
+
+	//menu -edit -postMenuCommand ("layerEditorShowEditMenu " + $editMenu) $editMenu;
+	//menu -edit -postMenuCommand ("layerEditorShowOptionsMenu " + $optionsMenu) $optionsMenu;
+
+	menuItem -edit -command ("layerEditorCreateLayer") $newEmptyMenuItem;
+	menuItem -edit -command ("layerEditorDeleteLayer \"\"") $deleteMenuItem;
+	menuItem -edit -command ("layerEditorEditLayer \"\"") $layerMenuItem;
+	menuItem -edit -command ("layerEditorSelectObjects \"\"") $selectObjectsMenuItem;
+	menuItem -edit -command ("layerEditorAddObjects \"\"") $addObjectsMenuItem;
+	menuItem -edit -command ("layerEditorRemoveObjects \"\"") $removeObjectsMenuItem;
+	menuItem -edit -command ("layerEditorSelectUnused;layerEditorDeleteLayer \"\"") $deleteUnusedMenuItem;
+	menuItem -edit -command ("layerEditorLayerAttributes \"\"") $layerAttributesMenuItem;
+	menuItem -edit -command ("layerEditorMembership \"\"") $membershipMenuItem;
+}
+
+
+
+

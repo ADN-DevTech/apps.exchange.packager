@@ -1,0 +1,478 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+// footSetup.mel
+//		renamed procs (originally bgAutoFoot)
+//		reworked sdkFoot setup,
+//		added parentConstraint setup
+// modified: july 2003
+//		fixed bug in setup when foot contains a heel
+// modified: april 2004
+//		added new foot style
+//		added user options for control nodes
+// Update 01/28/11 Fixed bug - ikRPsolver required
+//
+// User selects the hip joint and the ankle joint. 
+//
+// TBD
+// * group knee locator under foor locator
+// * prefix knee locator
+// * set translate limit on heel/ball so skin doesn't stretch strangely for parent constraint
+// * lower foot affected by upper hierarchy problem for parent constraint
+//
+// This assumes that the leg is built in the side window with the
+// foot pointing in +Z axis with a joint orientation of XYZ.
+
+
+
+// add pole vector constraint
+// rename foot control hierarchy
+proc addPoleVectorToKnee(string $joints[],
+						 string $ikHandle,
+						 string $footControlRoot,
+						 string $footControl,
+						 string $kneeControl){
+
+	// ADD POLE VECTOR
+	string $assumedKnee[] = `pickWalk -direction down $joints[0]`;
+	// get approximate length of lower leg
+	float $bboxLength[];
+	float $bboxLengthSorted[];
+	float $bbox[] = `xform -query -worldSpace -boundingBox $assumedKnee[0]`;
+	float $x = abs($bbox[3] - $bbox[0]);
+	float $y = abs($bbox[4] - $bbox[1]);
+	float $z = abs($bbox[5] - $bbox[2]);
+	$bboxLength[0] = $x;
+	$bboxLength[1] = $y;
+	$bboxLength[2] = $z;
+	$bboxLengthSorted = `sort $bboxLength`;
+	float $hipPosition;
+	float $kneePosition[] = `xform -q -worldSpace -translation $assumedKnee[0]`;
+	// create locator
+	// if you would rather a curve than a locator
+	// edit the following line
+	string $locator[];
+	if ($kneeControl == "")
+		$locator = `spaceLocator -name kneePoleVector -position $kneePosition[0] $kneePosition[1] ($kneePosition[2] + $bboxLengthSorted[2])`;
+	else
+		$locator[0] = $kneeControl;
+
+	xform -centerPivots $locator[0];    
+	// constrain it
+	poleVectorConstraint -weight 1 $locator[0] $ikHandle;
+
+	// DISPLAY SELECTION HANDLE
+	if ($footControl == ""){
+		toggle -selectHandle $footControlRoot;
+		float $position[] = `xform -q -ws -piv $footControlRoot`;
+		setAttr ($footControlRoot + ".selectHandleX") $position[0];
+		setAttr ($footControlRoot + ".selectHandleY") ($position[1]-1);
+		setAttr ($footControlRoot + ".selectHandleZ") $position[2];
+	}
+
+		
+	// WARNING to prefix hierarchy
+	select -clear;
+	select -replace $footControlRoot $ikHandle;
+	warning "The script appears to have executed properly.";
+	warning "Rename your foot node now with the prefixHierarchy tool.";
+	prefixHierarchy;
+	//select -replace $footControlRoot;
+
+}
+
+// This proc creates a foot with a single ik handle
+// and a parent constraint. This setup allows for easy ik/fk
+// control. The constraintBlend attribute may be driven by the
+// ikBlend attribute.
+proc parentConstraintFoot(string $joints[],
+						  int $heel,
+						  string $footControl,
+						  string $kneeControl
+						  ){
+
+	string $ikHandle[];
+	string $groups[];
+
+	// get ball position
+	float $position[] = `xform -q -worldSpace -translation $joints[2] `;
+	
+	// create foot hierarchy
+	// from the bottom up
+	// toeWiggle first
+	$groups[0] = `group -empty -name toeWiggle`;
+	move -a $position[0] $position[1] $position[2] 
+		($groups[0] + ".rotatePivot") ($groups[0] + ".scalePivot");
+
+	// make toeWiggle attrs non-keyable
+	setAttr -keyable false ($groups[0] + ".tx");
+	setAttr -keyable false ($groups[0] + ".ty");
+	setAttr -keyable false ($groups[0] + ".tz");
+	setAttr -keyable false ($groups[0] + ".sx");
+	setAttr -keyable false ($groups[0] + ".sy");
+	setAttr -keyable false ($groups[0] + ".sz");
+	setAttr -keyable false ($groups[0] + ".v");
+	setAttr -keyable false ($groups[0] + ".ry");
+	setAttr -keyable false ($groups[0] + ".rz");
+
+	// then ballPivot
+	$groups[1] = `group -name ballPivot $groups[0]`;
+	move -a $position[0] $position[1] $position[2] 
+		($groups[1] + ".rotatePivot") ($groups[1] + ".scalePivot");
+
+	// make ballPivot attrs non-keyable
+	setAttr -keyable false ($groups[1] + ".tx");
+	setAttr -keyable false ($groups[1] + ".ty");
+	setAttr -keyable false ($groups[1] + ".tz");
+	setAttr -keyable false ($groups[1] + ".sx");
+	setAttr -keyable false ($groups[1] + ".sy");
+	setAttr -keyable false ($groups[1] + ".sz");
+	setAttr -keyable false ($groups[1] + ".v");
+	setAttr -keyable false ($groups[1] + ".rz");
+
+	// then toePivot
+	$groups[2] = `group -name toePivot $groups[1]`;
+	clear $position;
+	$position = `xform -q -worldSpace -translation $joints[3]`;
+	move -a $position[0] $position[1] $position[2] 
+		($groups[2] + ".rotatePivot") ($groups[2] + ".scalePivot");
+
+	// make toePivot attrs non-keyable
+	setAttr -keyable false ($groups[2] + ".tx");
+	setAttr -keyable false ($groups[2] + ".ty");
+	setAttr -keyable false ($groups[2] + ".tz");
+	setAttr -keyable false ($groups[2] + ".sx");
+	setAttr -keyable false ($groups[2] + ".sy");
+	setAttr -keyable false ($groups[2] + ".sz");
+	setAttr -keyable false ($groups[2] + ".v");
+	setAttr -keyable false ($groups[2] + ".rz");
+
+	// and finally heelPivot
+	$groups[3] = `group -name heelPivot $groups[2]`;
+	float $positionHeel[] = `xform -q -worldSpace -translation $joints[1]`;
+	move -a $position[0] $position[1] $positionHeel[2] 
+		($groups[3] + ".rotatePivot") ($groups[3] + ".scalePivot");
+
+	// make heelPivot attrs non-keyable
+	setAttr -keyable false ($groups[3] + ".tx");
+	setAttr -keyable false ($groups[3] + ".ty");
+	setAttr -keyable false ($groups[3] + ".tz");
+	setAttr -keyable false ($groups[3] + ".sx");
+	setAttr -keyable false ($groups[3] + ".sy");
+	setAttr -keyable false ($groups[3] + ".sz");
+	setAttr -keyable false ($groups[3] + ".v");
+
+	// and finally anklePivot aka footControl
+	// if you would rather a curve or locator than a group with a seletion handle
+	// edit the following line
+	if ($footControl == "")
+		$groups[4] = `group -name footControl $groups[3]`;
+	else{
+		$groups[4] = $footControl;
+		parent $groups[3] $groups[4];
+	}
+	clear $position;
+	$position = `xform -q -worldSpace -translation $joints[1]`;
+	move -a $position[0] $position[1] $positionHeel[2] 
+		($groups[4] + ".rotatePivot") ($groups[4] + ".scalePivot");
+
+	// make footControl attrs non-keyable
+	setAttr -keyable false ($groups[4] + ".tx");
+	setAttr -keyable false ($groups[4] + ".ty");
+	setAttr -keyable false ($groups[4] + ".tz");
+	setAttr -keyable false ($groups[4] + ".sx");
+	setAttr -keyable false ($groups[4] + ".sy");
+	setAttr -keyable false ($groups[4] + ".sz");
+	setAttr -keyable false ($groups[4] + ".v");
+
+	// add attrs and connect them to group nodes created above to control foot
+	addAttr -ln heelPivot -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".heelPivot");
+	connectAttr -f ($groups[4] + ".heelPivot") ($groups[3] + ".rx");
+
+	addAttr -ln heelTwist -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".heelTwist");
+	connectAttr -f ($groups[4] + ".heelTwist") ($groups[3] + ".ry");
+
+	addAttr -ln heelRoll -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".heelRoll");
+	connectAttr -f ($groups[4] + ".heelRoll") ($groups[3] + ".rz");
+
+	addAttr -ln toePivot -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".toePivot");
+	connectAttr -f ($groups[4] + ".toePivot") ($groups[2] + ".rx");
+
+	addAttr -ln toeTwist -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".toeTwist");
+	connectAttr -f ($groups[4] + ".toeTwist") ($groups[2] + ".ry");
+
+	addAttr -ln ballPivot -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".ballPivot");
+	connectAttr -f ($groups[4] + ".ballPivot") ($groups[1] + ".rx");
+
+	addAttr -ln ballTwist -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".ballTwist");
+	connectAttr -f ($groups[4] + ".ballTwist") ($groups[1] + ".ry");
+
+	addAttr -ln toeWiggle -at double  -min -90 -max 90 -dv 0 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".toeWiggle");
+	connectAttr -f ($groups[4] + ".toeWiggle") ($groups[0] + ".rx");
+
+	// create ikHandle at ankle
+	$ikHandle = `ikHandle -sol ikRPsolver -startJoint $joints[0] -endEffector $joints[1]`; //Fixed - ikRPsolver required
+	// and parent under ballPivot
+	parent $ikHandle[0] $groups[1];
+
+	// add ikBlend attr - this is the reverse of the way ConnectIkToFk connects
+	// give user control over blending on the foot - not the ikHandle
+	addAttr -ln ikBlend -at double  -min -0 -max 1 -dv 1 $groups[4];
+	setAttr -e -keyable true ($groups[4] + ".ikBlend");
+	connectAttr -f ($groups[4] + ".ikBlend") ($ikHandle[0] + ".ikBlend");
+
+	// parent constrain ball joint to toeWiggle
+	parentConstraint -mo -weight 1 $groups[0] $joints[2];
+	if ($heel){
+		string $heelJoint[] = `listRelatives -parent $joints[2]`;
+		parentConstraint -mo -weight 1 $groups[0] $heelJoint[0];
+	}
+
+	// add pole vector constraint
+	string $footControlRoot = $groups[4];
+	string $ik = $ikHandle[0];
+	addPoleVectorToKnee $joints $ik $footControlRoot $footControl $kneeControl;
+
+}
+
+// This proc replicates the Set Driven Key
+// foot setup from the CAM class
+proc sdkFoot(string $joints[],
+			 int $sdk, //add set driven key
+			 string $footControl,
+			 string $kneeControl
+			 ){
+
+	float $position[] = `xform -q -worldSpace -translation $joints[2] `;
+	string $ikHandles[];
+	string $ikGroups[];
+	for ($i=0;$i<3;$i+=1)
+	{
+		//select -replace ($joints[$i] + ".rotatePivot");
+		//select -add ($joints[$i+1] + ".rotatePivot");
+		//ikHandle -sol ikRPsolver;
+		string $ikHandle[];
+		$ikHandle = `ikHandle -sol ikRPsolver -startJoint $joints[$i] -endEffector $joints[$i+1]`;  // fixed - ikRPsolver required
+		switch ($i)
+		{
+		case 0:
+			$ikHandles[0] = `rename $ikHandle[0] "ikAnkle"`;
+			$ikGroups[0] = `group -name "ankle" $ikHandles[0]`;
+			move -a $position[0] $position[1] $position[2] 
+				($ikGroups[0] + ".rotatePivot") ($ikGroups[0] + ".scalePivot");
+			break;
+		case 1:
+			$ikHandles[1] = `rename $ikHandle[0] "ikBall"`;
+			break;
+		case 2:
+			$ikHandles[2] = `rename $ikHandle[0] "ikToe"`;
+			$ikGroups[1] = `group -name "toe" $ikHandles[2]`;
+			move -a $position[0] $position[1] $position[2] 
+				($ikGroups[1] + ".rotatePivot") ($ikGroups[1] + ".scalePivot");
+			break;
+		}
+		select -clear;
+	}
+	
+	// GROUP INTO FOOT CONTROL NODE
+	$ikGroups[2] = `group -name "toePivot" $ikHandles[1] $ikGroups`;
+	clear $position;
+	$position = `getAttr ($ikHandles[2] + ".translate")`;
+	move -a $position[0] $position[1] $position[2] 
+		($ikGroups[2] + ".rotatePivot") ($ikGroups[2] + ".scalePivot");
+	
+	$ikGroups[3] = `group -name "heelPivot" $ikGroups[2]`;
+	
+	//set pivot on heel
+	
+	clear $position;
+	float $positionAnkle[];
+	$position = `xform -q -worldSpace -translation $joints[2]`;
+	$positionAnkle = `xform -q -worldSpace -translation $joints[1]`;
+	//select -r "heelPivot";
+	move -a $position[0] $position[1] $positionAnkle[2] 
+		($ikGroups[3] + ".rotatePivot") ($ikGroups[3] + ".scalePivot");
+	
+	if ($footControl == "")
+		$ikGroups[4] = `group -n "foot" $ikGroups[3]`;
+	else {
+		$ikGroups[4] = $footControl;
+		parent $ikGroups[3] $ikGroups[4];
+	}
+
+	clear $position;
+	$position = `getAttr ($ikHandles[1] + ".translate")`;
+	move -a $position[0] $position[1] $position[2] 
+		($ikGroups[4] + ".rotatePivot") ($ikGroups[4] + ".scalePivot");
+
+	// make footControl attrs non-keyable
+	setAttr -keyable false ($ikGroups[4] + ".sx");
+	setAttr -keyable false ($ikGroups[4] + ".sy");
+	setAttr -keyable false ($ikGroups[4] + ".sz");
+	setAttr -keyable false ($ikGroups[4] + ".v");
+
+	if ($sdk){
+		// ADD ROLL ATTRIBUTE TO MAIN FOOT CONTROL
+		addAttr -ln roll -at double  -min -10 -max 10 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".roll");
+		
+		// SET DRIVEN KEY ON FOOT
+		// This assumes the foot is pointing in +Z
+		// You will want to change the setAttr statements for rotateX to the 
+		// appropriate axis and the values may need changing as well.
+		setDrivenKeyframe -driverValue 0
+			-value 0
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[3] + ".rotateX");
+		setDrivenKeyframe -driverValue 0
+			-value 0
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[0] + ".rotateX");
+		setDrivenKeyframe -driverValue -10
+			-value -25
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[3] + ".rotateX");
+		setDrivenKeyframe -driverValue 5
+			-value 0
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[2] + ".rotateX");
+		setDrivenKeyframe -driverValue 5
+			-value 35
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[0] + ".rotateX");
+		setDrivenKeyframe -driverValue 10
+			-value 45
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[2] + ".rotateX");
+		setDrivenKeyframe -driverValue 10
+			-value 0
+			-currentDriver ($ikGroups[4] + ".roll") 
+			($ikGroups[0] + ".rotateX");
+	} else {
+		// add attrs and connect them to group nodes created above to control foot
+		addAttr -ln heelPivot -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".heelPivot");
+		connectAttr -f ($ikGroups[4] + ".heelPivot") ($ikGroups[3] + ".rx");
+		
+		addAttr -ln heelTwist -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".heelTwist");
+		connectAttr -f ($ikGroups[4] + ".heelTwist") ($ikGroups[3] + ".ry");
+
+		addAttr -ln heelLift -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".heelLift");
+		connectAttr -f ($ikGroups[4] + ".heelLift") ($ikGroups[0] + ".rx");
+		
+		/*
+		addAttr -ln footRoll -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".footRoll");
+		connectAttr -f ($ikGroups[4] + ".footRoll") ($ikGroups[3] + ".rz");
+		*/
+
+		addAttr -ln toePivot -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".toePivot");
+		connectAttr -f ($ikGroups[4] + ".toePivot") ($ikGroups[2] + ".rx");
+		
+		addAttr -ln toeTwist -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".toeTwist");
+		connectAttr -f ($ikGroups[4] + ".toeTwist") ($ikGroups[2] + ".ry");
+		
+		addAttr -ln toeWiggle -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".toeWiggle");
+		connectAttr -f ($ikGroups[4] + ".toeWiggle") ($ikGroups[1] + ".rx");
+		/*
+		addAttr -ln ballTwist -at double  -min -90 -max 90 -dv 0 $ikGroups[4];
+		setAttr -e -keyable true ($ikGroups[4] + ".ballTwist");
+		connectAttr -f ($ikGroups[4] + ".ballTwist") ($ikGroups[1] + ".ry");
+		*/
+
+
+	}
+
+	// add pole vector constraint
+	addPoleVectorToKnee $joints $ikHandles[0] $ikGroups[4] $footControl $kneeControl;
+
+}
+
+
+global proc footSetup(int $heel, 
+					  string $footStyle,
+					  string $footControl,
+					  string $kneeControl){
+
+	// GET JOINTS FOR IK SETUP
+	// starting with hip and ankle selected (hip selected first)
+	
+	string $joints[];
+
+	string $selectedJoints[] = `ls -sl`;
+	if (`size($selectedJoints)`>2){
+		warning "More than two joints selected - only the first two will be processed";
+	}
+	// should also add test above for only 1 joint selected or 0
+	$joints[0] = $selectedJoints[0];
+	$joints[1] = $selectedJoints[1];
+	select -replace $joints[1];
+
+	// walk down to the ball
+	// two joints if there is a heel joint
+	if ($heel){
+		pickWalk -d down;
+	}
+	pickWalk -d down;
+	clear $selectedJoints;
+	$selectedJoints = `ls -sl`;
+	$joints[2] = $selectedJoints[0];
+
+	// walk down one joint to the toe
+	pickWalk -d down;
+	clear $selectedJoints;
+	$selectedJoints = `ls -sl`;
+	$joints[3] = $selectedJoints[0];
+	
+	// ADD IK and switch based on $footStyle
+	//string $ikHandles[];
+	//$ikHandles = `ikHandle -name "leg" -startJoint $joints[0] -endEffector $joints[1]`;
+//print "\n";
+//print $joints;
+	// make either parent constraint foot or sdk foot
+	switch ($footStyle)
+	{
+	case "ikHandles":
+		sdkFoot $joints 0 $footControl $kneeControl;
+		break;
+	case "parentConstraint":
+		parentConstraintFoot $joints $heel $footControl $kneeControl;
+		break;
+	case "sdkFoot":
+		sdkFoot $joints 1 $footControl $kneeControl;
+		break;
+	}
+
+}

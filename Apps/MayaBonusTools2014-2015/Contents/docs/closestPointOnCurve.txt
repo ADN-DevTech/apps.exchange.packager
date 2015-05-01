@@ -1,0 +1,190 @@
+Copyright (C) 1997-2001 Alias|Wavefront,
+a division of Silicon Graphics Limited.
+
+The information in this file is provided for the exclusive use of the
+licensees of Alias|Wavefront.  Such users have the right to use, modify,
+and incorporate this code into other products for purposes authorized
+by the Alias|Wavefront license agreement, without fee.
+
+ALIAS|WAVEFRONT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+EVENT SHALL ALIAS|WAVEFRONT BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+DISCLAIMER: THIS PLUGIN IS PROVIDED AS IS.  IT IS NOT SUPPORTED BY
+           ALIAS|WAVEFRONT, SO PLEASE USE AND MODIFY AT YOUR OWN RISK.
+
+
+PLUGIN NAME: closestPointOnCurve v1.0
+DESCRIPTION: This plugin defines both a MEL command and a DG node which takes in as input, a NURBS curve
+             and a worldspace position, then computes the closest point on the input curve from the input
+             position.  In addition to the worldspace "position" at the closest point on the curve, also
+             returned are the "normal", "tangent", "U-parameter" and "closest distance from the input
+             position", at the closest point on the curve.
+AUTHOR: QT
+REFERENCES: -This plugin's concept is based off of the "closestPointOnSurface" node.
+            -The MEL script AEclosestPointOnSurfaceTemplate.mel was referred to for the
+             AE template MEL script that accompanies the closestPointOnCurve node.
+LAST UPDATED: Oct. 13th, 2001.
+COMPILED AND TESTED ON: Maya 4.0 on Windows
+STEPS TO INSTALL: 1) Unzip the file closestPointOnCurve_v1_0_Maya4_Windows.zip to any temporary directory.
+                  2) Copy the file closestPointOnCurve.mll to: /AW/Maya4.0/bin/plug-ins/
+                  3) Copy the file AEclosestPointOnCurveTemplate.mel to: /maya/4.0/scripts/
+                  4) Launch Maya and load the plugin from Windows->Setting/Preferences->Plugin Manager.
+
+
+closestPointOnCurve MEL COMMAND USAGE:
+======================================
+   Command Name: closestPointOnCurve
+   Description: This command returns information at the "closest point on a curve" from a specified input
+                worldspace position and curve.  Specifically, it'll return the worldspace "position", "normal",
+                "tangent", "U-parameter" and "closest distance", at the closest point on the curve.
+   Synopsis: closestPointOnCurve [input flags] [-q/query flag] [output flags] [string argument: name of curve shape or transform]
+             Use:
+             help closestPointOnCurve;
+             to get a quick listing of the available flags in the Maya Script Editor.
+   Modes: This command has a "creation" mode, which creates and hooks up a "closestPointOnCurve" node
+          to the specified curve, and a "query" mode, which returns the requested position, normal,
+          tangent, U-parameter and closest distance information.  The command is in "query" mode when
+          the -q/-query flag is specified, otherwise the command will be in "creation" mode, where a
+          closestPointOnCurve node shall be created and hooked up to the curve when -q/-query is NOT
+          specified.
+   Return Value: float array[], or float, or string
+                 In "query" mode, either a whole "float array[]" returning the position, normal, tangent,
+                 U-parameter and closest distance information - *IN THAT ORDER* - or just a single float or
+                 integer value is returned, depending on "which", and "how many" output flags are being queried
+                 (e.g. a "single float" returned for "-q -u", "four floats"  returned for "-q -t -d", etc...).
+                 In "creation" mode, the name of the newly created "closestPointOnCurve" node is returned as a
+                 "string".
+   Arguments: This command takes either 0 or 1 arguments, specified as a "string" (NOT including the "flag arguments").
+              The string argument is specified as the LAST argument in the command, indicating the name of a NURBS curve's
+              "shape" or "transform" node.  When this string argument is NOT specified, then the command shall look at
+              the first item in the current selection list for a NURBS curve's transform or shape node.  You can specify
+              the transform nodes of curve "instances", but be aware that if the curve "shape" is specified, the transform
+              of its *FIRST* instance's transform is used to calculate the closest point info.
+   Flags: -na/-name string (C)                      Input flag argument to explicitly specify the name of the newly created
+                                                    "closestPointOnCurve" node.  Applies only in "creation" mode (i.e. when
+                                                    -q/-query is NOT specified).  If not specified, the newly created node
+                                                    will get the default name assigned to it by Maya.
+          -ip/-inPosition float float float (C, Q)  Input flag argument to specify the worldspace point to compute the closest
+                                                    point on the curve from.  In "creation" mode, this specifies the values for
+                                                    the ".inPosition" attribute on the newly created "closestPointOnCurve" node.
+                                                    Default of (0, 0, 0) shall be used if this flag is not specified.
+          -p/-position (Q)                          Output flag that indicates that the worldspace "position" of the closest
+                                                    point on the curve from the specified "inPosition", has been requested, and
+                                                    should thus be computed and output to the command's (float array) result.
+                                                    Is only applicable in "-q/-query" mode.
+          -nr/-normal (Q)                           Output flag that indicates that the "normal" (in worldspace) at the closest
+                                                    point on the curve from the specified "inPosition" has been requested, and
+                                                    should thus be computed and output to the command's (float array) result.
+                                                    Is only applicable in "-q/-query" mode.
+          -t/-tangent (Q)                           Output flag that indicates that the "tangent" (in worldspace) at the closest
+                                                    point on the curve from the specified "inPosition" has been requested, and
+                                                    should thus be computed and output to the command's (float array) result.
+                                                    Is only applicable in "-q/-query" mode.
+          -u/-paramU (Q)                            Output flag that indicates that the "U" curve parameter at the closest
+                                                    point on the curve from the specified "inPosition", has been requested, and
+                                                    should thus be computed and output to the command's (float array) result.
+                                                    Is only applicable in "-q/-query" mode.  If it's the only queryable flag
+                                                    specified, a single "float" is returned from the command.
+          -d/-distance (Q)                          Output flag that indicates that the "closest distance" between the closest point
+                                                    on the curve and the specified "inPosition", has been requested, and should
+                                                    thus be computed and output to the command's (float array) result.  This flag
+                                                    is only applicable in "-q/-query" mode.  If it's the only queryable flag
+                                                    specified, a single "float" is returned from the command.
+   Examples:
+      // CREATES, HOOKS UP AND STORES THE NAME OF A "closestPointOnCurve" NODE WITH THE SPECIFIED INPUT POSITION AND CURVE TRANSFORM "myCurve":
+      string $myCPOC = `closestPointOnCurve -na "myClosestPointOnCurve" -ip 1.1 2.2 3.3 "myCurve"`;
+      // Result: myClosestPointOnCurve //
+      // QUERY THE CLOSEST POINT ON CURVE'S WORLDSPACE POSITION, NORMAL, TANGENT, U-PARAMETER AND CLOSEST
+      // DISTANCE FROM A SPECIFIED INPUT WORLDSPACE POSITION AND CURVE "SHAPE", STORING THE RESULT IN A
+      // FLOAT ARRAY, AND EXTRACTING THE DATA FROM EACH ARRAY ELEMENT:
+      float $result[] = `closestPointOnCurve -ip 4.4 5.5 6.6 -q -p -nr -t -u -d "myCurveShape"`;
+      float $positionX, $positionY, $positionZ, $normalX, $normalY, $normalZ, $tangentX, $tangentY, $tangentZ, $uParam, $distance;
+      $positionX = $result[0];
+      $positionY = $result[1];
+      $positionZ = $result[2];
+      $normalX = $result[3];
+      $normalY = $result[4];
+      $normalZ = $result[5];
+      $tangentX = $result[6];
+      $tangentY = $result[7];
+      $tangentZ = $result[8];
+      $uParam = $result[9];
+      $distance = $result[10];
+      print("Here's the resultant position: (" + $positionX + ", " +$positionY + ", " + $positionZ + ")\n");
+      print("Here's the resultant normal: (" + $normalX + ", " +$normalY + ", " + $normalZ + ")\n");
+      print("Here's the resultant tangent: (" + $tangentX + ", " +$tangentY + ", " + $tangentZ + ")\n");
+      print("Here's the resultant U-parameter: " + $uParam + "\n");
+      print("Here's the resultant closest distance: " + $distance + "\n");
+      // QUERY JUST THE TANGENT, U-PARAMETER AND CLOSEST DISTANCE, USING THE SELECTION LIST:
+      select -r "myCurve";
+      $result = `closestPointOnCurve -ip 7.7 8.8 9.9 -q -t -u`;
+      $tangentX = $result[0];
+      $tangentY = $result[1];
+      $tangentZ = $result[2];
+      $uParam = $result[3];
+      $distance = `closestPointOnCurve -ip 10 11 12 -q -d`;
+      print("Here's the resultant tangent: (" + $tangentX + ", " +$tangentY + ", " + $tangentZ + ")\n");
+      print("Here's the resultant u-parameter: " + $uParam + "\n");
+      print("Here's the resultant closest distance: " + $distance + "\n");
+
+closestPointOnCurve NODE USAGE:
+===============================
+   Node name: closestPointOnCurve
+   Description: This node computes information associated with the closest point on a NURBS curve from an input
+                worldspace position.  In particular, the worldspace "position", "normal", "tangent", "U-parameter"
+                and "closest distance" at the closest point on the curve are computed.  The input attributes it
+                uses are an input NURBS curve and a (compound) input worldspace position.  The output attributes
+                are three compound attributes ".position", ".tangent" and ".normal", each which comprise of the
+                individual double XYZ components for each compound result, and two double attributes for the
+                U-parameter and closest-distance.
+   Attributes: .inCurve/.ic          Type nurbsCurve  Default=NULL     The input NURBS curve.  For "worldspace" results, CONNECT YOUR CURVE'S ".worldSpace" ATTRIBUTE TO ".inCurve".
+               .inPosition/.ip       Type double3     Default=(0,0,0)  The input worldspace position.
+                  .inPositionX/.ipx  Type double      Default=0        X value of input worldspace position.
+                  .inPositionY/.ipy  Type double      Default=0        Y value of input worldspace position.
+                  .inPositionZ/.ipz  Type double      Default=0        Z value of input worldspace position.
+               .position/.p          Type double3     Default=(0,0,0)  The worldspace position of the closest point on the curve.
+                  .positionX/.px     Type double      Default=0        X value of closest worldspace position.
+                  .positionY/.py     Type double      Default=0        Y value of closest worldspace position.
+                  .positionZ/.pz     Type double      Default=0        Z value of closest worldspace position.
+               .normal/.n            Type double3     Default=(0,0,0)  Resultant worldspace normal at the closest point on the curve.
+                  .normalX/.nx       Type double      Default=0        Resultant x value of the normal.
+                  .normalY/.ny       Type double      Default=0        Resultant y value of the normal.
+                  .normalZ/.nz       Type double      Default=0        Resultant z value of the normal.
+               .tangent/.t           Type double3     Default=(0,0,0)  Resultant worldspace tangent at the closest point on the curve.
+                  .tangentX/.tx      Type double      Default=0        Resultant x value of the tangent.
+                  .tangentY/.ty      Type double      Default=0        Resultant y value of the tangent.
+                  .tangentZ/.tz      Type double      Default=0        Resultant z value of the tangent.
+               .paramU/.u            Type double      Default=0        Resultant "U-parameter" of the curve at the closest point on the curve.
+               .distance/.d          Type double      Default=0        Resultant "closest distance" between the input position and the closest point on the curve.
+   Example of creating and hooking up the node in MEL:
+      // CREATES A "closestPointOnCurve" NODE HOOKED UP TO A NURBS CURVE.  THEN CREATES TWO SPHERES,
+      // IN WHICH THE FIRST SPHERE "STICKS" TO THE CURVE, WHILE THE SECOND ONE CAN BE TRANSLATED
+      // AROUND TO CHANGE THE "STICKING POSITION" OF THE FIRST SPHERE (I.E. THE SECOND SPHERE
+      // DEFINES "WHERE TO COMPUTE THE CLOSEST POINT ON THE CURVE FROM"):
+      string $myCurve = `curve -d 3 -p -8.920149 0 5.889964 -p -10.995869 0 1.577218 -p -2.81012 0 5.236154 -p -4.717653 0 2.115661`;
+      $myCPOC = `createNode closestPointOnCurve`;
+      connectAttr ($myCurve+".worldSpace") ($myCPOC+".inCurve");
+      $sphereResultA = `sphere`;
+      $ballA = $sphereResultA[0];
+      connectAttr ($myCPOC+".position") ($ballA+".translate");
+      $sphereResultB = `sphere`;
+      $ballB = $sphereResultB[0];
+      connectAttr ($ballB+".translate") ($myCPOC+".inPosition");
+      // PRINT OUT THE NORMAL, TANGENT, PARAMETER-U AND CLOSEST DISTANCE ATTRIBUTES' RESULTS JUST FOR FUN:
+      float $normalX = `getAttr ($myCPOC+".nx")`;
+      float $normalY = `getAttr ($myCPOC+".ny")`;
+      float $normalZ = `getAttr ($myCPOC+".nz")`;
+      float $tangentX = `getAttr ($myCPOC+".tx")`;
+      float $tangentY = `getAttr ($myCPOC+".ty")`;
+      float $tangentZ = `getAttr ($myCPOC+".tz")`;
+      float $U = `getAttr ($myCPOC+".u")`;
+      float $closestDistance = `getAttr ($myCPOC+".d")`;
+      print("The normal at the closest point is: (" + $normalX + ", " + $normalY + ", " + $normalZ + ")\n");
+      print("The tangent at the closest point is: (" + $tangentX + ", " + $tangentY + ", " + $tangentZ + ")\n");
+      print("The U at the closest point is: " + $U + "\n");
+      print("The closest distance from the input position to the curve is: " + $closestDistance + "\n");

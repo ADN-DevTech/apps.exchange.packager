@@ -1,0 +1,1221 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//
+//	bt_makeJointsDynamicUI.mel (originally called bg_dynamicSecondaryAnimation)
+//
+// Make Joints Dynamic:  This tool can be used to apply secondary dynamic animation
+// to a joint chain or a series of joint chains.  The chains can in turn be attached to an
+// animated character or some other moving object, and will react to the existing animation.
+// This can be useful for creating secondary animation for various character elements 
+// such as: ponytails, antennas, ropes, scarves, chains, capes...  You may get varying results
+// depending on the type of method you choose, so you may need to experiment with each type as
+// well as it's associated settings and attributes.
+//
+// This tool is also intended as a way to use Maya's various dynamic systems for game 
+// characters.  The results of any of these effects can baked down to the joints themselves
+// via the bakeSimulation tool.  They can then be exported to a game engine as joint 
+// rotations and/or translations.
+//
+//
+// Single Chains:
+//
+// Each of the single chain types affects a curve which will in turn drives an IKSpline
+// handle connected to the joint chain.  The primary control attributes will then be
+// added to the handle providing easy access for editing the dynamic animation.
+//
+// In each case, the IKHandle, curve, and all associated dynamic objects will be created
+// and connected automatically.  
+//
+// Jiggle   : JiggleDeformer -> Curve -> IKSpline -> Joints
+// Softbody : Springs -> Particles -> SoftbodyCurve -> Curve -> IKSpline -> Joints
+// Hair     : HairSystem -> Folicle -> Curve -> IKSpline -> Joints
+//
+// Before applying bt_makeJointsDynamic for single chains, you must first select the root of the 
+// joint chain that you wish to make dynamic, followed by the end joint.  After you choose 
+// the animation driver type that you'd like to use, you will also have an option for the 
+// detail of the curve that will drive the chain (Low = 4 cvs : Med = 5 cvs : High = 6 cvs).
+// Lastly you may set the falloff of the given effect.  This refers to the ammount that the
+// effect will decay from the end of the chain to the root.  The end of the chain will have 
+// the most movement, the root will have no movement, and the amount of movement for the
+// joints in between will be determined by the falloff.  
+//
+// Note: In order to modify the falloff afterwards you will need to use the component editor 
+// for softbodies and jiggle deformers.  
+//
+// Hair extras: In the case of hair falloff you can simply edit the stiffness 
+// ramp widget in the hairsystem. For hair you can later add collision constraints.  
+// Simple sphere standins are recommended whenever possible for better results.  
+// Note: Hair will only be available in Maya Unlimited, version 6 or later.  
+//
+//
+// Multi Chains:
+// 
+// The joint chains that you drive with nCloth must be siblings to one another.  It is
+// also generally recommended that they have the same number of joints per chain.  Before
+// applying bt_makeJointsDynamic for multi chains, you must first the root of each chain.
+// The order is important as it determines how the nCloth object gets built.  
+// The verts of the resulting nCloth mesh will match the joint postistions exactly.
+//
+// The falloff setting determines how much the static input mesh (eg original joint positions)
+// will influence, or limit the motion of the nCloth.
+//
+// There are 3 methods for linking the nCloth to the joints.
+//
+// 1. IK Spline - the is the least effective method but may be faster than simpleIK
+// An IK Spline will be create for each chain.  The end result will be joint rotations.
+//
+// 2. Simple IK - this is will create an IK handle for -each- joint/bone in each chain.
+// The end result will be joint rotations.
+//
+// 3. Joint Contraints - this will create a locator/constraint for each joint in each chain.
+// The end result will be joint translations, therefore squash and stretch can be 
+// achieved.  Note: when baking joint rotations will not be affected.
+//
+// Once you've created the nCloth you may be prompted to select 1 or more
+// objects for the the nCloth to collide with.  Simply select the object(s)
+// and click the MakeCollide button.  To bypass this just click No Collisions.  You can
+// always add static mesh collision objects later using traditional methods.  
+//
+///////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+// Creation Date:      ( 04/26/04 ) (originally called dynamicSecondaryAnimation)
+//
+// Modified 05/12/05 (fixed bug so that more than one dynamic chain can now be created)
+// Modified 07/26/06 (added arguments for hair proc for 8.0)
+// Modified 07/19/07 (update to include nCloth for multi-chains, plus misc fixes and UI update)
+// Modified 01/28/11 (updated UI for better layout and renamed some options  
+//                    Set input mesh attract on nCloth to locked to avoid over-ride by presets)
+
+
+
+
+
+///////////////////////////////////////////////////
+// Misc Procs
+
+global proc bt_checkPlaybackSpeed ()
+{	
+	string $playbackSpeed = `playbackOptions -q -ps`;
+	if ($playbackSpeed != 0)
+	{
+	string $result = `confirmDialog -title "Playback Speed Check" -message "For best results your playback speed should be set to : play every frame \n\n\                               Would you like to change it now?"
+		-messageAlign "Center" -button "Yes" -button "No" -defaultButton "No" -cancelButton "No" -dismissString "No"`;
+	if ($result == "Yes")
+		playbackOptions -ps 0;
+	}
+		
+}
+
+
+
+///////////////////////////////////////////////////
+// Jiggle Procs
+
+global proc bt_driveJointsWithJiggle(int $detail, int $falloff)
+{		
+	bt_checkPlaybackSpeed;
+	
+	string $joints[] = `ls -sl`;
+	
+	string $Normal4[] = {"0","0.333","0.667","1"};
+	string $Normal5[] = {"0","0.25","0.5","0.75","1"};
+	string $Normal6[] = {"0","0.2","0.4","0.6","0.8","1"};
+
+	string $Quick4[] = {"0","0.25","0.5","1"};
+	string $Quick5[] = {"0","0.125","0.25","0.5","1"};
+	string $Quick6[] = {"0","0.062","0.125","0.25","0.5","1"};
+	
+	string $slow4[] = {"0","0.5","0.75","1"};
+	string $slow5[] = {"0","0.5","0.75","0.875","1"};
+	string $slow6[] = {"0","0.5","0.75","0.875","0.938","1"};
+
+	string $falloffValues[];
+	
+	if (`size $joints` != 2)
+		error "Jiggle Single Chain: two joints must be selected first: root joint + joint at end of chain";
+	
+	//$detail : 0=4cvs 1=5cvs 2=6cvs	
+	string $ikInfo[] = `ikHandle -sol ikSplineSolver -ns ($detail + 1)`; //create spline ik and curve
+	$curveName = `rename $ikInfo[2] "jiggleCurve#"`;
+	select -r $curveName; //selects spline ik curve
+	
+	//Create Jiggle Node
+	//
+	doJiggle 1 { "0.5", "0.5", "1", "0", "0", "default", "" };
+	//$jiggleName = `deformer -type jiggle -name "dynJoint_Jiggle#"`;
+	$jiggleName[0] = `rename "jiggle1" "jiggleEffect#"`;
+	
+	//Modify IK node for Jiggle attrs
+	//
+	$jiggleHandle = `rename $ikInfo[0] "jiggleHandle#"`;
+	select -r $jiggleHandle;
+
+	//Hide normal IK attrs from channel box
+	setAttr ($jiggleHandle + ".displayHandle") 1;
+	setAttr ($jiggleHandle + ".selectHandleY") 2;
+	setAttr ($jiggleHandle + ".tx") -k 0; setAttr ($jiggleHandle + ".ty") -k 0; setAttr ($jiggleHandle + ".tz") -k 0;
+	setAttr ($jiggleHandle + ".rx") -k 0; setAttr ($jiggleHandle + ".ry") -k 0; setAttr ($jiggleHandle + ".rz") -k 0;
+	setAttr ($jiggleHandle + ".sx") -k 0; setAttr ($jiggleHandle + ".sy") -k 0; setAttr ($jiggleHandle + ".sz") -k 0;
+	setAttr ($jiggleHandle + ".pvx") -k 0; setAttr ($jiggleHandle + ".pvy") -k 0; setAttr ($jiggleHandle + ".pvz") -k 0;
+	setAttr ($jiggleHandle + ".off") -k 0; setAttr ($jiggleHandle + ".rol") -k 0; setAttr ($jiggleHandle + ".twi") -k 0; setAttr ($jiggleHandle + ".ikb") -k 0;
+
+	addAttr -ln jiggleWeight -at double  -min 0 -max 1 -dv 1 $jiggleHandle;
+	setAttr -e -keyable true ($jiggleHandle + ".jiggleWeight");
+	connectAttr ($jiggleHandle + ".jiggleWeight") ($jiggleName[0] + ".jiggleWeight");
+	
+	addAttr -ln jiggleStiffness -at double  -min 0 -max 1 -dv .2 $jiggleHandle;
+	setAttr -e -keyable true ($jiggleHandle + ".jiggleStiffness");
+	connectAttr ($jiggleHandle + ".jiggleStiffness") ($jiggleName[0] + ".stiffness");
+	
+	addAttr -ln jiggleDamping -at double  -min 0 -max 1 -dv .3 $jiggleHandle;
+	setAttr -e -keyable true ($jiggleHandle + ".jiggleDamping");
+	connectAttr ($jiggleHandle + ".jiggleDamping") ($jiggleName[0] + ".damping");
+		
+	
+	////////////////////////////	
+	//Set falloff on jiggle verts
+	//$detail : 0=4cvs 1=5cvs 2=6cvs
+	//$falloff : 0=Normal 1=Quick 2=Slow
+	$cvTotal = ($detail + 4);	
+	
+	
+	if (($cvTotal == 4) && ($falloff == 0))
+		$falloffValues = $Normal4;
+	else if (($cvTotal == 5) && ($falloff == 0))
+		$falloffValues = $Normal5;
+	else if (($cvTotal == 6) && ($falloff == 0))
+		$falloffValues = $Normal6;
+	else if (($cvTotal == 4) && ($falloff == 1))
+		$falloffValues = $Quick4;
+	else if (($cvTotal == 5) && ($falloff == 1))
+		$falloffValues = $Quick5;
+	else if (($cvTotal == 6) && ($falloff == 1))
+		$falloffValues = $Quick6;
+	else if (($cvTotal == 4) && ($falloff == 2))
+		$falloffValues = $slow4;
+	else if (($cvTotal == 5) && ($falloff == 2))
+		$falloffValues = $slow5;
+	else if (($cvTotal == 6) && ($falloff == 2))
+		$falloffValues = $slow6;
+	else 
+		error "Something is wrong";
+				
+	
+	print $falloffValues;
+	
+	int $count = 0;
+				
+	while ($count < $cvTotal)
+	{	
+		$cvName = ($curveName + ".cv[" + $count + "]");
+		float $val = $falloffValues[$count];
+		percent -v  $val $jiggleName[0] ($cvName) ;
+		//print ("Assigning " + $val + " to " + $cvName + "\n");
+		$count ++;
+	}
+
+	select -r $jiggleHandle;
+
+	//print ($cvTotal + "\n");
+	//print ($falloff + "\n");
+
+	warning ("You may need to rewind to start frame in order to see the effect of the jiggle deformer");
+
+	//add info to notes
+	addAttr -sn "nts" -ln "notes" -dt "string" $jiggleHandle;
+	setAttr ($jiggleHandle+".nts") -type "string" "The jiggleHandle contains extra attributes that indirectly control the more common attrs which exist on the jiggle deformer.  This is done so that you can easily access and edit the attrs from the channel box by selecting the jiggle handle.  You can remove these attrs or break their connection if you're more experienced with jiggle deformers and want to work with that node directly.\r\n";
+
+	print ("Jiggle deformer on curve attached to joint chain.  See notes on Jiggle Handle node for more details.\n");
+}
+
+
+
+///////////////////////////////////////////////////
+// Softbody Procs
+	
+global proc bt_makeSoftJointsCollide (string $partObj, string $handle)
+{
+	pickWalk -d down;
+	string $meshesAndNurbs[] = `filterExpand -sm 10 -sm 12`;
+	select -r $meshesAndNurbs;
+	
+	if (`size $meshesAndNurbs` < 1)
+		warning "No Nurbs or Meshes selected.  Nothing to collide with.";
+	else
+		{
+		collision -r 0.5 -f 0.5  $meshesAndNurbs;
+		connectDynamic -c $meshesAndNurbs $partObj;
+		}		
+
+	select -r $handle;
+
+}
+	
+global proc bt_driveJointsWithSoftbody(int $detail, int $falloff)
+{	
+	bt_checkPlaybackSpeed;
+	
+	string $joints[] = `ls -sl`;
+		
+	string $Normal4[] = {"0.3","0.533","0.766","1"};
+	string $Normal5[] = {"0.3","0.475","0.65", "0.825", "1"};
+	string $Normal6[] = {"0.3","0.44","0.58","0.72","0.86","1"};
+
+	string $Quick4[] = {"0.3","0.4","0.65","1"};
+	string $Quick5[] = {"0.3","0.35","0.45","0.65","1"};
+	string $Quick6[] = {"0.3","0.325","0.35","0.45","0.65","1"};
+	
+	string $slow4[] = {"0.3","0.65","0.85","1"};
+	string $slow5[] = {"0.3","0.65","0.85","0.95","1"};
+	string $slow6[] = {"0.3","0.65","0.85","0.95","0.975","1"};
+	
+	string $falloffValues[];
+	
+	if (`size $joints` != 2)
+		error "Softbody Single Chain: two joints must be selected first: root joint + joint at end of chain";
+	
+	
+	//$detail : 0=4cvs 1=5cvs 2=6cvs : translates to spans
+	string $ikInfo[] = `ikHandle -sol ikSplineSolver -ns ($detail + 1)`; //create spline ik and curve
+	$curveName = `rename $ikInfo[2] "softCurve#"`;
+	select -r $curveName; //selects spline ik curve	
+
+	//////////////////////////
+	//Create Softbody Curve
+	//
+	dynCreateSoft 0 0 1 0.5 0;
+	$softCurveName[0] = `rename "softCurve#"`;
+	pickWalk -d down; pickWalk -d right; 
+	$softParticleName = `ls -sl`;
+	pickWalk -d down;
+	$softParticleShapeName = `ls -sl`;
+
+	/////////////////////////
+	//Create Gravity
+	//
+	$softGrav = `gravity -pos 0 0 0 -m 9.8 -att 0 -dx 0 -dy -1 -dz 0  -mxd -1  -vsh none -vex 0 -vof 0 0 0 -vsw 360 -tsr 0.5 -n "dynJoint_SoftGravity#"`;
+	connectDynamic -f $softGrav $softParticleShapeName[0];	
+	
+	
+	////////////////////////////	
+	//Set falloff on soft verts
+	//$detail : 0=4cvs 1=5cvs 2=6cvs
+	//$falloff : 0=Normal 1=Quick 2=Slow
+	$particleTotal = ($detail + 4);	
+	
+	
+	if (($particleTotal == 4) && ($falloff == 0))
+		$falloffValues = $Normal4;
+	else if (($particleTotal == 5) && ($falloff == 0))
+		$falloffValues = $Normal5;
+	else if (($particleTotal == 6) && ($falloff == 0))
+		$falloffValues = $Normal6;
+	else if (($particleTotal == 4) && ($falloff == 1))
+		$falloffValues = $Quick4;
+	else if (($particleTotal == 5) && ($falloff == 1))
+		$falloffValues = $Quick5;
+	else if (($particleTotal == 6) && ($falloff == 1))
+		$falloffValues = $Quick6;
+	else if (($particleTotal == 4) && ($falloff == 2))
+		$falloffValues = $slow4;
+	else if (($particleTotal == 5) && ($falloff == 2))
+		$falloffValues = $slow5;
+	else if (($particleTotal == 6) && ($falloff == 2))
+		$falloffValues = $slow6;
+	else 
+		error "Something is wrong";
+				
+	
+	print $falloffValues;
+	
+	int $falloffIndexNumber = 0;
+	int $particleCount = ($particleTotal - 1);
+				
+	while ($falloffIndexNumber < $particleTotal)
+	{	
+		float $val = $falloffValues[$falloffIndexNumber];
+		particle -e -or $particleCount -at goalPP -fv $val $softParticleShapeName[0] ;
+		$particleCount --;
+		$falloffIndexNumber ++;
+	}
+
+	
+	////////////////////
+	// Create springs
+	//
+	
+	int $particleCount = 0;
+
+	$particleID = ($softParticleShapeName[0] + ".pt[" + $particleCount + "]");
+	select -r $particleID;
+	$particleCount ++;
+	$particleID = ($softParticleShapeName[0] + ".pt[" + $particleCount + "]");
+	select -add $particleID;
+	$softSpring = `spring  -name "dynJoint_SoftSprings#" -noDuplicate false -minMax true -mnd 0 -mxd 0 -useRestLengthPS true -s 1 -d 0.8 -sfw 1 -efw 1` ;
+
+	
+	while ($particleCount < ($particleTotal-1))
+	{
+		$particleID = ($softParticleShapeName[0] + ".pt[" + $particleCount + "]");
+		select -r $particleID;
+		$particleCount ++;
+		$particleID = ($softParticleShapeName[0] + ".pt[" + $particleCount + "]");
+		select -add $particleID;
+		select -add $softSpring[0];
+		spring -add -noDuplicate false -minMax true -mnd 0 -mxd 0 ;
+	}
+	
+	///////////////////////////////
+	//Modify IK node for soft attrs
+	//
+	$softHandle = `rename $ikInfo[0] "softHandle#"`;
+	select -r $softHandle;
+
+	//Hide normal IK attrs from channel box
+	setAttr ($softHandle + ".displayHandle") 1;
+	setAttr ($softHandle + ".selectHandleY") 2;
+	setAttr ($softHandle + ".tx") -k 0; setAttr ($softHandle + ".ty") -k 0; setAttr ($softHandle + ".tz") -k 0;
+	setAttr ($softHandle + ".rx") -k 0; setAttr ($softHandle + ".ry") -k 0; setAttr ($softHandle + ".rz") -k 0;
+	setAttr ($softHandle + ".sx") -k 0; setAttr ($softHandle + ".sy") -k 0; setAttr ($softHandle + ".sz") -k 0;
+	setAttr ($softHandle + ".pvx") -k 0; setAttr ($softHandle + ".pvy") -k 0; setAttr ($softHandle + ".pvz") -k 0;
+	setAttr ($softHandle + ".off") -k 0; setAttr ($softHandle + ".rol") -k 0; setAttr ($softHandle + ".twi") -k 0; setAttr ($softHandle + ".ikb") -k 0;
+
+	setAttr ($softParticleShapeName[0]+".goalWeight[0]") 1;
+	
+	addAttr -ln softLooseness -at double  -min 0 -max 5 -dv 2 $softHandle;
+	setAttr -e -keyable true ($softHandle + ".softLooseness");
+	connectAttr ($softHandle + ".softLooseness") ($softParticleShapeName[0] + ".goalSmoothness");
+		
+	addAttr -ln softGravity -at double  -min 0 -max 200 -dv 100 $softHandle;
+	setAttr -e -keyable true ($softHandle + ".softGravity");
+	connectAttr ($softHandle + ".softGravity") ($softGrav[0] + ".magnitude");
+	
+	addAttr -ln softSpringStiffness -at double  -min 0 -max 100 -dv 50 $softHandle;
+	setAttr -e -keyable true ($softHandle + ".softSpringStiffness");
+	connectAttr ($softHandle + ".softSpringStiffness") ($softSpring[0] + ".stiffness");
+	
+	addAttr -ln softSpringDamping -at double  -min 0 -max 20 -dv .2 $softHandle;
+	setAttr -e -keyable true ($softHandle + ".softSpringDamping");
+	connectAttr ($softHandle + ".softSpringDamping") ($softSpring[0] + ".damping");
+	
+		
+	group -n "dynJoint_SoftStuff#" $softHandle $softCurveName[0] $softSpring $softGrav;
+	
+	select -cl;
+	
+	
+	if( `window -exists collisionWin` )
+	{
+		deleteUI collisionWin;
+		windowPref -remove collisionWin;
+	}
+	
+
+	//previously used for softbody collision
+	//no longer used due to poor results
+	//	
+	//window -w 244 -h 65 -menuBar true -title "Softbody Collisions" collisionWin;
+	//	columnLayout -adjustableColumn 1;
+	//	rowColumnLayout  -numberOfColumns 2 -columnWidth 1 119 -columnWidth 2 119; 
+	//	
+	//	text -label " Select collision objects: ";
+	//	text -label "  Mesh / Surface";
+	//	
+	//	button -label "Make Collide" -c ("bt_makeSoftJointsCollide " + $softParticleName[0] + " " + $softHandle + " ; deleteUI collisionWin ;windowPref -remove collisionWin");
+	//	button -label "No Collisions" -c ("deleteUI collisionWin ; windowPref -remove collisionWin; select -r " + $softHandle);
+	//	
+	//showWindow collisionWin;
+	
+	setAttr ("copyOf"+$curveName+".visibility") 0;
+	rename ("copyOf"+$curveName) ($curveName+"Goal#");
+
+	select -r $softHandle;
+	
+	warning "Initial softbody curve needs to be created at first frame of animation.   If you notice a problem, undo and set current frame to the beginning of the timeline.";
+
+	//print ($particleTotal + "\n");
+	//print ($falloff + "\n");
+
+	//add info to notes
+	addAttr -sn "nts" -ln "notes" -dt "string" $softHandle;
+	setAttr ($softHandle+".nts") -type "string" "The softbodyHandle contains extra attributes that indirectly control the more common attrs which exist on the various dynamics nodes.  This is done so that you can easily access and edit the attrs from the channel box by selecting the softbody handle.  You can remove these attrs or break their connection if you're more experienced with dynamics and want to work with the dynamics nodes directly.\r\n";
+
+	print ("Softbody curve attached to joint chain.  See notes on Softbody Handle node for more details.\n");
+}
+	
+
+	
+///////////////////////////////////////////////////
+// Hair Procs
+	
+global proc bt_makeHairJointsCollide (string $hairSystem, string $handle)
+{	
+	pickWalk -d down;
+	string $meshesAndNurbs[] = `filterExpand -sm 10 -sm 12`;
+	select -r $meshesAndNurbs;
+	
+	if (`size $meshesAndNurbs` < 1)
+		warning "No Nurbs or Meshes selected.  Nothing to collide with.";
+	else
+		{
+		collision -r 1 -f 0  $meshesAndNurbs;
+		connectDynamic -c $meshesAndNurbs $hairSystem;
+		}		
+}
+	
+global proc bt_driveJointsWithHair(int $detail, int $falloff)
+{	
+	bt_checkPlaybackSpeed;
+
+	string $joints[] = `ls -sl`;
+	
+	if (`size $joints` != 2)
+		error "Hair Single Chain: two joints must be selected first: root joint + joint at end of chain";
+	
+	string $tmpIKspline[] = `ikHandle -sol ikSplineSolver -ns ($detail + 1)`; //create spline ik for curve only
+	delete $tmpIKspline[0] $tmpIKspline[1]; //delete handle and effector.
+	string $hairCurveBase = `rename $tmpIKspline[2] "baseCurve#"`;
+	setAttr ($hairCurveBase+".visibility") 0;
+
+	//////////////////////////
+	//Create Hair Curve
+	//	
+	select -r $hairCurveBase; //selects old spline ik curve
+
+
+	//make curve dynamic creates new curve, get name:
+	//NOTE : proc arguments changed in 8.0 ->  global proc makeCurvesDynamicHairs(int $surfaceAttach, int $snapToSurface, int $matchPosition)
+	//makeCurvesDynamicHairs; 
+	makeCurvesDynamicHairs 0 0 0; 
+
+
+	pickWalk -d down; //for hair system shape
+	string $hsys[] = `ls -sl`; //hair system name, to find follicle
+	setAttr ($hsys[0]+".gravity") 20;
+	pickWalk -d up;
+	string $hsysXform[] = `ls -sl`;
+	select -cl;
+
+	string $folXform[] = `listConnections -type follicle $hsys[0]`;
+	select -r $folXform[0];
+	pickWalk -d down;
+	string $fol[] = `ls -sl`; //odd that connection above is to transform, not shape.
+	setAttr ($fol[0]+ ".pointLock") 1; //lock base end of curve.
+	setAttr ($folXform[0]+".visibility") 0;
+	
+	string $tmp[] = `listConnections -s off -d on $fol[0]`; //to get output curve shape
+	string $hairCurve = `rename $tmp[1] "hairCurve#"`;
+	
+	//assign dynamic curve as spline ik. Could also assign as wire as a variation.
+	string $ikInfo[] = `ikHandle -sol ikSplineSolver -ccv false -snc true -startJoint $joints[0] -endEffector $joints[1] -pcv on -curve $hairCurve`;
+	//parent -w $hairCurve; //unparents original curve to avoid double transform.
+	
+	
+	
+	///////////////////////////////
+	//Modify IK node for hair attrs
+	//
+	$hairHandle = `rename $ikInfo[0] "hairHandle#"`;
+	select -r $hairHandle;
+
+	//Hide normal IK attrs from channel box
+	setAttr ($hairHandle + ".displayHandle") 1;
+	setAttr ($hairHandle + ".selectHandleY") 2;
+	setAttr ($hairHandle + ".tx") -k 0; setAttr ($hairHandle + ".ty") -k 0; setAttr ($hairHandle + ".tz") -k 0;
+	setAttr ($hairHandle + ".rx") -k 0; setAttr ($hairHandle + ".ry") -k 0; setAttr ($hairHandle + ".rz") -k 0;
+	setAttr ($hairHandle + ".sx") -k 0; setAttr ($hairHandle + ".sy") -k 0; setAttr ($hairHandle + ".sz") -k 0;
+	setAttr ($hairHandle + ".pvx") -k 0; setAttr ($hairHandle + ".pvy") -k 0; setAttr ($hairHandle + ".pvz") -k 0;
+	setAttr ($hairHandle + ".off") -k 0; setAttr ($hairHandle + ".rol") -k 0; setAttr ($hairHandle + ".twi") -k 0; setAttr ($hairHandle + ".ikb") -k 0;
+
+	//create attributes
+	addAttr -ln hairStiffness -at double  -min -0 -max 1 -dv 0.25 $hairHandle;
+	setAttr -e -keyable true ($hairHandle + ".hairStiffness");
+	connectAttr -f ($hairHandle + ".hairStiffness") ($hsys[0]+".stiffness");
+
+	addAttr -ln hairGravity -at double -min -10 -max 100 -dv 20 $hairHandle;
+	setAttr -e -keyable true ($hairHandle + ".hairGravity");
+	connectAttr -f ($hairHandle + ".hairGravity") ($hsys[0]+".gravity");
+
+	addAttr -ln hairDamping -at double -min 0 -max 1 -dv 0 $hairHandle;
+	setAttr -e -keyable true ($hairHandle + ".hairDamping");
+	connectAttr -f ($hairHandle + ".hairDamping") ($hsys[0]+".damp");
+
+	addAttr -ln hairFriction -at double -min 0 -max 1 -dv 0.1 $hairHandle;
+	setAttr -e -keyable true ($hairHandle + ".hairFriction");
+	connectAttr -f ($hairHandle + ".hairFriction") ($hsys[0]+".friction");
+
+	//addAttr -ln hairWeight -at double -min 0 -max 100 -dv 1 $hairHandle;
+	//setAttr -e -keyable true ($hairHandle + ".hairWeight");
+	//connectAttr -f ($hairHandle + ".hairWeight") ($hsys[0]+".dynamicsWeight");
+
+	
+	////////////////////////////	
+	//Set falloff on stiffness
+	//$falloff : 0=Normal 1=Quick 2=Slow
+	
+	if ($falloff == 0)
+			{
+			setAttr ($hairHandle + ".hairStiffness") .5;
+			setAttr ($hsys[0] + ".stiffnessScale[1].stiffnessScale_Position") 1;
+			setAttr ($hsys[0] + ".stiffnessScale[1].stiffnessScale_FloatValue") 0;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_Position") 0;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_FloatValue") 1;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_Interp") 1;
+			}
+				
+	if ($falloff == 1)
+			{
+			setAttr ($hairHandle + ".hairStiffness") .5;
+			setAttr ($hsys[0] + ".stiffnessScale[1].stiffnessScale_Position") 1;
+			setAttr ($hsys[0] + ".stiffnessScale[1].stiffnessScale_FloatValue") 0;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_Position") 0;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_FloatValue") 1;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_Interp") 3;
+			setAttr ($hsys[0] + ".stiffnessScale[2].stiffnessScale_Position") .25;
+			setAttr ($hsys[0] + ".stiffnessScale[2].stiffnessScale_FloatValue") .25;
+			setAttr ($hsys[0] + ".stiffnessScale[2].stiffnessScale_Interp") 3;
+			}
+		
+	if ($falloff == 2)
+			{
+			setAttr ($hairHandle + ".hairStiffness") .5;
+			setAttr ($hsys[0] + ".stiffnessScale[1].stiffnessScale_Position") 1;
+			setAttr ($hsys[0] + ".stiffnessScale[1].stiffnessScale_FloatValue") 0;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_Position") 0;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_FloatValue") 1;
+			setAttr ($hsys[0] + ".stiffnessScale[0].stiffnessScale_Interp") 3;
+			setAttr ($hsys[0] + ".stiffnessScale[2].stiffnessScale_Position") .75;
+			setAttr ($hsys[0] + ".stiffnessScale[2].stiffnessScale_FloatValue") .75;
+			setAttr ($hsys[0] + ".stiffnessScale[2].stiffnessScale_Interp") 3;
+			}
+		
+	$groupName = `group -n "dynJoint_HairStuff#" $hairHandle $hairCurve $hsysXform[0] ($hsysXform[0]+"OutputCurves")`;	
+	$hairHandle = ("|" + $groupName + "|" + $hairHandle);
+
+	select -cl;
+
+	//previously used for collision but removed because underiable results
+	//
+	//if( `window -exists collisionWin` )
+	//{
+	//	deleteUI collisionWin;
+	//	windowPref -remove collisionWin;
+	//}
+	//	
+	//window -w 245 -h 72 -menuBar true -title "Hair Collisions" collisionWin;
+	//	columnLayout -adjustableColumn 1;
+	//	rowColumnLayout  -numberOfColumns 2 -columnWidth 1 119 -columnWidth 2 119; 
+	//	
+	//	text -label " Select collision objects: ";
+	//	text -label "  Mesh / Surface";
+	//	
+	//	button -label "Make Collide" -c ("bt_makeHairJointsCollide " +  $hsys[0] + " " + $hairHandle + " ; deleteUI collisionWin ;windowPref -remove collisionWin");
+	//	button -label "No Collisions" -c ("deleteUI collisionWin ; windowPref -remove collisionWin");
+	//	
+	//showWindow collisionWin;
+	
+
+	rename $hairCurveBase "baseCurve#";
+	rename $hairCurve "hairCurve#";	
+	select -r $hairHandle;
+
+	//add info to notes
+	addAttr -sn "nts" -ln "notes" -dt "string" $hairHandle;
+	setAttr ($hairHandle+".nts") -type "string" "The hairHandle contains extra attributes that indirectly control the more common attrs that exist on the actual hairSystem node.  This is done so that you can easily access and edit the attrs from the channel box by selecting the hair handle.  You can remove these attrs or break their connection if you're more experienced with hair and want to work with the hairSystem directly.\r\n";
+
+	print ("Hair curve attached to joint chain.  See notes on Hair Handle node for more details.\n");
+
+}
+
+
+
+///////////////////////////////////////////////////
+// nCloth Procs
+
+proc bt_driveJointsWithNCloth(int $mode, int $falloff)
+
+{
+	//$mode : 1=splineIK : 2=IKexpressions : 3=JointExpressions
+	//$topo : 1=triangles : 2=quad
+	//$falloff : 1=mesh : 2=contraint
+	
+	string $rootList[];
+	string $jointList[];
+	string $curveList[];
+	string $ikHandleList[];
+	string $locatorList[];
+	string $base[];
+	string $topo;
+	
+	$rootList = `ls -sl -type joint`;
+		
+	if (`size $rootList` < 2)
+		error "nCloth Multi Chain: two or more neighboring root joints must be selected first";
+	
+	//select -r $rootList;
+	//$base = `pickWalk -d up`;
+	
+	
+	if (($mode < 0) || ($mode > 2))
+		error "Wrong value for Mode.  Expecting 0, 1, or 2";
+	
+
+	bt_checkPlaybackSpeed;
+
+	////////////////////////////////////
+	//Create curves
+	
+	int $chainCount = 0;
+	
+
+
+	for ($root in $rootList)
+		{
+		int $jointCount = 1;
+	
+		select -r $root;
+		$base = `pickWalk -d up`;
+	
+		$translateTemp = `xform -q -ws -t $root`;
+		$curveList[$chainCount] = `curve -d 1 -p $translateTemp[0] $translateTemp[1] $translateTemp[2] -k 0 -name "dynJoint_Curve#"` ;
+	
+		select -r -hi $root;
+		$chain = `ls -sl -type joint`;
+		$size = `size $chain`;
+		while ($jointCount <= $size-1)
+			{
+			//print $chain[$jointCount];
+			$translateTemp = `xform -q -ws -t $chain[$jointCount]`;
+			curve -os -a -p $translateTemp[0] $translateTemp[1] $translateTemp[2] $curveList[$chainCount];
+			$jointCount++;
+			}
+		$jointList[$chainCount] = $chain[$jointCount-1];
+	
+	
+		////////////////////////////////////
+		//Create IKSpline
+		if ($mode == 0)
+			{
+			ikHandle -sol ikSplineSolver  -createCurve 0 -sj $root -ee $jointList[$chainCount] -c $curveList[$chainCount];
+			//take curve out of joint hierarchy
+			//parent -w $curveList[$chainCount];
+			}
+		else //if ($mode == 1)
+		//Put curve on same level as root joints
+		parent $curveList[$chainCount] $base;
+	
+		$chainCount++;
+		}
+	
+	
+	
+	////////////////////////////////////
+	//create IK handles per bone and link to curve
+	
+	if ($mode == 1)
+	{
+		int $chainCount = 0;
+		$IKgroup = `group -em -name "dynJoint_IK_Group#"`;
+		for ($root in $rootList)
+			{
+			int $jointCount = 1;
+			select -r -hi $root;
+			$chain = `ls -sl -type joint`;
+			$size = `size $chain`;
+			while ($jointCount <= $size-1)
+				{
+				$tmp  = `ikHandle -sj $chain[$jointCount-1] -ee $chain[$jointCount] -name ("dynJoint_Chain" + $chainCount + "_" + "ikHandle" + $jointCount + "#")`;
+				$ikHandleList[$chainCount] = $tmp[0];
+				parent  $ikHandleList[$chainCount] $IKgroup;
+		
+				//////////////////
+				//connect ikHandles to curve points via expression
+				//
+				//this is hopefully a temporary solution until I figure out how to use particle emitters
+				//
+				$editPoint = ($curveList[$chainCount] + ".ep[" + $jointCount + "]");
+				$handlex = $ikHandleList[$chainCount] + ".translateX";
+				$handley = $ikHandleList[$chainCount] + ".translateY";
+				$handlez = $ikHandleList[$chainCount] + ".translateZ";
+				$expr = "\"$epLocation = `xform -q -ws -t " + $editPoint + "`;" + $handlex + " = $epLocation[0]; " + $handley + " = $epLocation[1]; " + $handlez + " = $epLocation[2];\"";
+				 
+				expression -s $expr -o $ikHandleList[$chainCount] -ae 1 -uc all ;
+				//////////////////
+		
+				$jointCount++;
+				}
+			$chainCount++;
+			}
+	}
+	
+	
+	
+	////////////////////////////////////
+	//create locators per bone and link to curve
+	
+	if ($mode == 2)
+	{
+		int $chainCount = 0;
+		$locatorGroup = `group -em -name "dynJoint_locator_Group#"`;
+		for ($root in $rootList)
+			{
+			int $jointCount = 0;
+			select -r -hi $root;
+			$chain = `ls -sl -type joint`;
+			$size = `size $chain`;
+			while ($jointCount <= $size-1)
+				{
+				$tmp  = `spaceLocator -name ("dynJoint_Chain" + $chainCount + "_" + "jointLocator" + $jointCount + "#")`;
+				$locatorList[$chainCount] = $tmp[0];
+				parent  $locatorList[$chainCount] $locatorGroup;
+		
+				pointConstraint $locatorList[$chainCount] $chain[$jointCount];
+	
+				//////////////////
+				//connect ikHandles to curve points via expression
+				$editPoint = ($curveList[$chainCount] + ".ep[" + $jointCount + "]");
+				$locatorx = $locatorList[$chainCount] + ".translateX";
+				$locatory = $locatorList[$chainCount] + ".translateY";
+				$locatorz = $locatorList[$chainCount] + ".translateZ";
+				$expr = "\"$epLocation = `xform -q -ws -t " + $editPoint + "`;" + $locatorx + " = $epLocation[0]; " + $locatory + " = $epLocation[1]; " + $locatorz + " = $epLocation[2];\"";
+				 
+				expression -s $expr -o $locatorList[$chainCount] -ae 1 -uc all ;
+				//////////////////
+		
+				$jointCount++;
+				}
+			$chainCount++;
+			}
+	}
+	
+	
+	
+	////////////////////////////////////
+	//Create lofted mesh from curves
+	
+	$loftedMesh = `loft -ch 1 -u 1 -c 0 -ar 1 -d 1 -ss 1 -rn 0 -po 1 -rsn true -name "dynJoint_BaseMesh#" $curveList`;
+	
+	//set poly to match curve cvs
+	$historyTemp = `listHistory`;
+	setAttr ($historyTemp[1]+".polygonType") 1;
+	setAttr ($historyTemp[1]+".format") 2;
+	setAttr ($historyTemp[1]+".uType") 3;
+	setAttr ($historyTemp[1]+".vType") 3;
+	setAttr ($historyTemp[1]+".uNumber") 1;
+	setAttr ($historyTemp[1]+".vNumber") 1;
+	
+	polyNormalizeUV -normalizeType 1 -preserveAspectRatio off ;
+	//polySubdivideFacet -dv 1 -m 0 -ch 1 $loftedMesh[0];
+	
+	if ($topo == 2)
+		polyTriangulate $loftedMesh[0]; //not used currently
+	delete -ch $loftedMesh[0];
+	
+	select -r $base;
+	$aboveBase = `pickWalk -d up`;
+	parent $loftedMesh[0] $aboveBase;
+	
+	
+	
+	////////////////////////////////////
+	//Create wrap deformer mesh->curves
+	
+	select -r $curveList;
+	select -add $loftedMesh[0];
+	CreateWrap;
+	
+	
+	
+	////////////////////////////////////
+	//Create nCloth out of lofted mesh
+
+	currentTime 0;
+	select -r $loftedMesh[0];
+	createNCloth 0;
+	$clothShape = `rename "dynJoint_nCloth#"`;
+	
+	
+	
+		/* Not currently used
+		////////////////////////////////////
+		//Create transform constraint
+		//
+		else if ($falloff == 2)
+		{
+		select -r $loftedMesh[0];
+		createNConstraint transform 0;
+		$nConstraintShape = `ls -sl`;
+		pickWalk -d up;
+		$nConstraint = `ls -sl`;
+	
+		//Put constraint at same level as joints
+		select -r $base;
+		$aboveBase = `pickWalk -d up`;
+		parent $nConstraint[0]  $aboveBase;
+	
+		//connect falloff ramp to nComponent node
+		$nCompnent = `listConnections -d 0 -s 1  ($nConstraintShape[0] + ".componentIds[0]")`;
+		connectAttr -force ($clothRamp+".outAlpha") ($nCompnent[0] + ".strengthMap");
+	
+		//set attrs
+		setAttr ($nCompnent[0] + ".componentType") 2;
+		setAttr ($nCompnent[0] + ".strength") 0;
+		setAttr ($nCompnent[0] + ".strength") 1;
+		setAttr ($nConstraintShape[0] + ".strength") 1;
+		}
+		*/
+
+
+	////////////////////////////////////
+	//Create ramp for falloff of input mesh attract
+
+	$clothRamp = `shadingNode -asTexture ramp -name "dynJoint_nClothFalloff#"`;
+	$placementNode = `shadingNode -asUtility place2dTexture`;
+	connectAttr ($placementNode+".outUV") ($clothRamp+".uv");
+	connectAttr ($placementNode+".outUvFilterSize") ($clothRamp+".uvFilterSize");
+	setAttr ($placementNode+".wrapU") 0;
+	
+	removeMultiInstance -break true  ($clothRamp+".colorEntryList[1]");
+	setAttr  ($clothRamp+".colorEntryList[0].color") -type double3 1 1 1 ;
+	setAttr  ($clothRamp+".colorEntryList[2].color") -type double3 0 0 0 ;
+	setAttr  ($clothRamp+".type") 1;
+
+	if ($falloff == 0)
+		{
+		setAttr  ($clothRamp+".colorEntryList[0].position") 0.05;
+		setAttr  ($clothRamp+".colorEntryList[2].position") 0.30;
+		}
+
+	if ($falloff == 1)
+		{
+		setAttr  ($clothRamp+".colorEntryList[0].position") 0.05;
+		setAttr  ($clothRamp+".colorEntryList[2].position") 0.10;
+		}
+
+	if ($falloff == 2)
+		{
+		setAttr  ($clothRamp+".colorEntryList[0].position") 0.05;
+		setAttr  ($clothRamp+".colorEntryList[2].position") 0.75;
+		}
+
+
+	//create shader for preview of falloff
+	//connectAttr -f ($clothRamp+".outColor") ($clothRamp+"Material.color");
+	select -r  $loftedMesh[0];
+	hypergraphAssignTextureToSelection  $clothRamp;
+
+	//add note
+	//setAttr ($clothRamp+".notes") -type "string" "This ramp controls the falloff of the influence for the underlying input mesh attraction.  The input mesh matches the original joint positions when bt_makeJointsDynamic was applied.  The ramp allows you to adjust the dynamic affect from one end of the chain to the other.  White forces the joints (nCloth) to match their original positions.  Black allows the joints (nCloth) to move dynamically.  You can edit the ramp to see the visual represention of the falloff in the  viewport.";
+	addAttr -sn "nts" -ln "notes" -dt "string" $clothRamp;
+	setAttr ($clothRamp+".nts") -type "string" "The inputMeshAttractFalloff ramp controls the falloff of the influence for the underlying input mesh attraction.  The input mesh matches the original joint positions when bt_makeJointsDynamic was applied.  The ramp allows you to adjust the dynamic affect from one end of the chain to the other.  White forces the joints (nCloth) to match their original positions.  Black allows the joints (nCloth) to move dynamically.  You can edit the ramp to see the visual represention of the falloff in the viewport.\r\n";
+
+	connectAttr -force ($clothRamp+".outAlpha") ($clothShape+".inputAttractMap");
+	setAttr ($clothShape+".inputMeshAttract") 1;
+	setAttr -l true ($clothShape+".inputMeshAttract");  //Added lock so that presets will not over-ride setting
+
+	
+	//Select falloff ramp last
+	select -r $clothRamp;
+	setAttributeEditorVisible(1);
+		
+	print "nCloth connected to joint chains. \n";
+
+
+
+	////////////////////////////////////
+	//add collision object if needed
+
+	if( `window -exists collisionWin` )
+	{
+		deleteUI collisionWin;
+		windowPref -remove collisionWin;
+	}
+		
+	window -w 245 -h 72 -menuBar true -title "Hair Collisions" collisionWin;
+		columnLayout -adjustableColumn 1;
+		rowColumnLayout  -numberOfColumns 2 -columnWidth 1 119 -columnWidth 2 119; 
+		
+		text -label " Select collision objects: ";
+		text -label "  Mesh / Surface";
+		
+		button -label "Make Collide" -c ("makeCollideNCloth; setAttributeEditorVisible(1); warning \"Start frame should be set to 0 and you will need to rewind for collision to work\" ; deleteUI collisionWin ;windowPref -remove collisionWin");
+		button -label "No Collisions" -c ("deleteUI collisionWin ; windowPref -remove collisionWin");
+	showWindow collisionWin;
+
+
+
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
+
+
+global proc bt_makeJointsDynamic()
+{
+	//rewind to start frame (twice)
+	playButtonStart; playButtonStart;
+	warning ("Rewinding to start frame before making joints dynamic.");
+
+	if (`optionVar -q dynJointDriverType` == 1)
+		bt_driveJointsWithJiggle (`optionVar -q dynJointDetail` , `optionVar -q dynJointFalloff`);
+	//else if (`optionVar -q dynJointDriverType` == 2)
+	//	bt_driveJointsWithSoftbody (`optionVar -q dynJointDetail` , `optionVar -q dynJointFalloff`);
+	else if (`optionVar -q dynJointDriverType` == 0)
+		bt_driveJointsWithHair (`optionVar -q dynJointDetail` , `optionVar -q dynJointFalloff`);
+	else if (`optionVar -q dynJointDriverType` == 2)
+		bt_driveJointsWithNCloth (`optionVar -q dynJointDetail` ,  `optionVar -q dynJointFalloff`);
+	else 
+		error "Something is wrong.";
+}
+
+	
+///////////////////////////////////////////////////
+// OptionVars
+
+global proc bt_setDynJointOptionVars()
+{
+	if (`optionVar -ex dynJointDriverType` == 0)
+		optionVar -intValue dynJointDriverType 0;   // 0=Hair : 1:Jiggle : X:Softbody : 2:nCloth
+	if (`optionVar -ex dynJointDetail` == 0)
+		optionVar -intValue dynJointDetail 1;  // 0=Low : 1:Med : 2:High
+	if (`optionVar -ex dynJointFalloff` == 0)
+		optionVar -intValue dynJointFalloff 0;  // 0=Normal : 1:Quick : 2:Slow	
+}
+
+global proc bt_deleteDynJointOptionVars()
+{
+	optionVar -rm dynJointDriverType;
+	optionVar -rm dynJointDetail;
+	optionVar -rm dynJointFalloff;
+}
+
+	
+
+///////////////////////////////////////////////////
+// UI Proc	
+
+global proc bt_makeJointsDynamicUI()
+{
+	global string $dynJointDriverTypeID;
+	global string $dynJointDetailNameID = "";
+	global string $dynJointFalloffNameID = "";
+	global string $dynJointDetailValuesID = "";
+	global string $nClothJointMethodID = "";
+	
+	bt_setDynJointOptionVars;
+	
+	string $mayaCut = `about -c`;
+	string $mayaType = `about -p`;
+	int $dateCheck = `substring $mayaCut 1 4`;
+	
+
+	//check for Hair		
+	int $includeHair = 1;
+	int $includeNCloth = 1;
+
+	
+	if( `window -exists bt_makeJointsDynamicWin` )
+		{
+		deleteUI bt_makeJointsDynamicWin;
+		windowPref -remove bt_makeJointsDynamicWin;
+		}
+
+
+
+	window -w 300 -h 150 -menuBar true -title "Make Joints Dynamic" bt_makeJointsDynamicWin;
+	
+	menu -tearOff 0 -l "Edit";
+	    menuItem -l "Reset Settings" -ann "Reset all setting to default values." -c "bt_deleteDynJointOptionVars ; bt_makeJointsDynamicUI";
+
+
+	columnLayout -adjustableColumn 1;
+	
+	//////////////////////////
+	// Driver type toggles
+	//
+	rowColumnLayout  -numberOfColumns 4 -columnWidth 1 130 -columnWidth 2 60 -columnWidth 3 60 -columnWidth 4 85; 
+
+        separator -style "in";separator -style "in";separator -style "in";separator -style "in";
+
+		
+		string $tmpID = `text -label "Single Chain    " -align "right"`;
+		//Temporarily assign ID to supress unnecessary error message later - no idea why, it just works :)
+		$dynJointDetailNameID = $tmpID; $dynJointFalloffNameID = $tmpID; $nClothJointMethodID = $tmpID;
+		
+				
+	
+		$dynJointDriverTypeID = `radioCollection`;
+				
+		radioButton -label "Hair" -en $includeHair -ann "Select 2 joints from the same chain and attach a dynamic hair curve to the chain via splineIK"
+			-onc "optionVar -intValue dynJointDriverType 0 ; text -e -label \"Low             Medium         High\"  $nClothJointMethodID; text -e -label \"Hair Curve Detail :  \"  $dynJointDetailNameID; text -e -label \"Hair Stiffness Falloff :  \"  $dynJointFalloffNameID";
+
+		radioButton -label "Jiggle" -ann "Select 2 joints fron the same chain and attach a jiggle deformer to the chain via splineIK"
+			-onc "optionVar -intValue dynJointDriverType 1 ; text -e -label \"Low             Medium         High\"  $nClothJointMethodID; text -e -label \"Jiggle Curve Detail :  \"  $dynJointDetailNameID; text -e -label \"Jiggle Effect Falloff :  \"  $dynJointFalloffNameID";
+
+        // Obsolete now now that there is no Maya Complete
+        //
+		//radioButton -label "Softbody" -ann "Attach a softbody curve to the chain via splineIK"
+		//	-onc "optionVar -intValue dynJointDriverType 2 ; text -e -label \"Low             Medium         High\"  $nClothJointMethodID; text -e -label \"Softbody Curve Detail :  \"  $dynJointDetailNameID; text -e -label \"Softbody Goal Falloff :  \"  $dynJointFalloffNameID";
+		separator -style none;			
+
+
+		text -label "Multi Chain :  " -align "right";
+
+
+
+		//Cloth is not available as an option in this version of the script
+		radioButton -label "nCloth" -en $includeNCloth -ann "Select the base joints for 2 or more joint chains of the same size and attach an nCloth mesh"
+			-onc "optionVar -intValue dynJointDriverType 2 ; text -e -label \"Spline IK    Per-Joint IK    Stretchy Joints\"  $nClothJointMethodID; text -e -label \"nCloth Driver Method :  \"  $dynJointDetailNameID; text -e -label \"nCloth Attract Falloff :  \"  $dynJointFalloffNameID";
+		
+		//select correct radio button for stored type
+		$buttonList = `radioCollection -q -collectionItemArray $dynJointDriverTypeID`;
+		int $buttonNumber = (`optionVar -q dynJointDriverType`);
+		radioCollection -e -sl $buttonList[$buttonNumber] $dynJointDriverTypeID;
+
+		text -e -label "Single Chain :  " $tmpID;
+	
+		setParent ..;
+		
+		
+	//////////////////////////
+	// Detail and Falloff toggles
+	//
+	rowColumnLayout  -numberOfColumns 4 -columnWidth 1 130 -columnWidth 2 60 -columnWidth 3 60 -columnWidth 4 85; 
+
+	
+		separator -style none;separator -style none;separator -style none;separator -style none;
+		separator -style "in";separator -style "in";separator -style "in";separator -style "in";
+		separator -style none;separator -style none;separator -style none;separator -style none;
+
+
+	
+		//Falloff
+		//		
+		if (`optionVar -q dynJointDriverType` == 1)
+			$dynJointFalloffNameID = `text -label "Jiggle Effect Falloff :  " -align "right"`;
+		//else if (`optionVar -q dynJointDriverType` == 2)
+		//	$dynJointFalloffNameID = `text -label "Softbody Goal Falloff :  " -align "right"`;
+		else if (`optionVar -q dynJointDriverType` == 0)
+			$dynJointFalloffNameID = `text -label "Hair Stiffness Falloff :  " -align "right"`;
+		else if (`optionVar -q dynJointDriverType` == 2)
+			$dynJointFalloffNameID = `text -label "nCloth Attract Falloff :  " -align "right"`;
+			
+						
+		$dynJointFalloffID = `radioCollection`;
+		radioButton -label "Normal" -ann "The dynamic effect will have a normal linear decay over the length of the chain"
+			-onc "optionVar -intValue dynJointFalloff 0";
+		
+		radioButton -label "Quick" 	-ann "The dynamic effect will be more noticable over the entire chain"
+			-onc "optionVar -intValue dynJointFalloff 1";
+		
+		radioButton -label "Gradual" -ann "The dynamic effect will be mostly at the end of the chain"
+			-onc "optionVar -intValue dynJointFalloff 2";
+		
+		//select correct radio button for stored type
+		$buttonList = `radioCollection -q -collectionItemArray $dynJointFalloffID`;
+		int $buttonNumber = (`optionVar -q dynJointFalloff`);
+		radioCollection -e -sl $buttonList[$buttonNumber] $dynJointFalloffID;
+
+
+		//Detail
+		//
+		
+		if (`optionVar -q dynJointDriverType` == 1)
+			$dynJointDetailNameID = `text -label "Jiggle Curve Detail :  " -align "right"`;
+		//else if (`optionVar -q dynJointDriverType` == 2)
+		//	$dynJointDetailNameID = `text -label "Softbody Curve Detail :  " -align "right"`;
+		else if (`optionVar -q dynJointDriverType` == 0)
+			$dynJointDetailNameID = `text -label "Hair Curve Detail :  " -align "right"`;		
+		else if (`optionVar -q dynJointDriverType` == 2)
+			$dynJointDetailNameID = `text -label "nCloth Driver Method :  " -align "right"`;	
+
+
+		$dynJointDetailValuesID = `radioCollection`;
+		radioButton -label ""
+			-onc "optionVar -intValue dynJointDetail 0";
+		
+		radioButton -label "" 
+			-onc "optionVar -intValue dynJointDetail 1";
+		
+		radioButton -label "" 
+			-onc "optionVar -intValue dynJointDetail 2";
+		
+		//select correct radio button for stored type
+		$buttonList = `radioCollection -q -collectionItemArray $dynJointDetailValuesID`;
+		int $buttonNumber = (`optionVar -q dynJointDetail`);
+		radioCollection -e -sl $buttonList[$buttonNumber] $dynJointDetailValuesID;
+		
+
+		setParent ..;
+
+
+		//////////////
+	
+
+	rowColumnLayout  -numberOfColumns 2 -columnWidth 1 130 -columnWidth 2 200;
+	
+		separator -style none;
+		if (`optionVar -q dynJointDriverType` == 2)
+			$nClothJointMethodID = `text -align "left" -label "Spline IK    Per-Joint IK    Stretchy Joints"`;
+		else
+			$nClothJointMethodID = `text -align "left" -label "Low             Medium         High"  `;
+
+
+	setParent ..;
+	
+
+
+
+	separator -style "in";
+
+	separator -style none;separator -style none;separator -style none;	separator -style none;
+	
+	rowColumnLayout  -numberOfColumns 3 -columnWidth 1 112  -columnWidth 2 112  -columnWidth 3 112;
+	
+		separator -style none;separator -style none;separator -style none;
+ 
+		button -label "Create" -c "bt_makeJointsDynamic ; deleteUI bt_makeJointsDynamicWin";
+		button -label "Apply" -c "bt_makeJointsDynamic";
+		button -label "Close" -c "deleteUI bt_makeJointsDynamicWin";
+	
+	
+	showWindow;
+	
+}
+
+
+
+//bt_makeJointsDynamicUI;
+
+
+
+

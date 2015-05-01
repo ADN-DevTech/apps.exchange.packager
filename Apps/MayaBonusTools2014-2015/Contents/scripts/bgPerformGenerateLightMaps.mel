@@ -1,0 +1,698 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//  Creation Date:  March 2002
+//
+//  Description:
+//      Script to create the option dialog for bgGenerateLightMaps.mel.
+//
+
+//
+//  Procedure Name:
+//      setOptionVars
+//
+//  Description:
+//		Initialize the option values.
+//
+//  Input Arguments:
+//		Whether to set the options to default values.
+//
+//  Return Value:
+//      None.
+//
+proc setOptionVars(int $forceFactorySettings)
+{
+	//	AntiAlias.
+	//
+	if ($forceFactorySettings || !`optionVar -exists lightMapAntiA`) {
+		optionVar -intValue lightMapAntiA false;
+	}
+
+	//	bakeShadow.
+	//
+	if ($forceFactorySettings || !`optionVar -exists lightMapShadow`) {
+		optionVar -intValue lightMapShadow true;
+	}
+
+	//	ResolutionX.
+	//
+	if ($forceFactorySettings || !`optionVar -exists lightMapResX`) {
+		optionVar -intValue lightMapResX 256;
+	}
+
+	//	ResolutionY.
+	//
+	if ($forceFactorySettings || !`optionVar -exists lightMapResY`) {
+		optionVar -intValue lightMapResY 256;
+	}
+
+	// File Format.
+	if ($forceFactorySettings || !`optionVar -exists lightMapFileFormat`) {
+		optionVar -stringValue lightMapFileFormat "tif";
+	}
+
+	// Blend Mode
+	if ($forceFactorySettings || !`optionVar -exists lightMapBlendMode`) {
+		optionVar -stringValue lightMapBlendMode "Add";
+	}
+
+	// All Meshes
+	if ($forceFactorySettings || !`optionVar -exists lightMapAllMeshes`) {
+		optionVar -intValue lightMapAllMeshes true;
+	}
+
+	// Shading Group
+	if ($forceFactorySettings || !`optionVar -exists lightMapSG`) {
+		optionVar -stringValue lightMapSG "";
+	}
+
+	// File Suffix
+	if ($forceFactorySettings || !`optionVar -exists lightMapFileSuffix`) {
+		optionVar -stringValue lightMapFileSuffix "light";
+	}
+
+	// New UV set
+	if ($forceFactorySettings || !`optionVar -exists lightMapNewUVSet`) {
+		optionVar -intValue lightMapNewUVSet true;
+	}
+
+	// UVSet name
+	if ($forceFactorySettings || !`optionVar -exists lightMapNewUVSetName`) {
+		optionVar -stringValue lightMapNewUVSetName "lightMap";
+	}
+}
+
+
+//
+//  Procedure Name:
+//      bgGenerateLightMapsSetup
+//
+//  Description:
+//		Update the state of the option box UI to reflect the option values.
+//
+//  Input Arguments:
+//      parent               - Top level parent layout of the option box UI.
+//                             Required so that UI object names can be 
+//                             successfully resolved.
+//
+//	forceFactorySettings - Whether the option values should be set to
+//                             default values.
+//
+//  Return Value:
+//      None.
+//
+global proc bgGenerateLightMapsSetup(string $parent, int $forceFactorySettings)
+{
+	//	Retrieve the option settings
+	//
+	setOptionVars($forceFactorySettings);
+
+	setParent $parent;
+
+	//	Query the optionVar's and set the values into the controls.
+
+	//	AntiAlias.
+	//
+    checkBoxGrp -edit
+        -value1 `optionVar -query lightMapAntiA`
+        lightMapAntiA;
+
+	//	BakeShadow.
+	//
+    checkBoxGrp -edit
+        -value1 `optionVar -query lightMapShadow`
+        lightMapShadow;
+
+	//	ResolutionX.
+	//
+	intSliderGrp -edit 
+        -value `optionVar -query lightMapResX`
+        lightMapResX;
+
+	//	ResolutionY.
+	//
+	intSliderGrp -edit 
+        -value `optionVar -query lightMapResY`
+        lightMapResY;
+
+	// File Format.
+	optionMenuGrp -edit
+		-value `optionVar -query lightMapFileFormat`
+		lightMapFileFormat;
+
+	// Blend Mode
+	optionMenuGrp -edit
+		-value `optionVar -query lightMapBlendMode`
+		lightMapBlendMode;
+	
+	// All Meshes
+	checkBoxGrp -edit
+		-value1 `optionVar -query lightMapAllMeshes`
+		lightMapAllMeshes;
+
+	// New UV set
+	checkBoxGrp -edit
+		-value1 `optionVar -query lightMapNewUVSet`
+		lightMapNewUVSet;
+
+	// Shading Group
+	textFieldGrp -edit
+		-text `optionVar -query lightMapSG`
+		sgName;
+
+	// File Suffix
+	textFieldGrp -edit
+		-text `optionVar -query lightMapFileSuffix`
+		fileSuffix;
+
+	// UVSet name
+	textFieldGrp -edit
+		-text `optionVar -query lightMapNewUVSetName`
+		uvSetName;
+
+}
+
+//
+//  Procedure Name:
+//      bgGenerateLightMapsCallback
+//
+//  Description:
+//		Update the option values with the current state of the option box UI.
+//
+//  Input Arguments:
+//      parent - Top level parent layout of the option box UI.  Required so
+//               that UI object names can be successfully resolved.
+//
+//	doIt   - Whether the command should execute.
+//
+//  Return Value:
+//      None.
+//
+global proc bgGenerateLightMapsCallback(
+	string $parent, 
+	int $doIt)
+{
+    setParent $parent;
+
+	//	Set the optionVar's from the control values, and then
+	//	perform the command.
+
+	//	AntiAlias
+	//
+	optionVar -intValue lightMapAntiA
+		`checkBoxGrp -query -value1 lightMapAntiA`;
+
+	//	BakeShadow
+	//
+	optionVar -intValue lightMapShadow 
+		`checkBoxGrp -query -value1 lightMapShadow`;
+
+	//	ResolutionX.
+	//
+	optionVar -intValue lightMapResX
+		`intSliderGrp -query -value lightMapResX`;
+
+	//	ResolutionY.
+	//
+	optionVar -intValue lightMapResY
+		`intSliderGrp -query -value lightMapResY`;
+
+	// File Format.
+	optionVar -stringValue lightMapFileFormat
+		`optionMenuGrp -q -v lightMapFileFormat`;
+
+	// Blend Mode
+	optionVar -stringValue lightMapBlendMode
+		`optionMenuGrp -q -v lightMapBlendMode`;
+
+	// New UV set
+	optionVar -intValue lightMapNewUVSet
+		`checkBoxGrp -q -value1 lightMapNewUVSet`;
+
+	// All Meshes
+	optionVar -intValue lightMapAllMeshes
+		`checkBoxGrp -q -value1 lightMapAllMeshes`;
+
+	// File Suffix
+	optionVar -stringValue lightMapFileSuffix 
+		`textFieldGrp -query -text fileSuffix`;
+
+	// Shading Group
+	optionVar -stringValue lightMapSG 
+		`textFieldGrp -query -text sgName`;
+
+	// UVSet name
+	optionVar -stringValue lightMapNewUVSetName 
+		`textFieldGrp -query -text uvSetName`;
+
+	if ($doIt) {
+		bgPerformGenerateLightMaps 0; 
+		string $tmpCmd = "bgPerformGenerateLightMaps 0 ";
+		addToRecentCommandQueue $tmpCmd "Generate Light Maps";
+	}
+}
+
+global proc lightMapLocation(string $path, string $directory){
+		textField -edit -text $path fileLocation;
+}
+
+
+//
+//  Procedure Name:
+//      bgGenerateLightMapOptions
+//
+//  Description:
+//		Construct the option box UI.  Involves accessing the standard option
+//		box and customizing the UI accordingly.
+//
+//  Input Arguments:
+//      None.
+//
+//  Return Value:
+//      None.
+//
+proc bgGenerateLightMapOptions()
+{
+	//	Name of the command for this option box.
+	//
+	string $commandName = "bgGenerateLightMaps";
+
+	//	Build the option box actions.
+	//
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	//	The value returned is the name of the layout to be used as
+	//	the parent for the option box UI.
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+	
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	//	Any default option box behaviour based on the command name is set 
+	//	up with this call.  For example, updating the 'Help' menu item with
+	//	the name of the command.
+	//
+	setOptionBoxCommandName($commandName);
+	
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	//	Activate the default UI template so that the layout of this 
+	//	option box is consistent with the layout of the rest of the 
+	//	application.
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//	
+	//	This, of course, will vary from option box to option box.	
+	
+	//	Turn on the wait cursor.
+	//
+	waitCursor -state 1;
+
+	//	RECOMMENDATION:  Place the UI in a 'scrollable' layout.  A 
+	//	scrollable layout ensures that if the option box window is ever
+	//	resized such that it's entire contents is not visible then the 
+	//	scroll bars provided by the scrollable layout will allow the user
+	//	to access the hidden UI.  Two layouts currently supporting 
+	//	scrollable behaviour are the 'scrollLayout' and the 'tabLayout'.
+	//
+//	scrollLayout;
+	//
+	//	or...
+	//
+	tabLayout -tabsVisible 0 -scrollable 1;
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+	
+	//	RECOMMENDATION:  Use the 'Grp' commands where possible because
+	//	they obey the formatting specified in the default template.
+	//	This will result in a more consistent look throughout the
+	//	application.
+	//	
+
+    separator -height 10 -style "none";
+
+    checkBoxGrp
+        -label ""
+        -label1 "Anti-alias"
+        -numberOfCheckBoxes 1
+        -value1 off
+        lightMapAntiA;
+
+	checkBoxGrp 
+		-label ""
+		-label1 "Bake Shadows"
+		-numberOfCheckBoxes 1
+		-value1 off
+		lightMapShadow;
+
+	checkBoxGrp 
+		-label ""
+		-label1 "All Meshes"
+		-numberOfCheckBoxes 1
+		-value1 off
+		lightMapAllMeshes;
+
+	checkBoxGrp 
+		-label ""
+		-label1 "New UV Set"
+		-numberOfCheckBoxes 1
+		-value1 off
+		lightMapNewUVSet;
+
+	separator -height 15;
+
+	intSliderGrp
+        -field on
+        -label "X Resolution"
+        -minValue 1
+        -maxValue 512
+        -fieldMinValue 1
+        -fieldMaxValue 4096
+        -value 256
+        lightMapResX;
+
+	intSliderGrp
+        -field on
+        -label "Y Resolution"
+        -minValue 1
+        -maxValue 512
+        -fieldMinValue 1
+        -fieldMaxValue 4096
+        -value 256
+        lightMapResY;
+
+	optionMenuGrp -l "File Format"
+		lightMapFileFormat;
+		//menuItem -l "iff";
+		menuItem -l "pix";
+		menuItem -l "cin";
+		menuItem -l "eps";
+		menuItem -l "gif";
+		menuItem -l "jpg";
+		menuItem -l "yuv";
+		menuItem -l "rla";
+		menuItem -l "sgi";
+		menuItem -l "si";
+		menuItem -l "tga";
+		menuItem -l "tif";
+		menuItem -l "bmp";
+
+	// haven't included difference, lighten and darken modes
+	// since they are sw only and may cause confusion to the
+	// user by appearing to do nothing - and how useful are they?
+	optionMenuGrp -l "Blend Mode"
+		lightMapBlendMode;
+		menuItem //-l 0;
+			-l "None" ;
+		menuItem //-l 1;
+			-l "Over" ;
+		menuItem //-l 2;
+			-l "In" ;
+		menuItem //-l 3;
+			-l "Out" ;
+		menuItem //-l 4;
+			-l "Add" ;
+		menuItem //-l 5;
+			-l "Subtract" ;
+		menuItem //-l 6;
+			-l "Multiply" ;
+		menuItem //-l 10;
+			-l "Saturate" ;
+		menuItem //-l 11;
+			-l "Desaturate" ;
+		menuItem //-l 12;
+			-l "Illuminate" ;
+
+	textFieldGrp
+		-label "File Suffix"
+		fileSuffix;
+
+	rowLayout -nc 3
+		-columnWidth3 170 240 25
+		;
+		
+		text -label "File Location";
+		
+		textField fileLocation;
+
+		symbolButton -image "navButtonBrowse.png"
+			-command "fileBrowserDialog -m 4 -fc lightMapLocation -ft directory -an Set_Location"
+			;
+
+		setParent .. ;
+
+	textFieldGrp
+		-label "Shading Group Name"
+		//-text  "Editable"
+		sgName;
+
+	textFieldGrp
+		-label "UV Set Name"
+		//-text  "Editable"
+		uvSetName;
+
+	//	Turn off the wait cursor.
+	//
+	waitCursor -state 0;
+	
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	//	Provide more descriptive labels for the buttons.  This is not 
+	//	necessary, but in some cases, for example, a button labelled 
+	//	'Create' may be more meaningful to the user than one labelled
+	//	'Apply'.
+	//
+	//	Disable those buttons that are not applicable to the option box.
+	//
+	//	Attach actions to those buttons that are applicable to the option
+	//	box.  Note that the 'Close' button has a default action attached 
+	//	to it that will hide the window.  If a a custom action is
+	//	attached to the 'Close' button then be sure to call the 'hide the
+	//	option box' procedure within the custom action so that the option
+	//	box is hidden properly.
+
+	//	'Apply' button.
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit
+        -label "Apply"
+		-command (
+			$callback 
+				+ " " 
+				+ $parent 
+				+ " " 
+				+ 1 
+				+ " " )
+		$applyBtn;
+
+	string $applyAndCloseBtn = getOptionBoxApplyAndCloseBtn();
+	button -edit
+        -label "Light Map"
+		$applyAndCloseBtn;
+
+	//	'Save' button.
+	//
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command (
+			$callback 
+				+ " " 
+				+ $parent 
+				+ " " 
+				+ 0 
+				+ " " 
+				+ "; hideOptionBox")
+		$saveBtn;
+
+	//	'Reset' button.
+	//
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Step 7: Set the option box title.
+	//	=================================
+	//
+	setOptionBoxTitle("Generate Light Maps Options");
+
+	//	Step 8: Customize the 'Help' menu item text.
+	//	============================================
+	//
+	//setOptionBoxHelpTag( "ConvertFileText" );
+
+	//	Step 9: Set the current values of the option box.
+	//	=================================================
+	//
+	eval (($setup + " " + $parent + " " + 0));	
+	
+	//	Step 10: Show the option box.
+	//	=============================
+	//
+	showOptionBox();
+}
+
+
+//
+//  Procedure Name:
+//      assembleCmd
+//
+//  Description:
+//		Construct the command that will apply the option box values.
+//
+//  Input Arguments:
+//      None.
+//
+proc string assembleCmd()
+{
+	string $cmd = "bgGenerateLightMaps";
+
+	setOptionVars(false);
+
+	//	switch blend mode from string (for user) to int (for code)
+	//	should probably change the code one day to use strings
+	string $blendModeString = `optionVar -query lightMapBlendMode`;
+	int $blendModeInt;
+	switch ($blendModeString){
+		case "None":
+			$blendModeInt = 0;
+			break;
+		case "Over":
+			$blendModeInt = 1;
+			break;
+		case "In":
+			$blendModeInt = 2;
+			break;
+		case "Out":
+			$blendModeInt = 3;
+			break;
+		case "Add":
+			$blendModeInt = 4;
+			break;
+		case "Subtract":
+			$blendModeInt = 5;
+			break;
+		case "Multiply":
+			$blendModeInt = 6;
+			break;
+		case "Saturate" :
+			$blendModeInt = 10;
+			break;
+		case "Desaturate":
+			$blendModeInt = 11;
+			break;
+		case "Illuminate":
+			$blendModeInt = 12;
+			break;
+	}
+
+	string $filePath = `textField -query -text fileLocation`;
+	if ($filePath != "")
+		$filePath = $filePath + "/";
+
+	$cmd = ($cmd
+		+ " \"" + `optionVar -query lightMapSG` + "\""
+		+ " \"" + `optionVar -query lightMapFileSuffix` + "\""
+		+ " " + `optionVar -query lightMapFileFormat`
+		+ " " + `optionVar -query lightMapAllMeshes`
+		//+ " " + `optionVar -query lightMapBlendMode`
+		+ " " + $blendModeInt
+		+ " " + `optionVar -query lightMapShadow`
+        + " " + `optionVar -query lightMapAntiA`    
+		+ " " + `optionVar -query lightMapResX` 
+		+ " " + `optionVar -query lightMapResY` 
+		+ " " + `optionVar -query lightMapNewUVSet`
+		+ " \"" + `optionVar -query lightMapNewUVSetName` + "\""
+		+ " \"" + $filePath + "\""
+		);
+
+	print ("\n// Generate Light Maps Command: " + $cmd + "\n");
+	return $cmd;
+}
+
+
+//
+//  Procedure Name:
+//      bgPerformGenerateLightMaps
+//
+//  Description:
+//		Perform the bgGenerateLightMaps command using the corresponding 
+//		option values.  This procedure will also show the option box
+//		window if necessary as well.
+//
+//  Input Arguments:
+//      0 - Execute the command.
+//      1 - Show the option box dialog.
+//      2 - Return the command.
+//
+global proc string bgPerformGenerateLightMaps(
+	int $action)
+{
+	string $cmd = "";
+
+	switch ($action) {
+
+		//	Execute the command.
+		//
+		case 0:
+			//	Get the command.
+			//
+			$cmd = `assembleCmd`;
+
+			//	Execute the command with the option settings.
+			//
+            eval($cmd);
+
+			break;
+
+		//	Show the option box.
+		//
+		case 1:
+			bgGenerateLightMapOptions ;
+			break;
+
+		//	Return the command string.
+		//
+		case 2:
+			//	Get the command.
+			//
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}
+

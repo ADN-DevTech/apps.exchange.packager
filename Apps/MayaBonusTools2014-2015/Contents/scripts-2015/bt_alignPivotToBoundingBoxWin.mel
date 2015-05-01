@@ -1,0 +1,190 @@
+// bt_alignPivotToBoundingBox.mel
+// 
+// aligns pivots of all selected object to the bounding box min/max x/y/z
+// pivots can be aligned based on individual bounding boxes (i.e. per object)
+// or they can be aligned based on the share bounding box of all selected objects
+//
+// Created by Steven T. L. Roselle 
+// Last updated:      ( 04/01/14 )
+
+global proc bt_alignPivotToBoundingBox (int $boundingBoxLocation)
+{
+	string $transforms[] = `ls -sl -type transform`;
+	int $c = `size ($transforms)`;
+	$c -= 1;
+
+                
+    $centerPivotFirst = `optionVar -q bt_CenterPivFirst`;
+    $individualBBoxes = `optionVar -q bt_IndividualBB`;
+    
+	if ($individualBBoxes == 1)
+	{
+		// individual
+		for ($c; $c >= 0; $c--)
+		{
+			float $orig[3] = `xform -q -ws -pivots $transforms[$c]`;
+			float $new[6] = `xform -q -ws -boundingBox $transforms[$c]`;
+				if ($centerPivotFirst == 1)
+					{
+					$orig[0] = ($new[0] + $new[3]) / 2;
+					$orig[1] = ($new[1] + $new[4]) / 2;
+					$orig[2] = ($new[2] + $new[5]) / 2;
+					}
+
+				if ($boundingBoxLocation == 2)
+					$orig[0] = $new[0];
+				else if ($boundingBoxLocation == 3)
+					$orig[0] = $new[3];
+				else if ($boundingBoxLocation == 4)
+					$orig[1] = $new[1];
+				else if ($boundingBoxLocation == 5)
+					$orig[1] = $new[4];
+				else if ($boundingBoxLocation == 6)
+					$orig[2] = $new[2];
+				else if ($boundingBoxLocation == 7)
+					$orig[2] = $new[5];
+				else
+					{
+					$orig[0] = ($new[0] + $new[3]) / 2;
+					$orig[1] = ($new[1] + $new[4]) / 2;
+					$orig[2] = ($new[2] + $new[5]) / 2;
+					}
+
+			xform -ws -sp $orig[0] $orig[1] $orig[2] $transforms[$c];
+			xform -ws -rp $orig[0] $orig[1] $orig[2] $transforms[$c];
+		}
+	}
+	else //$individualBBoxes = 2
+	{
+		// bb for all selected
+		int $c2 = $c;
+		float $bbox[6] = `xform -q -os -boundingBox $transforms[$c2]`;
+
+		for ($c2; $c2 >= 0; $c2--)
+		{
+			float $new[6] = `xform -q -os -boundingBox $transforms[$c2]`;
+
+			$bbox[0] = `min $bbox[0] $new[0]`;
+			$bbox[1] = `min $bbox[1] $new[1]`;
+			$bbox[2] = `min $bbox[2] $new[2]`;
+			$bbox[3] = `max $bbox[3] $new[3]`;
+			$bbox[4] = `max $bbox[4] $new[4]`;
+			$bbox[5] = `max $bbox[5] $new[5]`;
+		}
+
+		for ($c; $c >= 0; $c--)
+		{
+			float $orig[3] = `xform -q -ws -pivots $transforms[$c]`;
+				if ($centerPivotFirst == 1)
+				    {
+					$orig[0] = ($bbox[0] + $bbox[3]) / 2;
+					$orig[1] = ($bbox[1] + $bbox[4]) / 2;
+					$orig[2] = ($bbox[2] + $bbox[5]) / 2;
+					}
+				if ($boundingBoxLocation == 2)
+					$orig[0] = $bbox[0];
+				else if ($boundingBoxLocation == 3)
+					$orig[0] = $bbox[3];
+				else if ($boundingBoxLocation == 4)
+					$orig[1] = $bbox[1];
+				else if ($boundingBoxLocation == 5)
+					$orig[1] = $bbox[4];
+				else if ($boundingBoxLocation == 6)
+					$orig[2] = $bbox[2];
+				else if ($boundingBoxLocation == 7)
+					$orig[2] = $bbox[5];
+				else
+				    {
+					$orig[0] = ($bbox[0] + $bbox[3]) / 2;
+					$orig[1] = ($bbox[1] + $bbox[4]) / 2;
+					$orig[2] = ($bbox[2] + $bbox[5]) / 2;
+					}
+
+			xform -ws -sp $orig[0] $orig[1] $orig[2] $transforms[$c];
+			xform -ws -rp $orig[0] $orig[1] $orig[2] $transforms[$c];
+		}
+	}
+}
+
+
+global proc bt_alignPivotToBoundingBoxWin()
+
+{
+	//Creat UI and prompt user
+	//
+	global string $textName;
+    
+    if (`optionVar -ex bt_CenterPivFirst` == 0)
+        optionVar -iv bt_CenterPivFirst 1;
+    if (`optionVar -ex bt_IndividualBB` == 0)
+        optionVar -iv bt_IndividualBB 1;
+        
+  	if( (`window -exists bboxPivotUI`) == true )
+	{
+		deleteUI bboxPivotUI;
+		windowPref -remove bboxPivotUI;
+	}
+	
+	window  
+		-sizeable true -h 140
+		-title "Align Pivot(s) to Bounding Box" bboxPivotUI;
+    columnLayout;
+    
+	rowColumnLayout -numberOfColumns 2 -columnWidth 1 20 -columnWidth 2 180;
+	        
+	    separator -st none;
+        checkBox -al "right" -label "Center Pivot First"
+            -ann ""
+            -onc "optionVar -iv bt_CenterPivFirst 1; print \"\""
+            -ofc "optionVar -iv bt_CenterPivFirst 0"
+            -v `optionVar -q bt_CenterPivFirst`;
+        
+	    separator -st none;
+        checkBox -al "right" -label "Individual Bounding Boxes"
+            -ann ""
+            -onc "optionVar -iv bt_IndividualBB 1; print \"\""
+            -ofc "optionVar -iv bt_IndividualBB 0"
+            -v `optionVar -q bt_IndividualBB`;
+    setParent..;
+    
+	rowColumnLayout -numberOfColumns 2 -columnWidth 1 100 -columnWidth 2 100;
+           
+        
+        separator; separator;
+            
+    	button -label "Min X" 
+    		-command ("bt_alignPivotToBoundingBox 2");
+    	
+    	button -label "Max X" 
+    		-command ("bt_alignPivotToBoundingBox 3");
+    	
+    	button -label "Min Y" 
+    		-command ("bt_alignPivotToBoundingBox 4");
+    	
+    	button -label "Max Y" 
+    		-command ("bt_alignPivotToBoundingBox 5");
+    
+    	button -label "Min Z" 
+    		-command ("bt_alignPivotToBoundingBox 6");
+    	
+    	button -label "Max Z" 
+    		-command ("bt_alignPivotToBoundingBox 7");
+    			
+    	separator;
+    	separator;
+	
+	setParent..;
+
+	rowColumnLayout -numberOfColumns 1 -columnWidth 1 200;
+    
+    	button -label "Close" 
+		-command ("deleteUI bboxPivotUI;windowPref -remove bboxPivotUI");
+		
+	setParent..;
+	
+	showWindow bboxPivotUI;	
+}
+
+//bt_alignPivotToBoundingBoxWin;
+
+//bt_alignPivotToBoundingBox 3 1 0

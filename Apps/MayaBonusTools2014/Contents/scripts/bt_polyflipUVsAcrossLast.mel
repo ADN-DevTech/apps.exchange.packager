@@ -1,0 +1,81 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// international treaties.
+//
+
+//
+// bt_polyflipUVsAcrossLast.mel
+
+
+
+global proc bt_polyflipUVsAcrossLast(float $direction)
+{	
+    float $UVs[];
+    float $UVs2[];
+            
+	string $inList[]=`ls -fl -orderedSelection`;
+	$size = `size $inList`;
+	
+	if ($size == 0)
+	    error "Select UVs to Flip";
+	
+	$lastUV =  `filterExpand -ex false -sm 35 $inList[$size-1]`;
+	
+	if (`size $lastUV` != 0)
+    	$UVs = `polyEditUV -q  $lastUV`;
+    else 
+        error "Last selection must be a UV.";
+
+
+	
+	// Get selected uvs.
+	string $map[] = `filterExpand -ex false -sm 35`;
+
+
+      
+   select -r $map;
+   
+   if ($direction == 0)  
+       polyFlipUV -l 1;  // horizontal
+   else
+       polyFlipUV -l 1 -ft 1;  // vertical 
+   
+   
+   $UVs2 = `polyEditUV -q  $lastUV`;
+     
+   //get difference in location
+	float $pu = ($UVs[0] - $UVs2[0]);
+	float $pv = ($UVs[1] - $UVs2[1]); 
+	
+	polyEditUV -u $pu -v $pv ;
+	
+	select -r $map;
+	//make sure to maintain last selected
+	select -d $lastUV;
+	select -add $lastUV;
+ 
+}
+
+//bt_polyflipUVsAcrossLast 0;
+
+//bt_polyflipUVsAcrossLast 1;

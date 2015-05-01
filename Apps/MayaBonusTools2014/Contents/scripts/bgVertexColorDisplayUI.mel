@@ -1,0 +1,301 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//      bgVertexColorDisplayUI (Creates UI for viewing vertex colors)
+//
+//
+//
+// Added check for selected or all.  If something is selected the display change applies 
+// to the selected objects.  If nothing is selected the display change applies to all.
+// This pertains to meshes as well as lights.
+//
+// Also add HighQuality mode as an option.
+//
+// Input Arguments: NONE
+
+	
+global proc vertColorControl(int $displayMode)
+
+{
+	// displayTextures  = 	on/off
+	// renderMode  = 	hwRender_OpenGL_Renderer/base_OpenGL_Renderer
+	// lightMode  = 			all/none/selected
+	// colorChannel  = 		emmision/abientDiffuse
+	// materialBlend  = 		overwrite/multiply
+
+	
+	// get list of all modeling panels
+	string $panelList[] = `getPanel -type modelPanel`;
+
+	// get list of selected meshes and lights
+	string $selected[] = `ls -long -sl -type "transform"`;
+	string $selectedShapes[] = `listRelatives -fullPath -type shape $selected`;
+	
+	select -r $selectedShapes;
+	string $meshes[] = `ls -long -sl -type "mesh"`;
+	string $lights[] = `ls -long -sl -type "light"`;
+	
+	
+	
+	//works exclusivly - either disp color on all meshes or none		
+	if (`size $meshes` ==  0)
+		{
+		$meshes = `ls -type mesh`;
+		print ("All Meshes : ");
+		}	
+	else
+		{
+		print ("Selected Meshes : ");
+		//first disable vert color display for all meshes
+		//for some strange reason the attr has to be touched directly in order for HQ mode to refresh correctly	
+		for ($mesh in `ls -type mesh`)
+			setAttr ($mesh+".displayColors") 0;
+		//select `ls -type mesh`;
+		//polyOptions -cs 0;	
+		}
+		
+		
+	//select polys to change
+	
+		switch ($displayMode)
+			
+		{
+		
+		case 0:	//Reset all to default
+				//
+				//Turn off Vertex Color display and reset panels to default
+	
+				select -r $meshes;
+				polyOptions -cs 0 -colorMaterialChannel "ambientDiffuse" -materialBlend "overwrite" -activeObjects;
+
+					
+				//Check shading, textures and lighting for each modeling panel
+				for ($currentPanel in $panelList)   
+					modelEditor -edit 
+						-displayAppearance "smoothShaded" 
+						-displayTextures 1
+						-rendererName "base_OpenGL_Renderer"
+						-displayLights "default" 
+						$currentPanel;					
+				break;
+
+				
+		case 1:	//Vert Color Only
+				//
+				//Set view mode to Emission and blend to Overwrite
+				//Set panels to view no lights with textures turned off
+	
+				select -r $meshes;
+				polyOptions -cs 1 -colorMaterialChannel "emission" -materialBlend "overwrite" -activeObjects;
+
+					
+				//Check shading, textures and lighting for each modeling panel
+				for ($currentPanel in $panelList)   
+					modelEditor -edit 
+						-displayAppearance "smoothShaded" 
+						-displayTextures off
+						-rendererName "base_OpenGL_Renderer"
+						-displayLights "none" 
+						$currentPanel;
+				break;
+	
+	
+		case 2:	//Vertex Color and Textures
+				//
+				//Set view mode to Emission and blend to Overwrite
+				//Set panels to view no lights with textures turned on
+	
+				select -r $meshes;
+				polyOptions -cs 1 -colorMaterialChannel "emission" -materialBlend "overwrite" -activeObjects;
+
+				
+				//Check shading, textures and lighting for each modeling panel
+				for ($currentPanel in $panelList)   
+					modelEditor -edit 
+						-displayAppearance "smoothShaded" 
+						-displayTextures 1
+						-rendererName "base_OpenGL_Renderer"
+						-displayLights "none" 
+						$currentPanel;
+				break;
+				
+				
+		case 3:	//Display Vertex Color + Textures and Lights 
+				//
+				//Set view mode to AmbientDiffuse and blend to Multiply
+				//Set panels to view either all or default lighting with textures on
+	
+				string $lightMode;
+				
+				if (`size $lights` != 0)
+					$lightMode = "active";  //use selected lights
+				else
+					{
+					string $lights[] = `ls -type light`;
+					if (`size $lights` != 0)
+						$lightMode = "all";
+					else
+						$lightMode = "default";
+					}
+				
+				select -r $meshes;
+				polyOptions -cs 1 -colorMaterialChannel "ambientDiffuse" -materialBlend "multiply" -activeObjects;
+					
+				//Check shading, textures and lighting for each modeling panel
+				for ($currentPanel in $panelList)   
+					modelEditor -edit 
+						-displayAppearance "smoothShaded" 
+						-displayTextures 1
+						-rendererName "base_OpenGL_Renderer"
+						-displayLights $lightMode 
+						$currentPanel;				
+				break;
+			
+				
+		case 4:	//Display Vertex Color + Textures and Lights in HighQuality mode (hardware dependant)
+				//
+				//Set view mode to AmbientDiffuse and blend to Multiply
+				//Set panels to view either all or default lighting with textures on
+	
+				string $lightMode;
+				
+				if (`size $lights` != 0)
+					$lightMode = "active";  //use selected lights
+				else
+					{
+					string $lights[] = `ls -type light`;
+					if (`size $lights` != 0)
+						$lightMode = "all";
+					else
+						$lightMode = "default";
+					}
+				
+				select -r $meshes;
+				polyOptions -cs 0 -activeObjects;				
+				polyOptions -cs 1 -colorMaterialChannel "ambientDiffuse" -materialBlend "multiply" -activeObjects;
+					
+				//Check shading, textures and lighting for each modeling panel
+				for ($currentPanel in $panelList)   
+					modelEditor -edit 
+						-displayAppearance "smoothShaded" 
+						-displayTextures 1
+						-rendererName "hwRender_OpenGL_Renderer"
+						-displayLights $lightMode 
+						$currentPanel;	
+				break;				
+	
+		}
+	
+	//reselect original selection
+	select -r $selected;
+
+	
+
+}
+
+//////////////////////////////////////////////
+//		Main UI Proc
+//////////////////////////////////////////////
+
+global proc bgVertexColorDisplayUI()
+{
+
+	//Delete window if it exists already
+	if( (`window -exists vertexColorDisplayUI`) == true )
+			{
+			deleteUI vertexColorDisplayUI;
+ 			windowPref -remove vertexColorDisplayUI;
+			}
+
+	//Define Window
+	//
+ 	window -w 138 -h 190 
+		-tb 1 
+		-s 1 -t "" 
+		vertexColorDisplayUI;
+
+		rowColumnLayout -numberOfColumns 1 
+			-columnWidth 1 130;
+
+		separator -style none;
+
+		text -label "Vertex Color Display" 
+			-align center 
+			-fn boldLabelFont;		
+
+		separator -style none;
+		separator -style double;
+		separator -style none;
+
+		/*
+		radioCollection;
+
+		radioButton -label "All Objects" 
+			-sl 
+			-onc "$buttonOneState = 1" 
+			-ofc "$buttonOneState = 0";
+
+		radioButton -label "Selected Objects" 
+			-onc "$buttonTwoState = 1" 
+			-ofc "$buttonTwoState = 0";
+
+		separator -style none;
+		*/
+		
+		
+		button -label "Vertex Color Only" 
+			-ann "Display vertex color (emission) with no textures and no lighting for all views" 
+			-command "vertColorControl 1";
+
+		button -label "+ Texture" 
+			-ann "Display vertex color (emission) with textures and no lighting for all views" 
+			-command "vertColorControl 2";
+
+		button -label "+ Texture + Light" 
+			-ann "Display vertex color (ambient/diffuse) with textures and default lighting for all views" 
+			-command "vertColorControl 3";
+
+		button -label "+ Texture + Light + HQ" 
+			-ann "Display vertex color (ambient/diffuse) with textures and default lighting for all views" 
+			-command "vertColorControl 4";
+		
+		separator -style none;
+
+		separator -style single;
+
+		separator -style none;
+
+
+		
+		button -label "Reset" 
+			-ann "Reset vertex color display settings for all views" 
+			-command "vertColorControl 0";
+
+	showWindow; 
+}
+
+
+
+bgVertexColorDisplayUI;
+
+
+

@@ -1,0 +1,150 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+// Some MEL wrappers for commonly used Perforce
+// commands. Will execute the command on the current file
+//
+// Last Updated 11/04/2002
+//
+// Add in std disclaimer here.
+//
+
+global proc string p4window()
+{
+	string $result = `system ("p4win")`;
+	return $result;	
+}
+
+// Perforce info
+global proc string p4info()
+{
+  string $result = `system ("p4 info")`;	
+  return $result;
+}
+
+// Lock a file
+global proc string p4lock()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 lock " + $currentFileName)`;	
+  return $result;
+}
+
+// Unlock a file
+global proc string p4unlock()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 unlock " + $currentFileName)`;	
+  return $result;
+}
+
+// Check out file
+global proc string p4cout(int $lockIt)
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 edit " + $currentFileName)`;
+  if ($lockIt)
+    $result = `p4lock`;
+  return $result;
+}
+
+// Check in file
+global proc string p4cin()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 submit " + $currentFileName)`;
+  return $result;
+}
+
+// Submit current changes
+global proc string p4submit()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 submit " + $currentFileName)`;
+  return $result;
+}
+
+// Add new file. Possibly check it in as well
+global proc string p4add(int $submitIt)
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 add " + $currentFileName)`;
+  if ($submitIt)
+  	$result = `p4submit`;
+  return $result;
+}
+
+// Diff current file
+global proc string p4diff()
+{
+  string $currentFileName = `file -q -a`;
+  string $differences = `system ("p4 diff " + $currentFileName)`;
+  return $differences;
+}
+
+// Revert current file
+global proc string p4revert()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 revert " + $currentFileName)`;
+  return $result; 
+}
+
+// Revert current file
+global proc string p4delete(int $submitIt)
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 delete " + $currentFileName)`;
+  if ($submitIt)
+  	$result = `p4submit`;
+  return $result;
+}
+
+// Query the current change set
+global proc string p4Status()
+{
+  string $result = `system ("p4 change -o")`;
+  return $result;
+}
+
+// Edit the current change set
+global proc string p4EditStatus()
+{
+  string $result = `system ("p4 change")`;
+  return $result;
+}
+
+// Revision history
+global proc string p4history()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 filelog " + $currentFileName)`;
+  return $result;
+}
+
+// File status
+global proc string p4FileStatus()
+{
+  string $currentFileName = `file -q -a`;
+  string $result = `system ("p4 fstat " + $currentFileName)`;
+  return $result;
+}

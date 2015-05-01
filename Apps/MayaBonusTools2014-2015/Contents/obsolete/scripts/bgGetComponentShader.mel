@@ -1,0 +1,78 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// getComponentShader.mel
+
+//			may 2002: fixed error that occurred if faces were not mapped
+// 
+// this script will select the shader assigned to the active poly face
+//
+// Usage: with a face selected, enter `getComponentShader` in the script 
+// editor or on the command line.
+
+global proc getComponentShader(){
+
+	string $comps[] = `ls -selection -flatten`;
+	if (`size($comps)` > 0){
+
+		// find the shape node
+		string $shape[] = `listRelatives -parent $comps[0]`;
+		
+		// find the shading engine
+		string $connections[] = `listConnections -source false -type 
+			"shadingEngine" $shape[0]`;
+
+		// there may be more than one shading group connected to the
+		// geometry so find the exact one
+		$connections = `stringArrayRemoveDuplicates $connections`;
+		string $shadingGroup;
+
+		for ($connection in $connections){
+			int $result = `sets -isMember $connection`;
+			if ($result == 1) {$shadingGroup = $connection;}
+		}
+		
+		// if no shading group has been found, the components must not be
+		// mapped - this means the shape is mapped
+		if ($shadingGroup == ""){
+			for ($connection in $connections){
+				int $result = `sets -isMember $connection $shape[0]`;
+				if ($result == 1) {$shadingGroup = $connection;}
+			}
+		}
+
+		if ($shadingGroup != ""){
+			// find the shader connected to the shading group
+			string $shaderConnection = `connectionInfo -sourceFromDestination 
+				($shadingGroup + ".surfaceShader")`;
+			string $shader[];
+			tokenize $shaderConnection "." $shader;
+			
+			// select and show the shader
+			select -tgl $shader[0];
+			showEditor $shader[0];
+		}
+
+	} else {
+		error ("No component selected: Select a component to see its " +
+			"material attributes.");
+	}	
+}

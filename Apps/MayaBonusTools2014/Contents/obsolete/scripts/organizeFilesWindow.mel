@@ -1,0 +1,753 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// created by nkarnik July 16 2003
+// 
+// Description:
+//      Tool to collect all file textures inside the scene in one specified directory.
+//	  Version 1.5
+// 
+//  Procedure Name:
+//     organizeFiles 
+//
+//  Input Arguments:
+//		$destDir - directory where the file textures are moved/copied
+//		$moveCopyOption - decides if the files should moved or copied
+//		$changePathOption - decides if the file paths should be changed to the new location	
+//
+//  Return Value:
+//      None.
+//
+// 
+//
+// This script is used to collect your file textures spread across different directories into one directory.
+// How it works :
+// 1) If your scene is using a face.jpg that is sitting inside C:/myImages
+// Then you can either move or copy that image to C:/mySelectedDirectory
+// To select where you want to move/copy, you can pick a directory in 3 ways:
+// a) Browse the directory. Also the directory that shows up automatically (next to the browse button) is the source images directory of your current project.
+// b) Select a source images directory from one of your existing projects.
+// c) Select a bookmarked directory from the "Centralized images library"
+// You have the option to switch the path from 
+// C:/myImages/face.jpg ----> C:/mySelectedDirectory/face.jpg
+//
+// 2) Then click the Apply button.
+// If a face.jpg already exists in C:/mySelectedDirectory then it won't
+// copy/move anything but will just switch the path from
+// C:/myImages/face.jpg ----> C:/mySelectedDirectory/face.jpg if you have chosen
+// "change path" option.
+//
+// New features added here are :
+// 1) Adding/creating new directory
+// 2) moving/copying selected filetextures
+// Options for
+// 	i) Move/copy all file textures
+//	ii) Move/copy file textures selected in the hypershade
+//	iii) Move/copy file textures connected to selected nodes.
+//
+
+
+global proc organizeFiles(string $destDir, int $moveCopyOption, int $changePathOption, string $selectionCriteria)
+	{
+	$destDirExists = `filetest -d $destDir`;
+	if ($destDirExists == 1)
+		{
+		$slashAtEnd = `match "/$" $destDir`;
+		if ($slashAtEnd == "")
+			{
+			$destDir = $destDir + "/";
+			}		
+		copyMoveFiles($destDir, $moveCopyOption, $changePathOption, $selectionCriteria);
+		}
+	else 
+		{
+		confirmDialog 
+		-title "Invalid directory path" 
+		-message "Error: Can not find the directory to copy files"
+		-button "Ok";
+
+		print ("\n// Error: Can not find the directory to copy files//\n");
+		}
+	}
+	
+global proc copyMoveFiles(string $destDir, int $moveCopyOption, int $changePathOption, string $selectionCriteria)
+	{
+	string $selectedNodes[];
+	string $fileNodes[];
+	string $file;
+	string $newFile;
+	string $fileAddress[];
+	string $srcAddress;
+	string $destAddress;
+	string $destDir;
+	string $srcDir;
+	string $fileName;
+	string $drive[];
+	int $chunkC1;
+	int $fileExists;
+	int $result;
+	int $fileExistsAtDest;
+	string $filesFoundList[];
+	string $filesLostList[];
+	string $selection[];
+	string $connections[];
+	string $allConnections[];
+	string $hypNodes[];
+	string $fileNodes[];
+	string $selected[];
+
+	
+	//string $destDir = "//Pc-aharris/public/lobbyistProject//sourceimages/lobbyTextures/";
+
+	if ($selectionCriteria == "allFiles")
+		{
+		$fileNodes = `ls -l -type file`;
+		}
+
+	else if ($selectionCriteria == "selectedNodes")
+		{
+		// build the $fileNodes list as follows :
+		// find all the descendants of all the selected nodes.
+		// for each descendant, find the connected file texture node (use listConnections, listRelatives, connectionInfo)
+	
+		$selection = `ls -l -sl`;
+		tearOffPanel (localizedPanelLabel( "Hypergraph" )) "hyperGraphPanel" true;
+
+		$hypergraphName = `getPanel -wl (localizedPanelLabel("Hypergraph"))`;
+
+		showDGLevel ($hypergraphName + "HyperGraphEd");	
+		$hypNodes = `hyperGraph -q -gnl ($hypergraphName + "HyperGraphEd")`;
+		select -r -ne $hypNodes;
+
+		showDGLevel ($hypergraphName + "HyperGraphEd");	
+		$hypNodes = `hyperGraph -q -gnl ($hypergraphName + "HyperGraphEd")`;
+		select -r -ne $hypNodes;
+
+		showDGLevel ($hypergraphName + "HyperGraphEd");	
+		$hypNodes = `hyperGraph -q -gnl ($hypergraphName + "HyperGraphEd")`;
+		select -r -ne $hypNodes;
+
+		$fileNodes = `ls -l -sl -type file`;
+
+		select -r -ne $fileNodes;
+		}
+
+	else if ($selectionCriteria == "selectedTextures")
+		{
+		// build the $fileNodes list as follows :
+		// find all the selected nodes.
+		// filter out only the file texture node. 
+		
+		$fileNodes = `ls -sl -l -type file`;
+		print ("\n" + "selection criteria is selectedTextures");
+		}
+
+
+	for($i=0; $i<(size($fileNodes)); $i++)
+		{
+		$file = `getAttr ($fileNodes[$i] + ".fileTextureName")`;
+		$fileExists = `filetest -f $file`;
+		if ($fileExists == 1)
+			{
+			$chunks = `tokenize $file "/" $fileAddress`;
+			$fileName = $fileAddress[($chunks-1)];
+			if (`about -win`)
+				{
+				print ("\n1st fileAddress = " + $fileAddress[0]);
+				$chunkC1 = `tokenize $file ":" $drive`;
+				if ($chunkC1 == 1)
+					{
+					$fileAddress[0] = "//" + $fileAddress[0];
+					}
+				}
+			for($j=0; $j<(size($fileAddress)-1); $j++)
+				{
+				if ($j == 0)
+					{
+					$srcDir = $fileAddress[$j];
+					}
+				else 
+					{
+					$srcDir = $srcDir + "/" + $fileAddress[$j];
+					}
+				}
+			$srcDir = $srcDir + "/";
+			$newFile = $destDir + $fileName;
+			
+			$fileExistsAtDest = `filetest -f $newFile`;			
+			if ($fileExistsAtDest == 0)
+				{
+				if ($moveCopyOption == 2)
+					{
+					$result = `sysFile -copy $newFile $file`;
+					}
+				else if ($moveCopyOption == 1)
+					{
+					$result = `sysFile -move $newFile $file`;
+					}
+				if (($result == 1) && ($changePathOption == 1))
+					{
+					setAttr -type "string" ($fileNodes[$i] + ".fileTextureName") $newFile;
+					}
+				}
+			else if (($fileExistsAtDest == 1) && ($changePathOption == 1))
+				{
+				setAttr -type "string" ($fileNodes[$i] + ".fileTextureName") $newFile;
+				}
+			$srcDir = "";
+			$newFile = "";
+			}
+		if  (($fileExistsAtDest == 1) || ($result == 0) || ($fileExists == 0))
+			{
+			$filesLostList[size($filesLostList)] = $file;
+			}
+		else if (($fileExists == 1) && ($result == 1) && ($fileExistsAtDest == 0))
+			{
+			$filesFoundList[(size($filesFoundList))] = $file;
+			}		
+		}
+	$filesFoundList = stringArrayRemoveDuplicates($filesFoundList);
+	$filesLostList = stringArrayRemoveDuplicates($filesLostList);
+	print ("\n***********PRINTING REPORT****************");
+	print ("\nTotal Files found and copied = " + (size($filesFoundList)));
+	print ("\n******************************************\n");
+	print $filesFoundList;
+	print ("\nTotal Files lost and/or NOT copied = " + (size($filesLostList)));
+	print ("\n******************************************\n");
+	print $filesLostList;
+	print ("\n************END OF REPORT*****************\n");
+
+	confirmDialog 
+		-title "Status message" 
+		-message "Please check the script editor for the results/report"
+		-button "Ok";
+	}
+
+
+
+global proc collectInput_organizeFiles()
+	{
+	$destDir = `textFieldButtonGrp -q -fi selectDir`;
+	$moveCopyOption = `radioButtonGrp -q -sl moveCopyOption`;
+	$changePathOption = `radioButtonGrp -q -sl changePathOption`;
+	$selectionCriteria = `radioCollection -q -sl selectionCriteria`;
+
+	print ("\n selectionCriteria = " + $selectionCriteria);
+	organizeFiles($destDir, $moveCopyOption, $changePathOption, $selectionCriteria);
+	}
+
+global proc changePathCheck()
+	{
+	$moveCopyOption = `radioButtonGrp -q -sl moveCopyOption`;
+	if ($moveCopyOption == 1)
+		{
+		radioButtonGrp -e -sl 1 changePathOption;
+		}
+	}
+
+global proc turnOnChangePath()
+	{
+	radioButtonGrp -e -sl 1 changePathOption;
+	radioButtonGrp -e -en2 0 changePathOption;
+	}
+
+global proc enableDontChangePath()
+	{
+	radioButtonGrp -e -en2 1 changePathOption;
+	}
+
+
+
+global proc setMyDirectory(string $myDirectory, string $fileType)
+	{
+	if (`filetest -d $myDirectory` == 0)
+		{
+		confirmDialog 
+		-title "Directory selection" 
+		-message "Your selection was not a directory. Please select a directory"
+		-button "Ok";
+		}
+	else if (`filetest -d $myDirectory` == 1)
+		{
+		textFieldButtonGrp -edit -fi $myDirectory selectDir;
+		if (`window -exists addDirWindow`)
+			{
+			$destDir = `textFieldButtonGrp -q -fi selectDir`;
+			$dirDisplayLable = "Current directory : " + $destDir;
+			text -edit -label $dirDisplayLable currentDirectoryDisplay;
+			}
+		}
+	}
+
+global proc browseDirectory()
+	{
+	global string $gDefaultFileBrowserDir;
+	$myDirectory = `textFieldButtonGrp -q -fi selectDir`;
+	print ("\nmyDirectory = " + $myDirectory + "\n");	
+
+	$currentProject = `workspace -q -fn`;
+	$sourceImagesDir = `workspace -q -fileRuleEntry "sourceImages"`;
+	if ($sourceImagesDir != "")
+		{
+		$sourceImagesDir = $currentProject + "/" + $sourceImagesDir;
+		}
+	else 
+		{
+		$sourceImagesDir = $currentProject;
+		}
+	string $fileExists;
+	$cmd = "filetest -d " + ("\"" + $myDirectory + "\"");
+	
+	$fileExists = `eval $cmd`;
+	print ("\n" + $fileExists + "\n");
+
+	if ($fileExists == 0)
+		{
+		confirmDialog 
+		-title "Directory selection" 
+		-message "Your selection was not a directory. Please select a directory"
+		-button "Ok";
+		$gDefaultFileBrowserDir = $sourceImagesDir;
+		}
+	if ($fileExists == 1)
+		{
+		//set the value of $gDefaultFileBrowserDir
+		$gDefaultFileBrowserDir = $myDirectory;
+		
+		// Now open the browser.
+		fileBrowser "setMyDirectory" "Select Directory" "directory" 4;
+		}
+	}
+
+
+global proc selectSourceImagesDir()
+	{
+	$selectedDir = `textScrollList -q -selectItem imagesDirSelection`;
+	setMyDirectory $selectedDir[0] "directory";
+	}
+
+
+global proc selectLibDir()
+	{
+	$selectedDir = `textScrollList -q -selectItem libDirSelection`;
+	$myDirectory = $selectedDir[0];
+	string $fileExists;
+	$cmd = "filetest -d " + ("\"" + $myDirectory + "\"");
+	
+	$fileExists = `eval $cmd`;
+	print ("\n" + $fileExists + "\n");
+
+	if ($fileExists == 0)
+		{
+		confirmDialog 
+		-title "Directory selection" 
+		-message "Your selection was not a directory. Please select a directory"
+		-button "Ok";
+		}
+	else if ($fileExists == 1)
+		{
+		setMyDirectory $selectedDir[0] "directory";
+		}
+	}
+
+global proc addPath()
+	{
+	fileBrowser "addMyDir" "Select Directory" "directory" 4;
+	}
+
+global proc addMyDir(string $myDirectory, string $fileType)
+	{
+	//add the selected path to the UI.
+	if (`filetest -d $myDirectory` == 0)
+		{
+		confirmDialog 
+		-title "Directory selection" 
+		-message "Your selection was not a directory. Please select a directory"
+		-button "Ok";
+		}
+	else if (`filetest -d $myDirectory` == 1)
+		{
+		textScrollList -edit -append $myDirectory libDirSelection;
+		
+		string $home = `getenv HOME`;
+		string $libAddressFile = $home + "/" + "maya/libAddressFile.txt";
+		
+		$addressList = `textScrollList -q -allItems libDirSelection`;
+		
+		string $writeString;
+		for($i=0; $i<(size($addressList)); $i++)
+			{
+			$writeString = $writeString + $addressList[$i] + "\n";
+			}
+		$fileId=`fopen $libAddressFile "w"`;
+		fprint $fileId $writeString;
+		fclose $fileId;
+		}
+	}
+
+
+
+global proc removePath()
+	{
+	//remove the selected path from the UI
+	$selectedDir = `textScrollList -q -selectItem libDirSelection`;
+	textScrollList -edit -removeItem $selectedDir libDirSelection;
+	//save the file.
+	
+	string $home = `getenv HOME`;
+	string $libAddressFile = $home + "/" + "maya/libAddressFile.txt";
+	$fileId=`fopen $libAddressFile "r"`;
+	$addressList = `textScrollList -q -allItems libDirSelection`;
+	
+	string $writeString;
+	for($i=0; $i<(size($addressList)); $i++)
+		{
+		$writeString = $writeString + $addressList[$i] + "\n";
+		}
+	$fileId=`fopen $libAddressFile "w"`;
+	fprint $fileId $writeString;
+	fclose $fileId;	
+	}
+
+global proc libListSelCmd()
+	{
+	textScrollList -edit -deselectAll imagesDirSelection;
+	}
+
+global proc libListDcCmd()
+	{
+	$selectedDir = `textScrollList -q -selectItem libDirSelection`;
+	setMyDirectory $selectedDir[0] "directory";
+	}
+
+global proc projListSelCmd()
+	{
+	textScrollList -edit -deselectAll libDirSelection;
+	}
+
+
+global proc projListDcCmd()
+	{
+	$selectedDir = `textScrollList -q -selectItem imagesDirSelection`;
+	setMyDirectory $selectedDir[0] "directory";
+	}
+
+
+global proc openAddDirWindow()
+	{
+	if (`window -exists addDirWindow`)
+		{
+		deleteUI addDirWindow;
+		}
+	$myDirectory = `textFieldButtonGrp -q -fi selectDir`;
+	$dirDisplayLable = "Current directory : " + $myDirectory; 
+
+	string $fileExists;
+	$cmd = "filetest -d " + ("\"" + $myDirectory + "\"");
+	
+	$fileExists = `eval $cmd`;
+	print ("\n" + $fileExists + "\n");
+
+	if ($fileExists == 0)
+		{
+		confirmDialog 
+		-title "Directory selection" 
+		-message "Your selection was not a directory. Please select a directory"
+		-button "Ok";
+		}
+	else if ($fileExists == 1)
+		{
+		window -title "Add new directory" -widthHeight 500 500 addDirWindow;
+		columnLayout -adj true topCol;
+ 		separator -style "none" -h 10;
+ 	    frameLayout -l "" -mw 10;
+ 		    columnLayout -adj true sampleCol;
+ 		        separator -style "none" -h 10;
+				text 
+					-label $dirDisplayLable currentDirectoryDisplay;
+				//button 
+				//	-label "Browse"
+				//	-c browseDirectory selectDirToAdd;
+
+				separator -style "none" -h 10;
+
+				textFieldButtonGrp 
+					-label "New directory name : " 
+					-bc createNewDirectory
+					-buttonLabel "Create" addNewDirectoryButtonGrp;
+ 			 separator -style "none" -h 10;
+ 		    setParent ..;
+ 		setParent ..;
+
+		showWindow addDirWindow;
+		}
+	}
+
+
+global proc createNewDirectory()
+	{
+	$myDirectory = `textFieldButtonGrp -q -fi selectDir`;
+	string $fileExists;
+	$cmd = "filetest -d " + ("\"" + $myDirectory + "\"");
+	
+	$fileExists = `eval $cmd`;
+	print ("\n" + $fileExists + "\n");
+
+	if ($fileExists == 0)
+		{
+		confirmDialog 
+		-title "Directory selection" 
+		-message "Parent directory does not exist. Please select a directory"
+		-button "Ok";
+		}
+	else if ($fileExists == 1)
+		{
+		$newDir = `textFieldButtonGrp -q -fi addNewDirectoryButtonGrp`;
+		$newDir = $myDirectory + "/" + $newDir;
+		$newDirExists = `filetest -d $newDir`;
+		if ($newDirExists == 1)
+			{
+			confirmDialog 
+			-title "Directory exists" 
+			-message "Error: Directory Exists. Type in a new name"
+			-button "Ok";
+			print ("\n// Error: Directory Exists//\n");
+			}
+		else if ($newDirExists == 0)
+			{
+			sysFile -makeDir $newDir;
+			$dirDisplayLable = "Current directory : " + $newDir;
+			text -edit -label $dirDisplayLable currentDirectoryDisplay;
+			textFieldButtonGrp -edit -fi $newDir selectDir;
+			textFieldButtonGrp -edit -fi "" addNewDirectoryButtonGrp;
+			}
+		}
+	}
+
+
+global proc organizeFilesWindow()
+	{
+	if (`window -exists orgFilesWindow`)
+		{
+		deleteUI orgFilesWindow;
+		}
+
+	string $currentProject;
+	string $sourceImagesDir;
+
+	$currentProject = `workspace -q -fn`;
+	$sourceImagesDir = `workspace -q -fileRuleEntry "sourceImages"`;
+	if ($sourceImagesDir != "")
+		{
+		$sourceImagesDir = $currentProject + "/" + $sourceImagesDir;
+		}
+	else 
+		{
+		$sourceImagesDir = $currentProject;
+		}
+
+	$originalWorkspace = `workspace -q -o`;
+
+	$workSpaceList = `workspace -q -lfw`;
+	string $findSourceImageDir;
+	string $sourceImageList[];
+	for ($w=0,$s=0; $w<(size($workSpaceList)); $w++)
+		{
+		workspace -o $workSpaceList[$w];
+		$findSourceImageDir = `workspace -q -fileRuleEntry "sourceImages"`;
+		if ($findSourceImageDir != "")
+			{
+			$sourceImageList[$s] = $workSpaceList[$w] + "/" + $findSourceImageDir;
+			$s++;
+			}
+		}
+
+
+	workspace -o $originalWorkspace;
+	$findSourceImageDir = `workspace -q -fileRuleEntry "sourceImages"`;
+
+	string $listNodes;
+	$projectListCmd = "textScrollList -numberOfRows 6 -allowMultiSelection false -dcc projListDcCmd -sc projListSelCmd";
+	
+	for ($w=0; $w<(size($sourceImageList)); $w++)
+		{
+		$listNodes = $listNodes + " " + "-append " + "\"" + $sourceImageList[$w] + "\"";
+		}
+	$projectListCmd = $projectListCmd + $listNodes + " -showIndexedItem 4 imagesDirSelection";
+
+
+	//check if the txt file with dir paths exists
+	string $home = `getenv HOME`;
+	string $libAddressFile = $home + "/" + "maya/libAddressFile.txt";
+	
+	// if it does not then create the file.
+	if (`filetest -r $libAddressFile` == 0)
+		{
+		$fileId=`fopen $libAddressFile "w"`;
+		fclose $fileId;
+		}
+
+	// if it does, then read in all the paths line by line inside an array and construct the command below.
+	string $addressList[];
+	if (`filetest -r $libAddressFile` == 1)
+		{
+		$fileId=`fopen $libAddressFile "r"`;
+		string $nextLine = `fgetline $fileId`;
+    		while ( size( $nextLine ) > 0 ) 
+			{
+			$nextLine = substituteAllString($nextLine, "\n", "");
+			$addressList[size($addressList)] = $nextLine; 
+    			$nextLine = `fgetline $fileId`;
+			}
+		fclose $fileId;
+		}
+
+	string $listDir;
+	//$libraryListCmd = "textScrollList -numberOfRows 6 -allowMultiSelection false -dcc libListDcCmd";
+	$libraryListCmd = "textScrollList -numberOfRows 6 -allowMultiSelection false -dcc libListDcCmd -sc libListSelCmd";
+	
+	for ($w=0; $w<(size($addressList)); $w++)
+		{
+		$listDir = $listDir + " " + "-append " + "\"" + $addressList[$w] + "\"";
+		}
+
+	$libraryListCmd = $libraryListCmd + $listDir + " -showIndexedItem 4 libDirSelection";
+	
+	window -title "OrganizeFiles" -resizeToFitChildren true orgFilesWindow;
+	scrollLayout;
+ 	columnLayout -adj true topCol;
+ 	separator -style "none" -h 10;
+ 	    frameLayout -l "Select a directory by browsing." -mw 10;
+ 		    columnLayout -adj true sampleCol;
+ 		        separator -style "none" -h 10;
+				textFieldButtonGrp 
+					-label "Save images in : " 
+					-fi $sourceImagesDir 
+					-buttonLabel "Browse" 
+					-bc browseDirectory selectDir;
+
+				separator -style "none" -h 10;
+
+			 	button 
+				-label "Create new directory"
+				-c openAddDirWindow openAddDirWindowButton;
+
+ 			 separator -style "none" -h 10;
+ 		    setParent ..;
+ 		setParent ..;
+	
+	//text -fn "boldLabelFont" -label "OR";
+
+	separator -style "none" -h 10;
+ 	    frameLayout -collapsable true -collapse true -l "Select a sourceImages directory from existing projects." -mw 10;
+ 		    columnLayout -adj true sampleCol;
+ 		        separator -style "none" -h 10;
+				text 
+				-align left 
+				-font"smallBoldLabelFont"
+				-label "Double click on a directory or single click and press select button.";
+
+				
+
+				button 
+				-label "Select" 
+				-c selectSourceImagesDir selectSourceImagesDirButton;
+
+				eval $projectListCmd;
+
+
+ 			 separator -style "none" -h 10;
+ 		    setParent ..;
+ 		setParent ..;
+
+	//text -fn "boldLabelFont" -label "OR";
+
+	separator -style "none" -h 10;
+ 	    frameLayout -collapsable true -collapse true -l "Select a directory from the saved bookmarks." -mw 10;
+		 columnLayout -adj true sampleCol;
+ 		        separator -style "none" -h 10;
+				text 
+				-align left
+				-font "smallBoldLabelFont" 
+				-label "Double click on a directory or single click and press select button.";
+
+				
+
+				button 
+				-label "Select" 
+				-c selectLibDir selectLibDirButton;
+
+				eval $libraryListCmd;
+				
+				columnLayout -adj true sampleCol;
+
+				button 
+				-label "Remove path from List" 
+				-c removePath removePathButton;
+				
+				button 
+				-label "Browse to add path to List" 
+				-c addPath addPathButton;	
+				setParent ..;
+		
+ 			 separator -style "none" -h 10;
+ 		    setParent ..;
+ 		setParent ..;
+
+	//text -fn "boldLabelFont" -label "AND";
+
+ 	separator -style "none" -h 10;
+ 	    frameLayout -l "Move Copy Option" -mw 10;
+ 		    columnLayout sampleCol2;
+ 		        separator -style "none" -h 10;
+				radioButtonGrp 
+					-numberOfRadioButtons 2 
+					-labelArray2 "Move image files" "Copy image files"
+					-on1 turnOnChangePath
+					-of1 enableDontChangePath  
+					-sl 2 moveCopyOption;
+				radioButtonGrp 
+					-numberOfRadioButtons 2 
+					-labelArray2 "Change path" "Don't change path" 
+					-on2 changePathCheck
+					-sl 1 changePathOption;
+ 			 separator -style "none" -h 10;
+ 		    setParent ..;
+ 		setParent ..;
+
+	separator -style "none" -h 10;
+ 	    frameLayout -l "Selection criteria" -mw 10;
+ 		    columnLayout sampleCol2;
+ 		        separator -style "none" -h 10;
+				radioCollection selectionCriteria;
+    					radioButton -label "Move/copy all file textures" -sl allFiles;
+    					radioButton -label "Move/copy file textures connected to selected nodes" selectedNodes;
+    					radioButton -label "Move/copy file textures selected in Hypershade" selectedTextures;
+				separator -style "none" -h 10;
+ 		    setParent ..;
+ 		setParent ..;
+
+
+	button -l "Apply" -c collectInput_organizeFiles  -w 100 -h 30 -al "center" applyButton ;
+	showWindow orgFilesWindow;
+	}
+
+

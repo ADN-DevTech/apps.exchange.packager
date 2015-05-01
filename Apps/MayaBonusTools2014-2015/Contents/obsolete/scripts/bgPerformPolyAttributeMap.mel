@@ -1,0 +1,452 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+//
+//  Creation Date:  Oct 18, 2002
+//
+//  Procedure Name:
+//      bgPerformPolyAttributeMap
+//
+//  Description:
+//        
+//         
+//  Input Arguments:
+//        $option : Whether to set the options to default values.
+//  Return Value:
+//        None
+//
+
+proc setOptionVars (int	$forceFactorySettings)
+{
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapAttribute"`)
+		optionVar -stringValue "polyAttributeMapAttribute" "uv";
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapCreateFileTexture"`)
+		optionVar -intValue "polyAttributeMapCreateFileTexture" 1;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapDefaultAttributeColor"`){
+		optionVar -floatValue "polyAttributeMapDefaultAttributeColor" 0;
+		optionVar -floatValueAppend "polyAttributeMapDefaultAttributeColor" 0;
+		optionVar -floatValueAppend "polyAttributeMapDefaultAttributeColor" 0;
+	}
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapDefaultAttributeAlpha"`)
+		optionVar -floatValue "polyAttributeMapDefaultAttributeAlpha" 1;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapDefaultBackgroundColor"`){
+		optionVar -floatValue "polyAttributeMapDefaultBackgroundColor" 0;
+		optionVar -floatValueAppend "polyAttributeMapDefaultBackgroundColor" 0;
+		optionVar -floatValueAppend "polyAttributeMapDefaultBackgroundColor" 0;
+	}
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapDefaultBackgroundAlpha"`)
+		optionVar -floatValue "polyAttributeMapDefaultBackgroundAlpha" 1;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapFileName"`)
+		optionVar -stringValue "polyAttributeMapFileName" "attributeMap";
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapFileOutputType"`)
+		optionVar -stringValue "polyAttributeMapFileOutputType" "iff";
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapX"`)
+		optionVar -intValue "polyAttributeMapX" 256;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapY"`)
+		optionVar -intValue "polyAttributeMapY" 256;
+
+	if ($forceFactorySettings || !`optionVar -exists "polyAttributeMapObjectSpace"`)
+		optionVar -intValue "polyAttributeMapObjectSpace" 1;
+
+}
+
+global proc polyAttributeMapSetup (string $parent, int $forceFactorySettings)
+{
+	setOptionVars($forceFactorySettings);
+	setParent $parent;
+
+    optionMenuGrp 
+		-edit 
+		-value `optionVar -query polyAttributeMapAttribute`
+		polyAttributeMapAttribute;
+
+	checkBoxGrp 
+		-edit
+		-value1 `optionVar -query polyAttributeMapCreateFileTexture`
+		polyAttributeMapCreateFileTexture;
+
+	float $attrColor[] = `optionVar -query polyAttributeMapDefaultAttributeColor`;
+
+	colorSliderGrp
+		-edit
+		-rgbValue $attrColor[0] $attrColor[1] $attrColor[2]
+		polyAttributeMapDefaultAttributeColor;
+
+	floatSliderGrp
+		-edit
+		-value `optionVar -query polyAttributeMapDefaultAttributeAlpha`
+		polyAttributeMapDefaultAttributeAlpha;
+
+	float $mapColor[] = `optionVar -query polyAttributeMapDefaultBackgroundColor`;
+
+	colorSliderGrp
+		-edit
+		-rgbValue $mapColor[0] $mapColor[1] $mapColor[2]
+		polyAttributeMapDefaultBackgroundColor;
+
+	floatSliderGrp
+		-edit
+		-value `optionVar -query polyAttributeMapDefaultBackgroundAlpha`
+		polyAttributeMapDefaultBackgroundAlpha;
+
+	textField
+		-edit
+		-text `optionVar -query polyAttributeMapFileName`
+		polyAttributeMapFileName;
+
+    optionMenuGrp 
+		-edit 
+		-value `optionVar -query polyAttributeMapFileOutputType`
+		polyAttributeMapFileOutputType;
+
+	intSliderGrp
+        -edit
+        -value `optionVar -query polyAttributeMapX`
+        polyAttributeMapX;
+
+	intSliderGrp
+        -edit
+        -value `optionVar -query polyAttributeMapY`
+        polyAttributeMapY;
+
+	radioButtonGrp 
+         -edit 
+		 -select `optionVar -query polyAttributeMapObjectSpace`
+		 polyAttributeMapObjectSpace;
+
+}
+
+global proc polyAttributeMapCallback (string $parent, int $doIt)
+{	
+	setParent $parent;
+
+	optionVar -stringValue "polyAttributeMapAttribute"
+		`optionMenuGrp -query -value polyAttributeMapAttribute`;
+	
+	optionVar -intValue "polyAttributeMapCreateFileTexture"
+		`checkBoxGrp -query -value1 polyAttributeMapCreateFileTexture`;
+
+	float $attrColor[] = `colorSliderGrp -query -rgbValue polyAttributeMapDefaultAttributeColor`;
+		optionVar -floatValue "polyAttributeMapDefaultAttributeColor" $attrColor[0];
+		optionVar -floatValueAppend "polyAttributeMapDefaultAttributeColor" $attrColor[1];
+		optionVar -floatValueAppend "polyAttributeMapDefaultAttributeColor" $attrColor[2];
+
+	optionVar -floatValue "polyAttributeMapDefaultAttributeAlpha"
+		`floatSliderGrp -query -value polyAttributeMapDefaultAttributeAlpha`;
+
+	float $mapColor[] = `colorSliderGrp -query -rgbValue polyAttributeMapDefaultBackgroundColor`;
+		optionVar -floatValue "polyAttributeMapDefaultBackgroundColor" $mapColor[0];
+		optionVar -floatValueAppend "polyAttributeMapDefaultBackgroundColor" $mapColor[1];
+		optionVar -floatValueAppend "polyAttributeMapDefaultBackgroundColor" $mapColor[2];
+
+	optionVar -floatValue "polyAttributeMapDefaultBackgroundAlpha"
+		`floatSliderGrp -query -value polyAttributeMapDefaultBackgroundAlpha`;
+
+	optionVar -stringValue "polyAttributeMapFileName"
+		`textField -query -text polyAttributeMapFileName`;
+
+	optionVar -stringValue "polyAttributeMapFileOutputType"
+		`optionMenuGrp -query -value polyAttributeMapFileOutputType`;
+
+	optionVar -intValue "polyAttributeMapX"
+		`intSliderGrp -query -value polyAttributeMapX`;
+
+	optionVar -intValue "polyAttributeMapY"
+		`intSliderGrp -query -value polyAttributeMapY`;
+
+	optionVar -intValue "polyAttributeMapObjectSpace"
+		`radioButtonGrp -query -select polyAttributeMapObjectSpace`;
+
+	if ($doIt) 
+	{
+		bgPerformPolyAttributeMap 0;
+		string $tmpCmd = "bgPerformPolyAttributeMap 0 ";
+		addToRecentCommandQueue $tmpCmd "Create Poly Attribute Map";
+	}
+}
+
+proc polyAttributeMapOptions ()
+{
+	string $commandName = "polyAttributeMap";
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	setOptionBoxCommandName($commandName);
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//
+	waitCursor -state 1;
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+	frameLayout -label "Attribute" 
+		-borderStyle "etchedIn"
+		-collapsable 0;
+
+	columnLayout;
+
+	optionMenuGrp 
+		-label "Attribute to Map"
+		polyAttributeMapAttribute;
+
+		menuItem -l "position";
+		menuItem -l "normal";
+		menuItem -l "uv";
+		menuItem -l "color";
+		menuItem -l "tangent";
+		menuItem -l "binormal";
+
+//		setParent ..;
+
+	radioButtonGrp -numberOfRadioButtons 2
+         -label "Compute In" -labelArray2 "World Space" "Object Space" 
+		 polyAttributeMapObjectSpace;
+
+	setParent ..;
+
+	setParent ..;
+
+	frameLayout -label "Color" 
+		-borderStyle "etchedIn"
+		-collapsable 0;
+
+	columnLayout;
+
+	checkBoxGrp
+		-numberOfCheckBoxes 1
+		-label "File Texture Node"
+		-label1 "Create"
+		polyAttributeMapCreateFileTexture;
+
+	colorSliderGrp
+		-label "Unmapped Attribute Color"
+		polyAttributeMapDefaultAttributeColor;
+
+	floatSliderGrp
+		-label "Unmapped Attribute Alpha"
+		polyAttributeMapDefaultAttributeAlpha;
+
+	colorSliderGrp
+		-label "Map Background Color"
+		polyAttributeMapDefaultBackgroundColor;
+
+	floatSliderGrp
+		-label "Map Background Alpha"
+		polyAttributeMapDefaultBackgroundAlpha;
+
+	setParent ..;
+
+	setParent ..;
+
+	frameLayout -label "Map" 
+		-borderStyle "etchedIn"
+		-collapsable 0;
+
+	columnLayout;
+
+	rowLayout -numberOfColumns 3
+		-columnWidth 2 212 
+		-columnWidth 3 25;
+		text -l "Map Name";
+		textField 
+			polyAttributeMapFileName;
+		symbolButton 
+			-image "navButtonBrowse.png"
+			-command "";
+		setParent ..;
+
+	optionMenuGrp -l "File Format"
+		polyAttributeMapFileOutputType;
+		menuItem -l "iff";
+		menuItem -l "pix";
+		menuItem -l "cin";
+		menuItem -l "eps";
+		menuItem -l "gif";
+		menuItem -l "jpg";
+		menuItem -l "yuv";
+		menuItem -l "rla";
+		menuItem -l "sgi";
+		menuItem -l "si";
+		menuItem -l "tga";
+		menuItem -l "tif";
+		menuItem -l "bmp";
+
+	intSliderGrp
+        -field on
+        -label "X Resolution"
+        -minValue 1
+        -maxValue 512
+        -fieldMinValue 1
+        -fieldMaxValue 4096
+        -value 256
+        polyAttributeMapX;
+
+	intSliderGrp
+        -field on
+        -label "Y Resolution"
+        -minValue 1
+        -maxValue 512
+        -fieldMinValue 1
+        -fieldMaxValue 4096
+        -value 256
+        polyAttributeMapY;
+	
+	setParent ..;
+
+	setParent ..;
+
+	//copyAttrib
+	
+	setParent -menu ..;
+
+	waitCursor -state 0;
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit 
+		-label "Apply"
+		-command ($callback + " " + $parent + " " + 1) 
+		$applyBtn;
+	
+	string $applyAndCloseBtn = getOptionBoxApplyAndCloseBtn();
+	button -edit 
+		-label "Create Attribute Map"
+		$applyAndCloseBtn;
+
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + " " +"; hideOptionBox")
+		$saveBtn;
+
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Step 7: Set the option box title.
+	//	=================================
+	//
+	setOptionBoxTitle("Create Poly Attribute Map Options");
+	//	Step 8: Customize the 'Help' menu item text.
+	//	============================================
+	//
+	//setOptionBoxHelpTag("Poly Attribute Map");
+	//	Step 9: Set the current values of the option box.
+	//	=================================================
+	//
+	eval (($setup + " " + $parent + " " + 0));
+	//	Step 10: Show the option box.
+	//	=============================
+	//
+	showOptionBox();
+}
+
+
+proc string assembleCmd()
+{
+	setOptionVars (false);
+
+	int $doHistory = `constructionHistory -q -toggle`;
+
+	string $cmd = "polyAttributeMap -attribute ";
+	$cmd += `optionVar -query "polyAttributeMapAttribute"`;
+
+	if (`optionVar -query "polyAttributeMapCreateFileTexture"`)
+		$cmd += " -createFileTextureNode true ";
+
+	float $attrColor[] = `optionVar -query polyAttributeMapDefaultAttributeColor`;
+	$cmd += "-defaultAttributeColor ";
+	$cmd += ($attrColor[0] + " " + $attrColor[1] + " " + $attrColor[2] + " ");
+	//$cmd += " ";
+	$cmd += `optionVar -query "polyAttributeMapDefaultAttributeAlpha"`;
+
+	float $attrColor[] = `optionVar -query "polyAttributeMapDefaultBackgroundColor"`;
+	$cmd += " -defaultBackgroundColor ";
+	$cmd += ($attrColor[0] + " " + $attrColor[1] + " " + $attrColor[2] + " ");
+	//$cmd += " ";
+	$cmd += `optionVar -query "polyAttributeMapDefaultBackgroundAlpha"`;
+
+	$cmd += " -fileName \"";
+	$cmd += `optionVar -query "polyAttributeMapFileName"`;
+	$cmd += "\"";
+
+	$cmd += " -fileOutputType ";
+	$cmd += `optionVar -query "polyAttributeMapFileOutputType"`;
+
+	$cmd += " -width ";
+	$cmd += `optionVar -query "polyAttributeMapX"`;
+
+	$cmd += " -height ";
+	$cmd += `optionVar -query "polyAttributeMapY"`;
+
+	if (`optionVar -query "polyAttributeMapObjectSpace"` == 2)
+		$cmd += " -objectSpace true ";
+
+	print $cmd;
+	return $cmd;	
+}
+
+
+global proc string bgPerformPolyAttributeMap (int $option)
+{
+	string $cmd="";
+
+	switch ($option) 
+	{
+		case 0:
+			$cmd = `assembleCmd`;
+			eval($cmd);
+			break;
+		case 1:
+			polyAttributeMapOptions;
+			break;
+		case 2:
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}

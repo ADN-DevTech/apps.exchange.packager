@@ -1,0 +1,62 @@
+// Author:		Steven T. L. Roselle
+//
+// Creation Date:      ( 04/01/14 )
+// Last Update:        ( 04/01/14 )
+
+global proc float bt_vertDistanceCalc()
+{
+
+
+ float $VertDistance = 0.0;
+
+ string $vertices[];
+ float $v1[3];
+ float $v2[3];
+ float $edgeFloat[];
+ vector $edgeVector;
+ $vertices = `filterExpand -sm 31`;
+ 
+ if (`size $vertices` == 2)
+ 	{
+		$v1 = `pointPosition $vertices[0]`;
+    	$v2 = `pointPosition $vertices[1]`;
+    
+	    for ( $i = 0; $i < 3; $i++ ){
+		$edgeFloat[$i] = $v1[$i] - $v2[$i];
+	    }
+    	$edgeVector = $edgeFloat;
+    
+    	$VertDistance = `mag $edgeVector`;
+        print ("Distance between vertices = " + $VertDistance + "\n");
+ 	}
+ 
+ return $VertDistance;
+}
+
+
+proc bt_createVertDistanceHUD (){
+
+	headsUpDisplay
+		-section          0
+		//-block            8
+		-b `headsUpDisplay -nfb  0`
+		-blockSize        "small"
+		-label            "Vert Distance:"
+		-labelFontSize    "small"
+		-dataFontSize	  "small"
+		-command          "bt_vertDistanceCalc"
+		-event            "SelectionChanged"
+		-nodeChanges      "attributeChange"
+		-dp		4
+	HUDVertDistance;
+}
+
+
+global proc bt_toggleVertDistanceHUD (){
+
+    if (`headsUpDisplay -ex HUDVertDistance`)
+	headsUpDisplay -rem HUDVertDistance;
+    else 
+        bt_createVertDistanceHUD;
+     	
+}

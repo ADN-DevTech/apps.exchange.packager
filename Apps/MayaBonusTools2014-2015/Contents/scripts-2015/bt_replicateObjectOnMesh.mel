@@ -1,0 +1,324 @@
+// Author:		Steven T. L. Roselle
+//
+// Created:        ( 04/01/14 )
+//
+// Replicate procs
+//////////////////////////////////////////////
+
+global proc int bt_setCopiesFieldValue(string $id, string $optVar)
+{
+	// Return number from integer field change
+	//
+
+	int $val = `intField -q -value $id`;
+	optionVar -iv $optVar $val;
+	return $val;
+}
+
+
+
+
+global proc bt_replicateObjectOnSelectedComponents(int $orient, int $constrain, int $parent, int $inst)
+{
+	string $selected[] = `ls -sl`;
+		
+	string $components[] = `filterExpand -sm 31 -sm 32 -sm 34`;
+	
+	string $transforms[] = `ls -sl -type "transform"`;
+	if (`size $transforms` != 1)
+		error ("Select a single object to copy, and 1 or more target components (faces, verts, edges) to replicate to.");
+		
+	if (`size $components` == 0)
+		error "No target components to copy to.";
+		
+
+	for ($comp in $components)
+		{
+		select -r $transforms;
+		if ($inst == 2) 
+			instance; 
+		else 
+			duplicate -rr;
+		select -add $comp;
+		
+		bt_snapAlignToComponentCenter $orient $constrain $parent;
+		}
+	select -cl;
+}
+
+
+
+
+global proc bt_randomComponentSelection (int $number, string $type, string $source, string $target)
+{
+    select -cl;
+    
+    if ($type == "vert")
+    	{
+    	$tmpString = `polyEvaluate -v $target`;
+    	int $vertCount = $tmpString[0];
+    	$i = 1;
+    	select -r $source;
+    	while ($i <= $number)
+    		{	
+    		//generate random number within vert count and select that vert
+    		int $randNum = `rand 0 $vertCount`;
+    		string $randVert = ($target + ".vtx[" + $randNum + "]");
+    		select -add $randVert;
+    		$currentList = `ls -sl -flatten`;
+    		//continue selecting random verts until target number reached
+    		$i = `size $currentList`;
+    		}
+    	}
+    
+    else if ($type == "edge")
+    	{
+    	$tmpString = `polyEvaluate -e $target`;
+    	int $edgeCount = $tmpString[0];
+    	$i = 1;
+    	select -r $source;
+    	while ($i <= $number)
+    		{	
+    		//generate random number within vert count and select that vert
+    		int $randNum = `rand 0 $edgeCount`;
+    		string $randVert = ($target + ".e[" + $randNum + "]");
+    		select -add $randVert;
+    		$currentList = `ls -sl -flatten`;
+    		//continue selecting random verts until target number reached
+    		$i = `size $currentList`;
+    		}
+    	}
+    
+    else if ($type == "face")
+    	{
+    	$tmpString = `polyEvaluate -f $target`;
+    	int $faceCount = $tmpString[0];
+    	$i = 1;
+    	select -r $source;
+    	while ($i <= $number)
+    		{	
+    		//generate random number within vert count and select that vert
+    		int $randNum = `rand 0 $faceCount`;
+    		string $randVert = ($target + ".f[" + $randNum + "]");
+    		select -add $randVert;
+    		$currentList = `ls -sl -flatten`;
+    		//continue selecting random verts until target number reached
+    		$i = `size $currentList`;
+    		}
+    	}
+    
+    else 
+    	error ("No target of type " + $type);
+
+}
+
+
+
+global proc bt_replicateObjectOnRandomComponents (int $verts, int $edges, int $faces, int $orient, int $constrain, int $parent, int $inst, int $number)
+{
+
+	string $transforms[] = `ls -sl -type "transform"`;
+
+
+	if (`size $transforms` != 2)
+		error ("Select the object to be copied first and a target mesh second.");
+			
+	select -r $transforms[1];
+	$mesh = `filterExpand -sm 12`;
+
+	if (`size $mesh` < 1)
+		error ("The second object selected must be a mesh.");
+
+
+
+ 	string $source = $transforms[0];
+	string $target = $transforms[1];
+	
+	int $targetCount = $verts + $faces + $edges;
+
+    if ($targetCount < 1)
+        error "Check at least one or more of the following for Include: verts, edges, faces\n";
+        
+	int $split = $number / $targetCount;
+	
+	if ($verts)
+		{
+		$tmp = `polyEvaluate -v $target`;
+		if ($split > $tmp[0])
+			error ("Not enough of component type for the desired goal.  Try setting to goal to a smaller value.");
+		bt_randomComponentSelection $split "vert" $source $target;
+		bt_replicateObjectOnSelectedComponents $orient $constrain $parent $inst;
+		}
+	if ($edges)
+		{
+		$tmp = `polyEvaluate -e $target`;
+		if ($split > $tmp[0])
+			error ("Not enough of component type for the desired goal.  Try setting to goal to a smaller value.");
+		bt_randomComponentSelection $split "edge" $source $target;
+		bt_replicateObjectOnSelectedComponents $orient $constrain $parent $inst;
+		}
+	if ($faces)
+		{
+		$tmp = `polyEvaluate -f $target`;
+		if ($split > $tmp[0])
+			error ("Not enough of component type for the desired goal.  Try setting to goal to a smaller value.");
+		bt_randomComponentSelection $split "face" $source $target;
+		bt_replicateObjectOnSelectedComponents $orient $constrain $parent $inst;
+		}
+
+	if (`size $mesh` > 2)
+		warning ("Only the first two selected objects were used.  Additional objects or children were ignored.");
+
+}
+
+
+global proc bt_deleteReplicateOptionVars()
+
+{
+		optionVar -intValue bt_replicateConstrain 0;
+		optionVar -intValue bt_replicateParent 0;
+		optionVar -intValue bt_replicateOrient 1;
+		optionVar -intValue bt_replicateType 1;  //1:copy  2:instance 
+		optionVar -intValue bt_replicateMethod 1;  //1:selected  2:random 
+		optionVar -intValue bt_replicateVerts 0;
+		optionVar -intValue bt_replicateEdges 0;
+		optionVar -intValue bt_replicateFaces 1;
+		optionVar -intValue bt_replicateCount 10;
+}
+
+global proc bt_replicateObjectOnMesh()
+{
+
+	//////////////////////
+	//		Replicate Option Vars
+	//
+
+	if (`optionVar -ex bt_replicateConstrain` == 0)
+		optionVar -intValue bt_replicateConstrain 0;
+	if (`optionVar -ex bt_replicateParent` == 0)
+		optionVar -intValue bt_replicateParent 0;
+	if (`optionVar -ex bt_replicateOrient`  == 0)
+		optionVar -intValue bt_replicateOrient 1;
+	if (`optionVar -ex bt_replicateMethod` == 0)
+		optionVar -intValue bt_replicateMethod 1;  //1:Selected  2:Random 			
+	if (`optionVar -ex bt_replicateType` == 0)
+		optionVar -intValue bt_replicateType 1;  //1:copy  2:instance 
+	if (`optionVar -ex bt_replicateVerts` == 0)
+		optionVar -intValue bt_replicateVerts 0;
+	if (`optionVar -ex bt_replicateEdges` == 0)
+		optionVar -intValue bt_replicateEdges 0;
+	if (`optionVar -ex bt_replicateFaces` == 0)
+		optionVar -intValue bt_replicateFaces 1;
+	if (`optionVar -ex bt_replicateCount ` == 0)
+		optionVar -intValue bt_replicateCount 10;
+		
+	global string $bt_replicateFieldName;
+
+    int $randomState = (`optionVar -q bt_replicateMethod` == 2);
+
+    int $width = 500;
+    
+    // snap align procs are found in MEL script bt_snapAlignObjectToComponent.mel that must be sourced
+    source bt_snapAlignObjectToComponent;
+    
+	if( `window -exists bt_replicateObjectOnMesh` )
+		{
+		deleteUI bt_replicateObjectOnMesh;
+		//windowPref -remove bt_replicateObjectOnMesh;
+		}
+		
+    window -w $width -h 150  -menuBar true -s true -t "Replicate Object on Components" bt_replicateObjectOnMesh;
+    
+        menu -tearOff 0 -l "Edit";
+    	    menuItem -l "Reset Settings" -ann "Reset all setting to default values." -c "bt_deleteReplicateOptionVars ; bt_replicateObjectOnMesh";
+	        
+        columnLayout -adjustableColumn true;
+						    
+            frameLayout -cl 0 -bs "etchedIn" -l "Description";
+                text -al left -h 20 "        Duplicate or Instance the first selected object to selected or random components.";
+			setParent ..;  //column     
+
+            frameLayout -cl 0 -bs "etchedIn"  -l "General Settings";
+       			rowColumnLayout -numberOfColumns 4 -columnWidth 1 ($width/4) -columnWidth 2 ($width/4) -columnWidth 3 ($width/4) -columnWidth 4 ($width/4);
+    				
+    				    text -l "   Method : " -al right;
+    					radioCollection;
+    						if (`optionVar -q bt_replicateMethod` == 2) // instance
+    							{
+    							radioButton -l "Selected" -ann "Replicate source object to all selected components" -al center -onc "optionVar -iv bt_replicateMethod  1; bt_replicateObjectOnMesh";
+    							radioButton -l "Random" -ann "Replicate source object to random components on selected object" -al center -sl -onc "optionVar -iv bt_replicateMethod  2; bt_replicateObjectOnMesh";
+    							}
+    						else // copy
+    							{
+    							radioButton -l "Selected" -ann "Set replicate mode to copy" -al center -sl -onc "optionVar -iv bt_replicateMethod  1; bt_replicateObjectOnMesh";
+    							radioButton -l "Random" -ann "Set replicate mode to instance" -al center -onc "optionVar -iv bt_replicateMethod  2; bt_replicateObjectOnMesh";
+    							}
+    					separator -st none;
+    					
+    				    text -l "   Duplicate : " -al right;
+    					radioCollection;
+    						if (`optionVar -q bt_replicateType` == 2) // instance
+    							{
+    							radioButton -l "Copy" -ann "Set replicate mode to copy" -al center -onc "optionVar -iv bt_replicateType  1";
+    							radioButton -l "Instance" -ann "Set replicate mode to instance" -al center -sl -onc "optionVar -iv bt_replicateType  2";
+    							}
+    						else // copy
+    							{
+    							radioButton -l "Copy" -ann "Set replicate mode to copy" -al center -sl -onc "optionVar -iv bt_replicateType  1";
+    							radioButton -l "Instance" -ann "Set replicate mode to instance" -al center -onc "optionVar -iv bt_replicateType  2";
+    							}
+    					separator -st none;
+    					
+    					
+    					text -l "   Options : " -al right;
+    					checkBox -l "Orient" -al "left" -ann "Orient all selected objects to target curve/geo after snapping" -v `optionVar -q bt_replicateOrient` -onc "optionVar -iv bt_replicateOrient 1" -ofc "optionVar -iv bt_replicateOrient 0";						
+    					checkBox -l "Constrain" -al "left" -ann "Constrain replicated objects to target curve/geo after snapping" -v `optionVar -q bt_replicateConstrain` -onc "optionVar -iv bt_replicateConstrain 1" -ofc "optionVar -iv bt_replicateConstrain 0";
+    					checkBox -l "Parent" -al "left" -ann "Parent replicate replicated objects to target curve/geo after snapping" -v `optionVar -q bt_replicateParent` -onc "optionVar -iv bt_replicateParent 1" -ofc "optionVar -iv bt_replicateParent 0";
+    					separator -st none;
+					separator -st none;
+					
+				setParent ..;  //column     
+
+
+            frameLayout -cl 0 -bs "etchedIn" -en $randomState -l "Random Settings";
+
+    
+    					rowColumnLayout -numberOfColumns 4 -columnWidth 1 ($width/4) -columnWidth 2 ($width/4) -columnWidth 3 ($width/4) -columnWidth 4 ($width/4);
+    
+    							text -l "   Include : " -al right;
+    							checkBox -l "Faces" -ann "Include faces of selected target object" -v `optionVar -q bt_replicateFaces` -onc "optionVar -iv bt_replicateFaces 1" -ofc "optionVar -iv bt_replicateFaces 0";;
+    							checkBox -l "Verts" -ann "Include verts of selected target object" -v `optionVar -q bt_replicateVerts` -onc "optionVar -iv bt_replicateVerts 1" -ofc "optionVar -iv bt_replicateVerts 0";;
+    							checkBox -l "Edges" -ann "Include edges of selected target object" -v `optionVar -q bt_replicateEdges` -onc "optionVar -iv bt_replicateEdges 1" -ofc "optionVar -iv bt_replicateEdges 0";;
+                                
+    							text -l "   Number of Copies : " -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -al right;
+    							$replicateCount = `optionVar -q bt_replicateCount`;
+    							$bt_replicateFieldName = `intField -minValue 1 -maxValue 1000  -ann "Set target goal for number of copies.  End result may be off by 1 or 2 due to rounding." -value $replicateCount -cc "bt_setCopiesFieldValue $bt_replicateFieldName bt_replicateCount"`;
+                                separator -st none;
+                                separator -st none;
+                                separator -st none;
+    
+						setParent ..;  //column                             
+					setParent ..;  //column                             
+                             
+                             
+    					rowColumnLayout -numberOfColumns 2 -columnWidth 1 ($width/2) -columnWidth 2 ($width/2);
+                            separator -st none -h 20;
+                            separator -st none -h 20;
+                            if ($randomState)      
+            					button -l "Replicate Object" -ann "Randomly copy or instance source object to random set of components on target object (orient, constrain, parent are optional)" -c "bt_replicateObjectOnRandomComponents (`optionVar -q bt_replicateVerts`, `optionVar -q bt_replicateEdges`, `optionVar -q bt_replicateFaces`, `optionVar -q bt_replicateOrient`, `optionVar -q bt_replicateConstrain`, `optionVar -q bt_replicateParent`, `optionVar -q bt_replicateType`, `optionVar -q bt_replicateCount`)";
+                            else
+            					button -l "Replicate Object" -ann "Copy or instance source object to location of each target vert (orient, constrain, parent are optional)" -c "bt_replicateObjectOnSelectedComponents (`optionVar -q bt_replicateOrient`, `optionVar -q bt_replicateConstrain`, `optionVar -q bt_replicateParent`, `optionVar -q bt_replicateType`)";						        					    						
+            				
+            				button -label "Close" -c "deleteUI bt_replicateObjectOnMesh";                 
+    
+    
+    
+                    setParent ..;  //frame 
+                
+    
+            setParent ..;
+    
+    showWindow bt_replicateObjectOnMesh;    				
+}
+
+//bt_replicateObjectOnMesh;

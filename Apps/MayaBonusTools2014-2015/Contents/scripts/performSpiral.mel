@@ -1,0 +1,250 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//
+//
+//
+//  Creation Date:  Nov 9, 2002
+//
+//  Procedure Name:
+//      performSpiral
+//
+//  Description:
+//        
+//         
+//  Input Arguments:
+//        $option : Whether to set the options to default values.
+//  Return Value:
+//        None
+//
+
+proc setOptionVars (int	$forceFactorySettings)
+{
+
+	if ($forceFactorySettings || !`optionVar -exists "spiralHeight"`)
+		optionVar -floatValue "spiralHeight" 2.0;
+
+	if ($forceFactorySettings || !`optionVar -exists "spiralRadius"`)
+		optionVar -floatValue "spiralRadius" 3.0;
+
+	if ($forceFactorySettings || !`optionVar -exists "spiralRounds"`)
+		optionVar -floatValue "spiralRounds" 5.0;
+
+}
+
+global proc spiralSetup (string $parent, int $forceFactorySettings)
+{
+	setOptionVars($forceFactorySettings);
+	setParent $parent;
+
+	floatSliderGrp
+        -edit
+        -value `optionVar -query spiralHeight`
+        spiralHeight;
+
+	floatSliderGrp
+        -edit
+        -value `optionVar -query spiralRadius`
+        spiralRadius;
+
+	floatSliderGrp
+        -edit
+        -value `optionVar -query spiralRounds`
+        spiralRounds;
+
+}
+
+global proc spiralCallback (string $parent, int $doIt)
+{	
+	setParent $parent;
+
+	optionVar -floatValue "spiralHeight"
+		`floatSliderGrp -query -value spiralHeight`;
+
+	optionVar -floatValue "spiralRadius"
+		`floatSliderGrp -query -value spiralRadius`;
+
+	optionVar -floatValue "spiralRounds"
+		`floatSliderGrp -query -value spiralRounds`;
+
+	if ($doIt) 
+	{
+		performSpiral 0;
+		string $tmpCmd = "performSpiral 0 ";
+		addToRecentCommandQueue $tmpCmd "Create Spiral Curve";
+	}
+}
+
+proc spiralOptions ()
+{
+	string $commandName = "spiral";
+	string $callback = ($commandName + "Callback");
+	string $setup = ($commandName + "Setup");
+	//	STEP 1:  Get the option box.
+	//	============================
+	//
+	string $layout = getOptionBox();
+	setParent $layout;
+	//	STEP 2:  Pass the command name to the option box.
+	//	=================================================
+	//
+	setOptionBoxCommandName($commandName);
+	//	STEP 3:  Activate the default UI template.
+	//	==========================================
+	//
+	setUITemplate -pushTemplate DefaultTemplate;
+	//	STEP 4: Create option box contents.
+	//	===================================
+	//
+	waitCursor -state 1;
+	
+	string $parent = `columnLayout -adjustableColumn 1`;
+
+/*
+	frameLayout -label "Image" 
+		-borderStyle "etchedIn"
+		-collapsable 0;
+*/
+	columnLayout;
+
+	floatSliderGrp
+        -field on
+        -label "Height"
+        -minValue 0.0
+        -maxValue 15.0
+        -fieldMinValue 0.0
+        -fieldMaxValue 100.0
+        -value 2.0
+        spiralHeight;
+
+	floatSliderGrp
+        -field on
+        -label "Radius"
+        -minValue 0.0
+        -maxValue 15.0
+        -fieldMinValue 0.0
+        -fieldMaxValue 100.0
+        -value 3.0
+        spiralRadius;
+
+	floatSliderGrp
+        -field on
+        -label "Rounds"
+        -minValue -25.0
+        -maxValue 25.0
+        -fieldMinValue -100.0
+        -fieldMaxValue 100.0
+        -value 5.0
+        spiralRounds;
+	
+	//setParent ..;
+
+	setParent ..;
+	
+	setParent -menu ..;
+
+	waitCursor -state 0;
+	//	Step 5: Deactivate the default UI template.
+	//	===========================================
+	//
+	setUITemplate -popTemplate;
+
+	//	Step 6: Customize the buttons.  
+	//	==============================
+	//
+	string $applyBtn = getOptionBoxApplyBtn();
+	button -edit 
+		-label "Apply"
+		-command ($callback + " " + $parent + " " + 1) 
+		$applyBtn;
+	
+	string $applyAndCloseBtn = getOptionBoxApplyAndCloseBtn();
+	button -edit 
+		-label "Create Spiral"
+		$applyAndCloseBtn;
+
+	string $saveBtn = getOptionBoxSaveBtn();
+	button -edit 
+		-command ($callback + " " + $parent + " " + 0 + " " +"; hideOptionBox")
+		$saveBtn;
+
+	string $resetBtn = getOptionBoxResetBtn();
+	button -edit 
+		-command ($setup + " " + $parent + " " + 1)
+		$resetBtn;
+
+	//	Step 7: Set the option box title.
+	//	=================================
+	//
+	setOptionBoxTitle("Spiral Options");
+	//	Step 8: Customize the 'Help' menu item text.
+	//	============================================
+	//
+	//setOptionBoxHelpTag("Poly Attribute Map");
+	//	Step 9: Set the current values of the option box.
+	//	=================================================
+	//
+	eval (($setup + " " + $parent + " " + 0));
+	//	Step 10: Show the option box.
+	//	=============================
+	//
+	showOptionBox();
+}
+
+
+proc string assembleCmd()
+{
+	setOptionVars (false);
+
+	int $doHistory = `constructionHistory -q -toggle`;
+
+	string $cmd = "bt_spiral ";
+	$cmd += `optionVar -query "spiralHeight"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "spiralRadius"`;
+	$cmd += " ";
+	$cmd += `optionVar -query "spiralRounds"`;
+
+	print $cmd;
+	return $cmd;	
+}
+
+
+global proc string performSpiral (int $option)
+{
+	string $cmd="";
+
+	switch ($option) 
+	{
+		case 0:
+			$cmd = `assembleCmd`;
+			eval($cmd);
+			break;
+		case 1:
+			spiralOptions;
+			break;
+		case 2:
+			$cmd = `assembleCmd`;
+			break;
+	}
+	return $cmd;
+}

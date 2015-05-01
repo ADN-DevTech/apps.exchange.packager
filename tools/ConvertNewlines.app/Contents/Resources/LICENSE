@@ -1,0 +1,20 @@
+Licensing Terms of ConvertNewline
+=================================
+
+The MacOS X application has been built by Christoph Dalitz
+with the aid of Platypus. The parts created by me are
+the file "script" and the icon. Both are is made freely
+available under the terms of the GNU General Public License
+(GPL).
+
+The following additional software is used:
+
+ 1) CocoaDialog by Mark A. Stratman
+    http://cocoadialog.sourceforge.net
+    freely available under the GPL
+
+ 2) flip by Craig Stuart Sapp <craig.stuart.sapp@gmail.com>
+    http://ccrma.stanford.edu/~craig/utility/flip/
+    the source code is included as flip.cpp
+    Craig has given his permission to include and
+    use the program within this application bundle.

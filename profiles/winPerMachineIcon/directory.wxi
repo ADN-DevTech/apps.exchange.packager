@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"> 
+
+	<Directory Id="TARGETDIR" Name="SourceDir">
+	
+		<Directory Id="CommonAppDataFolder" SourceName="Application Data">
+			<Directory Id="Autodesk" Name="Autodesk">
+				<Component Id="AutodeskComp" Guid="{{AUTODESKGUID}}">
+					<RegistryValue Root="HKCU" Key="Software\{{Publisher}}\{{AppName}}" Type="string" Value="" KeyPath="yes"/>
+					<RemoveFolder Id="Autodesk.u" On="uninstall" />  
+				</Component>
+				<Directory Id="ApplicationPlugins" Name="ApplicationPlugins">
+					<Component Id="ApplicationPluginsComp" Guid="{{APPLICATIONPLUGINSGUID}}">
+						<RegistryValue Root="HKCU" Key="Software\{{Publisher}}\{{AppName}}" Type="string" Value="" KeyPath="yes"/>
+						<RemoveFolder Id="ApplicationPlugins.u" On="uninstall" />  
+					</Component>
+{{data}}
+				</Directory>
+			</Directory>
+		</Directory>
+		
+		<!-- Directory Id="MAYA_INSTALL_LOCATION" SourceName="Maya{{VERSION}}">
+{{_Maya_}}
+		</Directory -->		
+		
+	</Directory>
+	
+</Include> 		

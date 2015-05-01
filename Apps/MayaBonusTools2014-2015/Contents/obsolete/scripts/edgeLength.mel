@@ -1,0 +1,125 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+// 
+// edgeLength 
+//
+// Description: calculates length of poly edges
+// 
+// 
+// Opens floating window displaying the length of selected poly edges, 
+// Nurbs curves, or isoparms. Diplays combined length for multiple 
+// selections. Invalid selections are ignored. Window updates with 
+// selection change, until DONE is pressed. 
+// 
+// 
+// 
+// Creation Date: ( 08/14/00 ) 
+// Last Update: () 
+// 
+// Input Arguments: NONE 
+// 
+// works with Maya Versions: 3.0
+
+proc edgeLength () 
+{ 
+float $eLength = 0; 
+float $totalLength = 0; 
+string $sel; 
+if( (`window -exists edgeLength_UI`) == true ) 
+{ 
+deleteUI edgeLength_UI ; 
+//windowPref -remove edgeLength_UI; 
+}
+// list only poly edges, nurbs curves and isoparms 
+string $selList[] = `filterExpand -sm 32 -sm 9 -sm 11 -sm 45` ; 
+// calculate the total length of all valid selections 
+for ($sel in $selList) 
+{ 
+$eLength = `arclen $sel`; 
+$totalLength += $eLength; 
+}
+string $niceString = `swFloatToNiceString($totalLength)`;
+string $edgeLengthString = "Total Length: " + $niceString + " "; 
+if (size($selList) == 0) 
+$edgeLengthString = "Nothing valid selected"; 
+// create floating window 
+window -rtf on -s off -title EdgeLength edgeLength_UI ; 
+columnLayout;
+text -label $edgeLengthString ; 
+global string $edgeLength_btn1; 
+button -label " DONE " -command killEdgeLength; 
+showWindow edgeLength_UI ;
+}
+
+
+
+proc killEdgeLength() 
+{ 
+// get list of script jobs 
+$jobList = `scriptJob -lj`; 
+// get size of list 
+int $last = `size $jobList` - 1; 
+// extract last job from list 
+string $lastJob = $jobList[$last]; 
+// make sure last job is edgeLength 
+string $match = match("edgeLength",$lastJob); 
+if ($match == "edgeLength") 
+{ 
+// extract job ID number from string 
+string $ID = `substring $lastJob 1 3`; 
+string $match = match(":",$ID); 
+// check to see if colan is attached to string 
+if ($match == ":") 
+{ 
+$ID = `substring $lastJob 1 2`; 
+} 
+int $IDnum = $ID; 
+scriptJob -kill $IDnum ; 
+if (`window -exists edgeLength_UI`) deleteUI edgeLength_UI; 
+} 
+else print("ERROR : wrong job"); 
+}
+
+proc string swFloatToNiceString(float $swFloat) 
+{ 
+string $swReturn; 
+string $swPrintData[];
+if (($swFloat < 0.000001) && ( $swFloat > -0.000001)) $swReturn = "0.000000"; 
+else
+{ 
+string $swTmp = $swFloat; 
+tokenize $swTmp "." $swPrintData; 
+if (size ($swPrintData) == 2) 
+{
+$swPrintData[1] = $swPrintData[1] + "000000"; 
+$swReturn = $swPrintData[0] + "." + `substring $swPrintData[1] 1 4`; 
+} 
+else 
+$swReturn = $swPrintData[0] + ".000000"; 
+} 
+return $swReturn;
+}
+
+edgeLength; 
+int $edgeLength_ID = `scriptJob -e "SelectionChanged" edgeLength` ;
+
+

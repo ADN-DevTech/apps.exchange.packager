@@ -1,0 +1,67 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+
+//	polyDeleteEdgeSaveUVs.mel
+//
+//	Delete poly edges and do good things with the UVs
+//
+global proc polyDeleteEdgeSaveUVs(){
+
+	//get original selection
+	string $originalSelection[] = `ls -sl`;
+
+	//convert to faces and cut edges
+	string $faces[] = `ConvertSelectionToFaces`;
+	polyMapCut;
+
+	//convert to interior edges and sew them up
+	ConvertSelectionToEdges;
+	ConvertSelectionToVertices;
+	ShrinkPolygonSelectionRegion;
+	//check to make sure something is still selected
+	// a single edge as input will have nothing selected
+	//at this point
+	string $testSelection[] = `ls -sl`;
+	if (!(`size $testSelection`))
+		select -replace $originalSelection;	
+	ConvertSelectionToEdges;
+	polyMapSewMove -nf 1 -lps 0 -ch 1;
+
+	//improve the mapping on the newly sewn faces
+	ConvertSelectionToFaces;
+	polyForceUV -unitize;
+
+	//scale it down to regular size
+	//and move it to some place respectable
+	//***layout UVs needs an option for the selected shell to layout wrt all the other shells
+	//***do not overlap it on them
+
+
+	//now delete the edges
+	select -replace $originalSelection;
+	DeleteEdge;
+
+
+
+
+
+}

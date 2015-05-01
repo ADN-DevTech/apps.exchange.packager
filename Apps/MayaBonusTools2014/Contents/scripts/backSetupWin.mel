@@ -1,0 +1,100 @@
+// Copyright (C) 1997-2013 Autodesk, Inc., and/or its licensors.
+// All rights reserved.
+//
+// The coded instructions, statements, computer programs, and/or related
+// material (collectively the "Data") in these files contain unpublished
+// information proprietary to Autodesk, Inc. ("Autodesk") and/or its licensors,
+// which is protected by U.S. and Canadian federal copyright law and by
+// international treaties.
+//
+// The Data is provided for use exclusively by You. You have the right to use,
+// modify, and incorporate this Data into other products for purposes authorized 
+// by the Autodesk software license agreement, without fee.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. AUTODESK
+// DOES NOT MAKE AND HEREBY DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTIES
+// INCLUDING, BUT NOT LIMITED TO, THE WARRANTIES OF NON-INFRINGEMENT,
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, OR ARISING FROM A COURSE 
+// OF DEALING, USAGE, OR TRADE PRACTICE. IN NO EVENT WILL AUTODESK AND/OR ITS
+// LICENSORS BE LIABLE FOR ANY LOST REVENUES, DATA, OR PROFITS, OR SPECIAL,
+// DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES, EVEN IF AUTODESK AND/OR ITS
+// LICENSORS HAS BEEN ADVISED OF THE POSSIBILITY OR PROBABILITY OF SUCH DAMAGES.
+
+/*This script builds a window to control the back setup script procedure called 
+backSetup. Rick Kogucki April 2004. It works with version 3 and above of 
+backSetup.mel.*/
+// backSetupWin_1.mel
+global proc backSetupWin () {
+	if (`window -exists backSetupWin`) {
+		showWindow backSetupWin;
+	}else{	
+		setUITemplate -pst attributeEditorTemplate;
+		
+		window -wh 500 220 -t "Back Setup" backSetupWin;
+		
+		columnLayout  -adjustableColumn true -cal center -co "both" 15 mainColumnLayout; //
+		
+		text -label "    ";
+		
+		intFieldGrp -numberOfFields 1
+			-label "Number of Control Clusters" -extraLabel ""
+			-cw 1 200
+			-value1 4 numClust;
+		
+		//check box for use of bottom control as root control.
+		checkBoxGrp 
+			-label "Use Bottom Control Object for Root"
+			-cw 1 200
+			useBtm;
+		
+		//check box for use of custom objects, change:
+		int $flip=0;
+		checkBoxGrp -label "Use Custom Objects for Controls" 
+			-onCommand  "textFieldButtonGrp -e -enable 1 custObjTop; textFieldButtonGrp -e -enable 1 custObjBtm; $flip=1;" 
+			-offCommand "textFieldButtonGrp -e -enable 0 custObjTop; textFieldButtonGrp -e -enable 0 custObjBtm; $flip=0;"
+			-cw 1 200
+			-v1 0
+			useCust;
+		/*This checkbox needs to grey out the two following text fields when unchecked and show them when checked.*/
+		
+		textFieldButtonGrp -label "Top Control Object" 
+			-text "Select in scene" 
+			-width 300
+			-buttonLabel "Get"
+			//-buttonCommand "copySDKGetAttr sourceDrivenBtn"
+			-editable true
+			-annotation ("Select the object to use for the top back control.")
+			-enable 0
+			-cw 1 200
+			-buttonCommand "string $objectx[] = `ls -sl`; textFieldButtonGrp -edit -text $objectx[0]  custObjTop;"
+			custObjTop;  
+		//sourceDrivenBtn;
+		
+		
+		//text field for custom bottom object.
+		textFieldButtonGrp -label  "Bottom Control Object"  //$custObjBtm used in script.
+			-text "Select in scene" 
+			-buttonLabel "Get"
+			-editable true
+			-annotation ("Select the object to use for the bottom back control.")
+			-enable 0
+			-cw 1 200
+			-buttonCommand "string $objectx[] = `ls -sl`; textFieldButtonGrp -edit -text $objectx[0] custObjBtm;"
+			custObjBtm;
+		
+		text -label "         ";
+		
+		text -label "Note: After you have chosen the above options you need to have the spine joint just \n below the Root selected as well as the last joint of the spine." ;
+		
+		text -label " ";
+		//button to execute the procedure backSetup.mel, change: 
+		button -label "Rig Back"
+			-c "backSetup(`intFieldGrp -q -v1 numClust`, `checkBoxGrp -q -v1 useBtm`, `textFieldButtonGrp -q -enable  custObjBtm`, `textFieldButtonGrp -q -text custObjTop`, `textFieldButtonGrp -q -text custObjBtm`)";
+		//$flip records if the user is using custom objects.
+		//call proc and evaluate window fields for proc.
+		setParent ..;
+		
+		showWindow;
+		source back_setup.mel; //script with backSetup proc.
+	}
+}
+//buildBackSetupWin;
