@@ -132,6 +132,8 @@ def RenderFile (filename, outfile):
 	lines =lines.replace ('{{VERSION}}', cmdLineArgs ['version'])
 	lines =lines.replace ('{{SOURCE}}', cmdLineArgs ['source'])
 	lines =lines.replace ('{{INSTALLER-OUTPUT}}', cmdLineArgs ['installer'])
+	installerPkgTemp =os.path.basename (cmdLineArgs ['installer'])
+	lines =lines.replace ('{{INSTALLER-PKG}}', installerPkgTemp)
 	lines =lines.replace ('{{modules}}', moduletags)
 	lines =lines.replace ('{{shelves}}', shelvestags)
 	lines =lines.replace ('{{data}}', filetags)
@@ -293,7 +295,7 @@ def createMacInstallerPerUser ():
 	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/Welcome.rtf', resDir + '/Welcome.rtf')
 	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/License.rtf', resDir + '/License.rtf')
 	RenderFile (cmdLineArgs ['template'] + '/distribution.xml', tempdir + '/distribution.xml')
-	RenderFile (cmdLineArgs ['template'] + '/InstallerSections.plist', tempdir + '/InstallerSections.plist')
+	#RenderFile (cmdLineArgs ['template'] + '/InstallerSections.plist', tempdir + '/InstallerSections.plist')
 	#RenderFile (cmdLineArgs ['template'] + 'index.html', tempdir + '/index.html')
 
 	os.system ("chmod -R 777 %s" % tempdir)
@@ -306,21 +308,24 @@ def createMacInstallerPerUser ():
 	#' -i ' + tempdir + '/Info.plist'
 	#' -d ' + tempdir + '/Description.plist')
 	tempPkg =tempdir + '/' + os.path.basename (cmdLineArgs ['installer'])
-	command =os.system (
-	'productbuild' + 
+	command =os.system ('pkgbuild' + 
 	#' --resources ' + tempdir + '/Resources' +
 	#' --plugins ' + tempdir +
 	' --component ' + tempdir + '/root/' + appName +
-	' ~/Library/Application\ Support/Autodesk/ApplicationPlugins ' +
-	cmdLineArgs ['installer'])
-	#command =os.system (
-	#'productbuild' + 
-	#' --distribution  ' + tempdir + '/distribution.xml' +
-	#' --resources ' + tempdir + '/Resources' +
-	#' --package-path ' + cmdLineArgs ['installer'] +
-	#cmdLineArgs ['installer'])
+	' --install-location /Library/Application\ Support/Autodesk/ApplicationPlugins ' +
+	tempPkg)
 	if command != 0:
-		print "productbuild -component ... error\n"
+		print "pkgbuild --component ... error\n"
+		if cmdLineArgs ['debug'] == False:
+			shutil.rmtree (tempdir)
+		return (command)
+	command =os.system ('productbuild' + 
+	' --distribution ' + tempdir + '/distribution.xml' +
+	' --resources ' + tempdir + '/Resources/' +
+	' --package-path ' + tempdir + ' ' +
+	cmdLineArgs ['installer'])
+	if command != 0:
+		print "productbuild --distribution ... error\n"
 	if cmdLineArgs ['debug'] == False:
 		shutil.rmtree (tempdir)
 	return (command)
