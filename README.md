@@ -21,7 +21,7 @@ For all OS, clone this repo on your local machine.
    * Download and install the latest 2.x version
 3. Go in apps.exchange.packager\scripts, and open the setup-win.bat file in a text editor
    * Change the subst @ line #6 to point where you installed the 'Wix Toolset' at step #1
-* Change the PYTHON_EXE variable @ line #10 to point to your Python executable
+   * Change the PYTHON_EXE variable @ line #10 to point to your Python executable
 
 
 ### OSX
@@ -36,7 +36,7 @@ For all OS, clone this repo on your local machine.
 
 ### Linux
 
-No setup required! You're all set.
+No setup required! You're all set.<br />
 Just make sure the temp and output folders have write permission.
 
 
@@ -57,25 +57,41 @@ osx [-h] [-p <path>] [-t <template>] [-v <version>] <project>
 	-h			This message
 ```
 
-By default, the scripts assume:
+By default, the scripts assume:<br />
 1. they should find the app in ./Apps/
 2. they should use the per-machine templates
 3. the current Autodesk product platform is the 2016 version
 
 You can change these options using the command flags.
 
-<b>Note</b> Do not forgoet the closing / or \ on the -p path option.
+<b>Note:</b> Do not forgoet the closing / on OSX and Linux or \ on Windows for the -p path option.
 
 
 
-### Examples
+### Examples with the MathNode sample for Maya
+
+Windows: `win MathNode`
+OSX: `osx MathNode`
+Linux: `linux MathNode`
+
+#### with the arguments to change the default template
+
+Windows: `win -t winPerUser MathNode`
+OSX: `osx -t osxPerUser MathNode`
+
+#### with an hypothetical AutoCAD/Revit/Inventor bundle
+
+Windows: `win -p d:\Dev\ -t winPerMachineIcon MyApp.bundle`
+OSX: `osx -p ~/Projects/ -t osxPerMachine MyApp.bundle`
+
+<b>Note:</b> Note the difference between Maya and the other products. Maya cannot accept a .bundle extenstion for an apps.echange bundle. Whereas, all others do require that extension.
 
 
 --------
 
 ## License
 
-This sample is licensed under the terms of the [MIT License](http://opensource.org/licenses/MIT). Please see the [LICENSE](LICENSE) file for full details.
+This utility is licensed under the terms of the [MIT License](http://opensource.org/licenses/MIT). Please see the [LICENSE](LICENSE) file for full details.
 
 
 ## Written by
