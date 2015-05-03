@@ -3,7 +3,6 @@ call scripts\setup-win.bat
 
 if exist ".\output\%AppName%-win64.msi" del ".\output\%AppName%-win64.msi"
 if exist ".\output\%AppName%-win64.wixpdb" del ".\output\%AppName%-win64.wixpdb"
-rem if "%AppHost%" == "" set AppHost=maya
 
 %PYTHON_EXE% scripts/createPluginInstaller.py --debug --source "%PackageSrc%" --installer ".\output\%AppName%-win64.msi" --version %Version% --platform win64 --template profiles/%Template%
 

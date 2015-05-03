@@ -60,8 +60,7 @@ configXml ={
 	'AppNameSpace': noneSt, # Something like "appstore.exchange.autodesk.com"
 	'ProductCode': '*',
 	'UpgradeCode': noguid,
-	'Documentation': noneSt,
-	'PackageExtension': ''
+	'Documentation': noneSt
 }
 filestoskip =[ # ", someotherfile.ext" etc.
 	'.DS_Store',
@@ -93,7 +92,7 @@ def buildwixtree (xdir):
 	filetags +=(("<Component Id='%s' Guid='%s'>\n"
 	"	<RegistryValue Root='HKCU' Key='Software\\%s\\%s' Type='string' Value='' KeyPath='yes' />\n"
 	"	<RemoveFolder Id='%s.u' On='uninstall' />\n")
-	% (compName, GenerateGUID (), configXml ['Publisher'], configXml ['AppName'], compName))
+	% (compName, GenerateGUID (), configXml ['Publisher'], configXml ['AppName'], compName [-70:]))
 	# Files
 	if len (filelist) > 0:
 		for xfile, source in zip (filelist, filesource):
@@ -172,7 +171,7 @@ def createWindowsInstaller ():
 	# Build Wix Data Structures
 	dirName =ValidateMsiLd (configXml ['AppName'])
 	configXml ['AppNameLd'] =dirName
-	filetags +=("<Directory Id='%s' Name='%s%s'>\n" % (dirName, configXml ['AppName'], configXml ['PackageExtension']))
+	filetags +=("<Directory Id='%s' Name='%s'>\n" % (dirName, cmdLineArgs ['bundle']))
 	for e in msms:
 		e =e.replace ('\\', '/')
 		if e == '': # or not os.path.isfile (e):
@@ -396,7 +395,7 @@ def ValidateMsiLd (ld):
 	ld =ld [-71:]
 	if not re.match (r'^[a-zA-Z]{1}.*', ld):
 		ld ='_' + ld
-	return (ld)
+	return (ld [-72:])
 	
 #------------------------------------------------------------------------------
 # mkdir that allows creating multi levels and ignoring already existing silently  http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/82465
@@ -460,13 +459,12 @@ def parseargs():
 			cmdLineArgs ['debug'] =True
 		else:
 			cmdLineArgs [o[2:]] =a
+	# Bundle name vs AppName
+	cmdLineArgs ['bundle'] =os.path.basename (cmdLineArgs ['source'])
 	# Add a trailing slash to the source directory
 	cmdLineArgs ['source'] +='/'
 	# Add a trailing slash to the template directory
 	cmdLineArgs ['template'] +='/'
-	# do a .bundle or version package?
-	if ( os.getenv ('AppHost', 'maya') != 'maya' ):
-		configXml ['PackageExtension'] ='.bundle'
 
 #------------------------------------------------------------------------------
 def parsePackageContentsXml():
@@ -484,6 +482,8 @@ def parsePackageContentsXml():
 	configXml ['ProductCode'] =str (elt.getAttribute ('ProductCode'))
 	configXml ['UpgradeCode'] =str (elt.getAttribute ('UpgradeCode'))
 	configXml ['Documentation'] =str (elt.getAttribute ('HelpFile'))
+	if configXml ['Documentation'] == '':
+		configXml ['Documentation'] =str (elt.getAttribute ('OnlineDocumentation'))
 	
 	elt =doc.getElementsByTagName ('CompanyDetails') [0]
 	configXml ['Publisher'] =str (elt.getAttribute ('Name'))
@@ -503,7 +503,7 @@ def parsePackageContentsXml():
 	if configXml ['Documentation'] == noneSt:
 		configXml ['Documentation'] =("./Contents/docs/index.html" % configXml ['AppName'])
 	elif configXml ['Documentation'] [:2] in ( './', ".\\" ):
-		configXml ['Documentation'] =configXml ['AppName'] + configXml ['PackageExtension'] + configXml ['Documentation'] [1:]
+		configXml ['Documentation'] =cmdLineArgs ['bundle'] + configXml ['Documentation'] [1:]
 	if configXml ['PublisherPhone'] == noneSt or configXml ['PublisherPhone'] == '':
 		configXml ['PublisherPhone'] =configXml ['PublisherEmail']
 	return (0)
