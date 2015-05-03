@@ -43,7 +43,7 @@ Just make sure the temp and output folders have write permission.
 ## Usage
 
 There is 3 scripts available. One for each platform: win, osx, linux.
-
+```
   osx [-h] [-p <path>] [-t <template>] [-v <version>] <project>
 
 	-p			Path to the directory containing the project root folder
@@ -55,11 +55,15 @@ There is 3 scripts available. One for each platform: win, osx, linux.
 	<project>	Folder name of the project to package
 
 	-h			This message
+``
 
 
-By default, the scripts assume:<br />
+By default, the scripts assume:
+
 1. they should find the app in ./Apps/
+
 2. they should use the per-machine templates
+
 3. the current Autodesk product platform is the 2016 version
 
 You can change these options using the command flags.
@@ -71,17 +75,21 @@ You can change these options using the command flags.
 ### Examples with the MathNode sample for Maya
 
 Windows: `win MathNode`
+
 OSX: `osx MathNode`
+
 Linux: `linux MathNode`
 
 #### with the arguments to change the default template
 
 Windows: `win -t winPerUser MathNode`
+
 OSX: `osx -t osxPerUser MathNode`
 
 #### with an hypothetical AutoCAD/Revit/Inventor bundle
 
 Windows: `win -p d:\Dev\ -t winPerMachineIcon MyApp.bundle`
+
 OSX: `osx -p ~/Projects/ -t osxPerMachine MyApp.bundle`
 
 <b>Note:</b> Note the difference between Maya and the other products. Maya cannot accept a .bundle extenstion for an apps.echange bundle. Whereas, all others do require that extension.
