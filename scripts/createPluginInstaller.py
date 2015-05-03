@@ -15,7 +15,8 @@
 import os, sys, shutil, hashlib, socket, time, tempfile
 import random, re
 from xml.dom import minidom
-from os.path import join
+from os.path import join, split
+#import npath
 import getopt
 
 moduletags =''
@@ -220,7 +221,7 @@ def createWindowsInstaller ():
 	return (1)
 
 #------------------------------------------------------------------------------
-def createMacInstaller ():
+def createMacInstallerPerMachine ():
 	global cmdLineArgs, configXml, filestoskip
 	tempdir =createTempFolder ()
 	files =os.walk (cmdLineArgs ['source'])
@@ -228,6 +229,7 @@ def createMacInstaller ():
 		dirtomake =root.replace (cmdLineArgs ['source'], '')
 		if '.dSYM' in dirtomake:
 			continue
+		
 		moduleDir =('%s/root/Users/Shared/Autodesk/ApplicationAddins/%s/%s' % (tempdir, configXml ['AppName'], dirtomake))
 		mkdir (moduleDir)
 		for xfile in files:
@@ -259,6 +261,77 @@ def createMacInstaller ():
 		shutil.rmtree (tempdir)
 	return (command)
 
+#------------------------------------------------------------------------------
+def createMacInstallerPerUser ():
+	global cmdLineArgs, configXml, filestoskip
+	tempdir =createTempFolder ()
+	appName =os.path.split (cmdLineArgs ['source'])
+	if appName [1] == '':
+		appName =os.path.basename (appName [0])
+	else:
+		appName =appName [1]
+	files =os.walk (cmdLineArgs ['source'])
+	for root, unused_dirs, files in files:
+		dirtomake =root.replace (cmdLineArgs ['source'], '')
+		if '.dSYM' in dirtomake:
+			continue
+		#moduleDir =('%s/root/Library/Application Support/Autodesk/ApplicationPlugins/%s/%s' % (tempdir, configXml ['AppName'], dirtomake))
+		moduleDir =('%s/root/%s/%s' % (tempdir, appName, dirtomake))
+		mkdir (moduleDir)
+		for xfile in files:
+			if xfile not in filestoskip:
+				shutil.copy (join (root, xfile), moduleDir)
+
+	moduleDir =('%s/root/%s/%s' % (tempdir, appName, 'Contents'))
+	if not os.path.isfile (moduleDir + '/Info.plist'):
+		RenderFile (cmdLineArgs ['template'] + 'Info.plist', moduleDir + '/Info.plist')
+	#if not os.path.isfile (moduleDir + '/Description.plist'):
+	#	RenderFile (cmdLineArgs ['template'] + 'Description.plist', moduleDir + '/Description.plist')
+
+	resDir =('%s/Resources' % tempdir)
+	mkdir (resDir)
+	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/Welcome.rtf', resDir + '/Welcome.rtf')
+	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/License.rtf', resDir + '/License.rtf')
+	RenderFile (cmdLineArgs ['template'] + '/distribution.xml', tempdir + '/distribution.xml')
+	RenderFile (cmdLineArgs ['template'] + '/InstallerSections.plist', tempdir + '/InstallerSections.plist')
+	#RenderFile (cmdLineArgs ['template'] + 'index.html', tempdir + '/index.html')
+
+	os.system ("chmod -R 777 %s" % tempdir)
+	os.system ("grep -lUIr \"\\r\" %s | while read line; do echo \"DOS->UNIX - $line\"; %s -u $line; done" % (tempdir, os.environ.get ('FLIP')))
+	#command =os.system (os.environ.get ('PACKAGER') + ' -build' +
+	#' -p ' + cmdLineArgs ['installer'] + 
+	#' -f ' + tempdir + '/root'
+	#' -ds'
+	#' -r ' + resDir +
+	#' -i ' + tempdir + '/Info.plist'
+	#' -d ' + tempdir + '/Description.plist')
+	tempPkg =tempdir + '/' + os.path.basename (cmdLineArgs ['installer'])
+	command =os.system (
+	'productbuild' + 
+	#' --resources ' + tempdir + '/Resources' +
+	#' --plugins ' + tempdir +
+	' --component ' + tempdir + '/root/' + appName +
+	' ~/Library/Application\ Support/Autodesk/ApplicationPlugins ' +
+	cmdLineArgs ['installer'])
+	#command =os.system (
+	#'productbuild' + 
+	#' --distribution  ' + tempdir + '/distribution.xml' +
+	#' --resources ' + tempdir + '/Resources' +
+	#' --package-path ' + cmdLineArgs ['installer'] +
+	#cmdLineArgs ['installer'])
+	if command != 0:
+		print "productbuild -component ... error\n"
+	if cmdLineArgs ['debug'] == False:
+		shutil.rmtree (tempdir)
+	return (command)
+
+#------------------------------------------------------------------------------
+def createMacInstaller ():
+	if "PerMachine" in cmdLineArgs ['template']:
+		return (createMacInstallerPerMachine ())
+	else:
+		return (createMacInstallerPerUser ())
+        
 #------------------------------------------------------------------------------
 def createLinuxInstaller ():
 	global cmdLineArgs, configXml, filestoskip

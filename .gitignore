@@ -2,6 +2,7 @@
 [tT]emp/
 [tT]mp/
 DigitalSignature/
+Apps-Ext/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
