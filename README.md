@@ -43,8 +43,8 @@ Just make sure the temp and output folders have write permission.
 ## Usage
 
 There is 3 scripts available. One for each platform: win, osx, linux.
-```
-osx [-h] [-p <path>] [-t <template>] [-v <version>] <project>
+
+  osx [-h] [-p <path>] [-t <template>] [-v <version>] <project>
 
 	-p			Path to the directory containing the project root folder
 				(default is ./Apps/)
@@ -55,7 +55,7 @@ osx [-h] [-p <path>] [-t <template>] [-v <version>] <project>
 	<project>	Folder name of the project to package
 
 	-h			This message
-```
+
 
 By default, the scripts assume:<br />
 1. they should find the app in ./Apps/
