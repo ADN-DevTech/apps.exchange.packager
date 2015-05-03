@@ -55,7 +55,7 @@ There is 3 scripts available. One for each platform: win, osx, linux.
 	<project>	Folder name of the project to package
 
 	-h			This message
-``
+```
 
 
 By default, the scripts assume:
