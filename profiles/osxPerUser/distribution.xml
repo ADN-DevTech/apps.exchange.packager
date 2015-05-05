@@ -2,7 +2,8 @@
 <installer-gui-script minSpecVersion="1">
     <title>{{AppName}}</title>
     <organization>com.autodesk</organization>
-    <domains enable_currentUserHome="true" />
+    <domains
+             enable_currentUserHome="true" />
     <options
              customize="never"
              require-scripts="false" />
