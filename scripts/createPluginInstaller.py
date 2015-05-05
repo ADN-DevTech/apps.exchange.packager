@@ -167,6 +167,21 @@ def createWindowsInstaller ():
 	global cmdLineArgs, configXml
 	global moduletags, shelvestags, filetags, componentrefs, msms
 	tempdir =createTempFolder ()
+	files =os.walk (cmdLineArgs ['source'])
+	for root, unused_dirs, files in files:
+		dirtomake =root.replace (cmdLineArgs ['source'], '')
+		if '.dSYM' in dirtomake:
+			continue
+		moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
+		mkdir (moduleDir)
+		for xfile in files:
+			if xfile not in filestoskip:
+				shutil.copy (join (root, xfile), moduleDir)
+
+	moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
+	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
+		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
+    
 	msms =os.getenv ('MergeMSM', '').split (';')
 	# Build Wix Data Structures
 	dirName =ValidateMsiLd (configXml ['AppName'])
@@ -179,7 +194,8 @@ def createWindowsInstaller ():
 		compName =GenerateGUID ()
 		componentrefs +=("<MergeRef Id='%s' />\n" % compName)
 		filetags +=("<Merge Id='%s' SourceFile='%s' DiskId='1' Language='1033' />\n" % (compName, e))
-	buildwixtree (cmdLineArgs ['source'])
+	#buildwixtree (cmdLineArgs ['source'])
+	buildwixtree ('%s/root/%s' % (tempdir, cmdLineArgs ['bundle']))
 	filetags +="</Directory>\n"
 	# Render Wix and default Help file
 	configXml ['PLATFORM'] ='x86'
@@ -231,7 +247,7 @@ def createMacInstallerPerMachine ():
 		if '.dSYM' in dirtomake:
 			continue
 		
-		moduleDir =('%s/root/Users/Shared/Autodesk/ApplicationAddins/%s/%s' % (tempdir, configXml ['AppName'], dirtomake))
+		moduleDir =('%s/root/Users/Shared/Autodesk/ApplicationAddins/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
 		mkdir (moduleDir)
 		for xfile in files:
 			if xfile not in filestoskip:
@@ -239,6 +255,10 @@ def createMacInstallerPerMachine ():
 
 	RenderFile (cmdLineArgs ['template'] + 'Info.plist', tempdir + '/Info.plist')
 	RenderFile (cmdLineArgs ['template'] + 'Description.plist', tempdir + '/Description.plist')
+
+	moduleDir =('%s/root/Users/Shared/Autodesk/ApplicationAddins/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
+	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
+		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
 
 	resDir =('%s/Resources' % tempdir)
 	mkdir (resDir)
@@ -266,28 +286,24 @@ def createMacInstallerPerMachine ():
 def createMacInstallerPerUser ():
 	global cmdLineArgs, configXml, filestoskip
 	tempdir =createTempFolder ()
-	appName =os.path.split (cmdLineArgs ['source'])
-	if appName [1] == '':
-		appName =os.path.basename (appName [0])
-	else:
-		appName =appName [1]
 	files =os.walk (cmdLineArgs ['source'])
 	for root, unused_dirs, files in files:
 		dirtomake =root.replace (cmdLineArgs ['source'], '')
 		if '.dSYM' in dirtomake:
 			continue
-		#moduleDir =('%s/root/Library/Application Support/Autodesk/ApplicationPlugins/%s/%s' % (tempdir, configXml ['AppName'], dirtomake))
-		moduleDir =('%s/root/%s/%s' % (tempdir, appName, dirtomake))
+		moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
 		mkdir (moduleDir)
 		for xfile in files:
 			if xfile not in filestoskip:
 				shutil.copy (join (root, xfile), moduleDir)
 
-	moduleDir =('%s/root/%s/%s' % (tempdir, appName, 'Contents'))
+	moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
 	if not os.path.isfile (moduleDir + '/Info.plist'):
 		RenderFile (cmdLineArgs ['template'] + 'Info.plist', moduleDir + '/Info.plist')
 	#if not os.path.isfile (moduleDir + '/Description.plist'):
 	#	RenderFile (cmdLineArgs ['template'] + 'Description.plist', moduleDir + '/Description.plist')
+	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
+		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
 
 	resDir =('%s/Resources' % tempdir)
 	mkdir (resDir)
@@ -310,7 +326,7 @@ def createMacInstallerPerUser ():
 	command =os.system ('pkgbuild' + 
 	#' --resources ' + tempdir + '/Resources' +
 	#' --plugins ' + tempdir +
-	' --component ' + tempdir + '/root/' + appName +
+	' --component ' + tempdir + '/root/' + cmdLineArgs ['bundle'] +
 	' --install-location /Library/Application\ Support/Autodesk/ApplicationPlugins ' +
 	tempPkg)
 	if command != 0:
@@ -461,6 +477,7 @@ def parseargs():
 			cmdLineArgs [o[2:]] =a
 	# Bundle name vs AppName
 	cmdLineArgs ['bundle'] =os.path.basename (cmdLineArgs ['source'])
+	cmdLineArgs ['bundleNoExt'] =os.path.basename (os.path.splitext (cmdLineArgs ['source']) [0])
 	# Add a trailing slash to the source directory
 	cmdLineArgs ['source'] +='/'
 	# Add a trailing slash to the template directory
@@ -482,17 +499,32 @@ def parsePackageContentsXml():
 	configXml ['ProductCode'] =str (elt.getAttribute ('ProductCode'))
 	configXml ['UpgradeCode'] =str (elt.getAttribute ('UpgradeCode'))
 	configXml ['Documentation'] =str (elt.getAttribute ('HelpFile'))
-	if configXml ['Documentation'] == '':
-		configXml ['Documentation'] =str (elt.getAttribute ('OnlineDocumentation'))
+	configXml ['Author'] =str (elt.getAttribute ('Author'))
+	configXml ['AutodeskProduct'] =str (elt.getAttribute ('AutodeskProduct'))
 	
 	elt =doc.getElementsByTagName ('CompanyDetails') [0]
 	configXml ['Publisher'] =str (elt.getAttribute ('Name'))
 	configXml ['PublisherPhone'] =str (elt.getAttribute ('Phone'))
 	configXml ['PublisherEmail'] =str (elt.getAttribute ('Email'))
 	configXml ['PublisherURL'] =str (elt.getAttribute ('Url'))
-	
+
+	elt =doc.getElementsByTagName ('RuntimeRequirements') [0]
+	configXml ['OS'] =str (elt.getAttribute ('OS'))
+
 	doc.unlink ()
 
+	configXml ['UpgradeCodeLessBackets'] =configXml ['UpgradeCode'].strip ('{').strip ('}')
+	configXml ['manifestOS'] =configXml ['OS'].replace ('macOS', 'mac')
+	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('win32|win64', 'windows')
+	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('Win32|Win64', 'windows')
+	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('win32', 'windows')
+	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('Win32', 'windows')
+	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('win64', 'windows')
+	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('Win64', 'windows')
+	if configXml ['Author'] != configXml ['Publisher']:
+		configXml ['AuthorPublisher'] =("%s - %s" % configXml ['Author'], configXml ['Publisher'])
+	else:
+		configXml ['AuthorPublisher'] =configXml ['Author']
 	# Determine if we have been provided with a GUID in the config file
 	if len (configXml ['ProductCode']) <= 1:
 		configXml ['ProductCode'] =GenerateGUID ()
@@ -500,8 +532,8 @@ def parsePackageContentsXml():
 	if len (configXml ['UpgradeCode']) < 1 or configXml ['UpgradeCode'] == noguid:
 		configXml ['UpgradeCode'] =GenerateGUID ()
 	# Documentation url
-	if configXml ['Documentation'] == noneSt:
-		configXml ['Documentation'] =("./Contents/docs/index.html" % configXml ['AppName'])
+	if configXml ['Documentation'] == noneSt or configXml ['Documentation'] == '':
+		configXml ['Documentation'] ='./Contents/docs/index.html'
 	elif configXml ['Documentation'] [:2] in ( './', ".\\" ):
 		configXml ['Documentation'] =cmdLineArgs ['bundle'] + configXml ['Documentation'] [1:]
 	if configXml ['PublisherPhone'] == noneSt or configXml ['PublisherPhone'] == '':
