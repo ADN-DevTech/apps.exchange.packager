@@ -91,8 +91,9 @@ def buildwixtree (xdir):
 	componentrefs +=("<ComponentRef Id='%s' />\n" % compName)
 	filetags +=(("<Component Id='%s' Guid='%s'>\n"
 	"	<RegistryValue Root='HKCU' Key='Software\\%s\\%s' Type='string' Value='' KeyPath='yes' />\n"
+	"	<RemoveFile Id='%s.f' Name='*.*' On='uninstall' />\n"
 	"	<RemoveFolder Id='%s.u' On='uninstall' />\n")
-	% (compName, GenerateGUID (), configXml ['Publisher'], configXml ['AppName'], compName [-70:]))
+	% (compName, GenerateGUID (), configXml ['Publisher'], configXml ['AppName'], compName [-70:], compName [-70:]))
 	# Files
 	if len (filelist) > 0:
 		for xfile, source in zip (filelist, filesource):
