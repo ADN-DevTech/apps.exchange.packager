@@ -17,7 +17,7 @@ For all OS, clone this repo on your local machine.
 
 1. Go to http://wixtoolset.org/
    * Download and install
-2. Got to http://python.org
+2. Go to http://python.org
    * Download and install the latest 2.x version
 3. Go in apps.exchange.packager\scripts, and open the setup-win.bat file in a text editor
    * Change the subst @ line #6 to point where you installed the 'Wix Toolset' at step #1
@@ -92,7 +92,7 @@ Windows: `win -p d:\Dev\ -t winPerMachineIcon MyApp.bundle`
 
 OSX: `osx -p ~/Projects/ -t osxPerMachine MyApp.bundle`
 
-<b>Note:</b> Note the difference between Maya and the other products. Maya cannot accept a .bundle extenstion for an apps.echange bundle. Whereas, all others do require that extension.
+<b>Note:</b> Note the difference between Maya and the other products. Maya cannot accept a .bundle extension for an apps.exchange bundle. Whereas, all others do require that extension.
 
 
 --------
