@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+ln -s ~/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application\ Support/Autodesk/ApplicationPlugins/{{BUNDLE}} ~/Library/Application\ Support/Autodesk/ApplicationPlugins/{{BUNDLE}}
+
+exit 0

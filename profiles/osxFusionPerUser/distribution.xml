@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<installer-gui-script minSpecVersion="1">
+    <title>{{AppName}}</title>
+    <organization>com.autodesk</organization>
+    <domains
+             enable_currentUserHome="true" />
+    <options
+             customize="never"
+             require-scripts="false" />
+    <!-- Define documents displayed at various steps -->
+    <welcome file="Welcome.rtf" mime-type="application/rtf" />
+    <license file="License.rtf" mime-type="application/rtf" />
+    <!-- List all component packages -->
+    <pkg-ref id="{{AppNameSpace}}"
+             version="{{AppVersion}}"
+             auth="root">{{INSTALLER-PKG}}</pkg-ref>
+    <!-- List them again here. They can now be organized
+         as a hierarchy if you want. -->
+    <choices-outline>
+        <line choice="install" />
+    </choices-outline>
+    <!-- Define each choice above -->
+    <choice
+        id="install"
+        visible="false"
+        title="{{AppName}}"
+        description="{{AppDescription}}"
+        start_selected="true">
+      <pkg-ref id="{{AppNameSpace}}" />
+    </choice>
+</installer-gui-script>
+

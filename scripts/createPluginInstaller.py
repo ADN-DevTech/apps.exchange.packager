@@ -129,6 +129,7 @@ def RenderFile (filename, outfile):
 		lines =lines.replace ('{{WIN64}}', '')
 		lines =lines.replace ('{{64}}', '')
 		lines =lines.replace ('{{-64}}', '')
+	lines =lines.replace ('{{BUNDLE}}', cmdLineArgs ['bundle'])
 	lines =lines.replace ('{{VERSION}}', cmdLineArgs ['version'])
 	lines =lines.replace ('{{SOURCE}}', cmdLineArgs ['source'])
 	lines =lines.replace ('{{INSTALLER-OUTPUT}}', cmdLineArgs ['installer'])
@@ -168,19 +169,10 @@ def createWindowsInstaller ():
 	global cmdLineArgs, configXml
 	global moduletags, shelvestags, filetags, componentrefs, msms
 	tempdir =createTempFolder ()
-	files =os.walk (cmdLineArgs ['source'])
-	for root, unused_dirs, files in files:
-		dirtomake =root.replace (cmdLineArgs ['source'], '')
-		if '.dSYM' in dirtomake:
-			continue
-		moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
-		mkdir (moduleDir)
-		for xfile in files:
-			if xfile not in filestoskip:
-				shutil.copy (join (root, xfile), moduleDir)
 
-	moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
+	moduleDir =('%s/%s' % (cmdLineArgs ['source'], 'Contents'))
 	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
+		print "Note: Creating manifest file in your source folder\n"
 		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
     
 	msms =os.getenv ('MergeMSM', '').split (';')
@@ -195,8 +187,7 @@ def createWindowsInstaller ():
 		compName =GenerateGUID ()
 		componentrefs +=("<MergeRef Id='%s' />\n" % compName)
 		filetags +=("<Merge Id='%s' SourceFile='%s' DiskId='1' Language='1033' />\n" % (compName, e))
-	#buildwixtree (cmdLineArgs ['source'])
-	buildwixtree ('%s/root/%s' % (tempdir, cmdLineArgs ['bundle']))
+	buildwixtree (cmdLineArgs ['source'])
 	filetags +="</Directory>\n"
 	# Render Wix and default Help file
 	configXml ['PLATFORM'] ='x86'
@@ -223,160 +214,54 @@ def createWindowsInstaller ():
 	for e in dirlist:
 		if os.path.isfile (os.path.join (cmdLineArgs ['template'], e)):
 			RenderFile (cmdLineArgs ['template'] + e, tempdir + '/' + e)
-	commandCandle =os.system ("%%DEVBIN%%/bin/candle.exe %s/root.wxs -out %s/plugin.wixobj" % (tempdir, tempdir))
-	if commandCandle == 0:
-		commandLight =os.system ("%%DEVBIN%%/bin/light.exe -sw1076 %s/plugin.wixobj -out %s" % (tempdir, cmdLineArgs ['installer']))
-		if cmdLineArgs ['debug'] == False:
-			os.remove (tempdir + '/plugin.wixobj')
-		if commandLight == 0:
-			return (0)
-		else:
-			print "Wix/Light error\n"
-	else:
-		print "Wix/Candle error\n"
-	if cmdLineArgs ['debug'] == False:
-		os.remove (tempdir + '/plugin.wixobj')
 	return (1)
 
 #------------------------------------------------------------------------------
-def createMacInstallerPerMachine ():
-	global cmdLineArgs, configXml, filestoskip
-	tempdir =createTempFolder ()
-	files =os.walk (cmdLineArgs ['source'])
-	for root, unused_dirs, files in files:
-		dirtomake =root.replace (cmdLineArgs ['source'], '')
-		if '.dSYM' in dirtomake:
-			continue
-		
-		moduleDir =('%s/root/Users/Shared/Autodesk/ApplicationAddins/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
-		mkdir (moduleDir)
-		for xfile in files:
-			if xfile not in filestoskip:
-				shutil.copy (join (root, xfile), moduleDir)
+'''
+	Old PackageMaker build <legacy / deprecated by Apple>
+	
+	PackageMaker -build
+	 -p cmdLineArgs ['installer']
+	 -f tempdir + '/root'
+	 -ds
+	 -r resDir
+	 -i tempdir + '/Info.plist'
+	 -d tempdir + '/Description.plist'
+'''
 
-	RenderFile (cmdLineArgs ['template'] + 'Info.plist', tempdir + '/Info.plist')
-	RenderFile (cmdLineArgs ['template'] + 'Description.plist', tempdir + '/Description.plist')
-
-	moduleDir =('%s/root/Users/Shared/Autodesk/ApplicationAddins/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
-	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
-		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
-
-	resDir =('%s/Resources' % tempdir)
-	mkdir (resDir)
-	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/Welcome.rtf', resDir + '/Welcome.rtf')
-	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/License.rtf', resDir + '/License.rtf')
-	RenderFile (cmdLineArgs ['template'] + 'index.html', tempdir + '/index.html')
-
-	os.system ("chmod -R 777 %s" % tempdir)
-	os.system ("grep -lUIr \"\\r\" %s | while read line; do echo \"DOS->UNIX - $line\"; %s -u $line; done" % (tempdir, os.environ.get ('FLIP')))
-	command =os.system (os.environ.get ('PACKAGER') + ' -build' +
-	' -p ' + cmdLineArgs ['installer'] + 
-	' -f ' + tempdir + '/root'
-	' -ds'
-	' -r ' + resDir +
-	' -i ' + tempdir + '/Info.plist'
-	' -d ' + tempdir + '/Description.plist')
-	if command != 0:
-		print "PackageMaker -build ... error\n"
-	if cmdLineArgs ['debug'] == False:
-		os.remove (tempdir + '/Info.plist')
-		shutil.rmtree (tempdir)
-	return (command)
-
-#------------------------------------------------------------------------------
-def createMacInstallerPerUser ():
-	global cmdLineArgs, configXml, filestoskip
-	tempdir =createTempFolder ()
-	files =os.walk (cmdLineArgs ['source'])
-	for root, unused_dirs, files in files:
-		dirtomake =root.replace (cmdLineArgs ['source'], '')
-		if '.dSYM' in dirtomake:
-			continue
-		moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
-		mkdir (moduleDir)
-		for xfile in files:
-			if xfile not in filestoskip:
-				shutil.copy (join (root, xfile), moduleDir)
-
-	moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
-	if not os.path.isfile (moduleDir + '/Info.plist'):
-		RenderFile (cmdLineArgs ['template'] + 'Info.plist', moduleDir + '/Info.plist')
-	#if not os.path.isfile (moduleDir + '/Description.plist'):
-	#	RenderFile (cmdLineArgs ['template'] + 'Description.plist', moduleDir + '/Description.plist')
-	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
-		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
-
-	resDir =('%s/Resources' % tempdir)
-	mkdir (resDir)
-	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/Welcome.rtf', resDir + '/Welcome.rtf')
-	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/License.rtf', resDir + '/License.rtf')
-	RenderFile (cmdLineArgs ['template'] + '/distribution.xml', tempdir + '/distribution.xml')
-	#RenderFile (cmdLineArgs ['template'] + '/InstallerSections.plist', tempdir + '/InstallerSections.plist')
-	#RenderFile (cmdLineArgs ['template'] + 'index.html', tempdir + '/index.html')
-
-	os.system ("chmod -R 777 %s" % tempdir)
-	os.system ("grep -lUIr \"\\r\" %s | while read line; do echo \"DOS->UNIX - $line\"; %s -u $line; done" % (tempdir, os.environ.get ('FLIP')))
-	#command =os.system (os.environ.get ('PACKAGER') + ' -build' +
-	#' -p ' + cmdLineArgs ['installer'] + 
-	#' -f ' + tempdir + '/root'
-	#' -ds'
-	#' -r ' + resDir +
-	#' -i ' + tempdir + '/Info.plist'
-	#' -d ' + tempdir + '/Description.plist')
-	tempPkg =tempdir + '/' + os.path.basename (cmdLineArgs ['installer'])
-	command =os.system ('pkgbuild' + 
-	#' --resources ' + tempdir + '/Resources' +
-	#' --plugins ' + tempdir +
-	' --component ' + tempdir + '/root/' + cmdLineArgs ['bundle'] +
-	' --install-location /Library/Application\ Support/Autodesk/ApplicationPlugins ' +
-	tempPkg)
-	if command != 0:
-		print "pkgbuild --component ... error\n"
-		if cmdLineArgs ['debug'] == False:
-			shutil.rmtree (tempdir)
-		return (command)
-	command =os.system ('productbuild' + 
-	' --distribution ' + tempdir + '/distribution.xml' +
-	' --resources ' + tempdir + '/Resources/' +
-	' --package-path ' + tempdir + ' ' +
-	cmdLineArgs ['installer'])
-	if command != 0:
-		print "productbuild --distribution ... error\n"
-	if cmdLineArgs ['debug'] == False:
-		shutil.rmtree (tempdir)
-	return (command)
-
-#------------------------------------------------------------------------------
 def createMacInstaller ():
-	if "PerMachine" in cmdLineArgs ['template']:
-		return (createMacInstallerPerMachine ())
-	else:
-		return (createMacInstallerPerUser ())
-        
+	global cmdLineArgs, configXml, filestoskip
+	tempdir =installerFileCopy ()
+	
+	moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], 'Contents'))
+	if os.path.isfile (cmdLineArgs ['template'] + '/Info.plist') and not os.path.isfile (moduleDir + '/Info.plist'):
+		RenderFile (cmdLineArgs ['template'] + 'Info.plist', moduleDir + '/Info.plist')
+	if os.path.isfile (cmdLineArgs ['template'] + '/Description.plist') and not os.path.isfile (moduleDir + '/Description.plist'):
+		RenderFile (cmdLineArgs ['template'] + 'Description.plist', moduleDir + '/Description.plist')
+	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
+		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
+
+	resDir =('%s/Resources' % tempdir)
+	mkdir (resDir)
+	scriptsDir =('%s/Scripts' % tempdir)
+	mkdir (scriptsDir)
+	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/Welcome.rtf', resDir + '/Welcome.rtf')
+	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/License.rtf', resDir + '/License.rtf')
+	if os.path.isfile (cmdLineArgs ['template'] + '/Scripts/postinstall'):
+		RenderFile (cmdLineArgs ['template'] + '/Scripts/postinstall', scriptsDir + '/postinstall')
+	if os.path.isfile (cmdLineArgs ['template'] + '/distribution.xml') and not os.path.isfile (moduleDir + '/distribution.xml'):
+		RenderFile (cmdLineArgs ['template'] + '/distribution.xml', tempdir + '/distribution.xml')
+	if os.path.isfile (cmdLineArgs ['template'] + '/InstallerSections.plist') and not os.path.isfile (moduleDir + '/InstallerSections.plist'):
+		RenderFile (cmdLineArgs ['template'] + '/InstallerSections.plist', tempdir + '/InstallerSections.plist')
+	return (0)
+
 #------------------------------------------------------------------------------
 def createLinuxInstaller ():
 	global cmdLineArgs, configXml, filestoskip
-	tempdir =createTempFolder ()
-
-	files =os.walk (cmdLineArgs ['source'])
-	for root, unused_dirs, files in files:
-		dirtomake =root.replace (cmdLineArgs ['source'], '')
-		if '.dSYM' in dirtomake:
-			continue
-		moduleDir =('%s/root/%s/%s' % (tempdir, configXml ['AppName'], dirtomake))
-		mkdir (moduleDir)
-		for xfile in files:
-			if xfile not in filestoskip:
-				shutil.copy (join (root, xfile), moduleDir)
+	tempdir =installerFileCopy ()
 
 	RenderFile (cmdLineArgs ['template'] + 'install.sh', tempdir + '/' + cmdLineArgs ['installer'])
-	RenderFile (cmdLineArgs ['template'] + 'index.html', tempdir + '/index.html')
 
-	os.system ('chmod u+x ' + tempdir + '/' + cmdLineArgs ['installer'])
-	os.system ('chmod -R 777 ' + tempdir + '/root')
-	os.system ("%s %s | while read line; do echo \"DOS->UNIX - $line\"; %s -u $line; done" % (os.environ.get ('GREP'), tempdir, os.environ.get ('FLIP')))
-	if cmdLineArgs ['debug'] == False:
-		shutil.rmtree (tempdir)
 	return (0)
 
 #------------------------------------------------------------------------------
@@ -444,6 +329,23 @@ def createTempFolder():
 		tempd =str (int (random.random () * 100000))
 	tempdir +='/' + tempd
 	mkdir (tempdir)
+	return (tempdir)
+
+#------------------------------------------------------------------------------
+def installerFileCopy ():
+	global cmdLineArgs, configXml, filestoskip
+	tempdir =createTempFolder ()
+	files =os.walk (cmdLineArgs ['source'])
+	for root, unused_dirs, files in files:
+		dirtomake =root.replace (cmdLineArgs ['source'], '')
+		if '.dSYM' in dirtomake:
+			continue
+		
+		moduleDir =('%s/root/%s/%s' % (tempdir, cmdLineArgs ['bundle'], dirtomake))
+		mkdir (moduleDir)
+		for xfile in files:
+			if xfile not in filestoskip:
+				shutil.copy (join (root, xfile), moduleDir)
 	return (tempdir)
 
 #------------------------------------------------------------------------------

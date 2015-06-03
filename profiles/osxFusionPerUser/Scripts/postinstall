@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+if [ -f /Applications/Fusion360.app ] || [ -d /Applications/Fusion360.app ];
+then
+  [[ ! -d ~/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application\ Support/Autodesk/ApplicationPlugins ]] && mkdir -p ~/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application\ Support/Autodesk/ApplicationPlugins
+  mv ~/Library/Application\ Support/Autodesk/ApplicationPlugins/{{BUNDLE}} ~/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application\ Support/Autodesk/ApplicationPlugins
+  ln -s ~/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application\ Support/Autodesk/ApplicationPlugins/{{$BUNDLE}} ~/Library/Application\ Support/Autodesk/ApplicationPlugins/{{BUNDLE}}
+fi
+
+exit 0

@@ -9,6 +9,12 @@ then
 fi
 $PYTHON_EXE ./scripts/createPluginInstaller.py --debug --source $PackageSrc --installer ./output/$AppName.pkg --version $Version --platform macos --template profiles/$Template
 
+if [ -f ./profiles/$Template/build-osx-sub ]; then
+	source ./profiles/$Template/build-osx-sub
+else
+	source ./scripts/build-osx-sub
+fi
+
 if [ -n "$szCertificate" ]; then
   /usr/bin/productsign --sign "$szCertificate" ./output/$AppName.pkg ./output/$AppName-macos.pkg 
   pkgutil --check-signature ./output/$AppName-macos.pkg

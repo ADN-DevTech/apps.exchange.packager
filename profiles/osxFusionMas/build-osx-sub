@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+chmod -R 777 ./temp
+grep -lUIr "\r" ./temp | while read line; do echo "DOS->UNIX - $line"; $FLIP -u $line; done
+
+pkgbuild \
+	--component ./temp/root/$AppName \
+	--scripts ./temp/Scripts \
+	--install-location /Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application\ Support/Autodesk/ApplicationPlugins \
+	./temp/$AppName.pkg
+
+if [ ! $? -eq 0 ]; then
+	echo "pkgbuild --component ... error"
+else
+	productbuild \
+		--distribution ./temp/distribution.xml \
+		--resources ./temp/Resources/ \
+		--package-path ./temp \
+		./output/$AppName.pkg
+
+	if [ ! $? -eq 0 ]; then
+		echo "productbuild --distribution ... error"
+	fi
+fi
