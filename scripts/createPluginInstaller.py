@@ -425,7 +425,7 @@ def parsePackageContentsXml():
 	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('win64', 'windows')
 	configXml ['manifestOS'] =configXml ['manifestOS'].replace ('Win64', 'windows')
 	if configXml ['Author'] != configXml ['Publisher']:
-		configXml ['AuthorPublisher'] =("%s - %s" % configXml ['Author'], configXml ['Publisher'])
+		configXml ['AuthorPublisher'] =("%s - %s" % (configXml ['Author'], configXml ['Publisher']))
 	else:
 		configXml ['AuthorPublisher'] =configXml ['Author']
 	# Determine if we have been provided with a GUID in the config file
