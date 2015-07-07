@@ -15,6 +15,7 @@
 import os, sys, shutil, hashlib, socket, time, tempfile
 import random, re
 from xml.dom import minidom
+from xml.sax.saxutils import escape
 from os.path import join, split
 #import npath
 import getopt
@@ -93,7 +94,7 @@ def buildwixtree (xdir):
 	"	<RegistryValue Root='HKCU' Key='Software\\%s\\%s' Type='string' Value='' KeyPath='yes' />\n"
 	"	<RemoveFile Id='%s.f' Name='*.*' On='uninstall' />\n"
 	"	<RemoveFolder Id='%s.u' On='uninstall' />\n")
-	% (compName, GenerateGUID (), configXml ['Publisher'], configXml ['AppName'], compName [-70:], compName [-70:]))
+	% (compName, GenerateGUID (), escape (configXml ['Publisher']), escape (configXml ['AppName']), compName [-70:], compName [-70:]))
 	# Files
 	if len (filelist) > 0:
 		for xfile, source in zip (filelist, filesource):
@@ -109,14 +110,18 @@ def buildwixtree (xdir):
 		filetags +="</Directory>\n"
 
 #------------------------------------------------------------------------------
-def RenderFile (filename, outfile):
+def StringToXml (isWin, st):
+	return (escape (st) if isWin else st)
+
+def RenderFile (filename, outfile, isWin =False):
 	global cmdLineArgs, configXml
 	global moduletags, shelvestags, filetags, versions, componentrefs
 	wix =open (filename, 'r')
 	lines ='' . join (wix.readlines ())
 	wix.close ()
 	for i in configXml.keys ():
-		lines =lines.replace ('{{' + i + '}}', configXml [i])
+		#lines =lines.replace ('{{' + i + '}}', StringToXml (isWin and os.path.basename (filename) != 'directory.wxi', configXml [i]))
+		lines =lines.replace ('{{' + i + '}}', StringToXml (isWin, configXml [i]))
 	if cmdLineArgs ['platform'] == 'win64':
 		lines =lines.replace ('{{PLATFORM}}', 'x64')
 		lines =lines.replace ('{{-PLATFORM}}', '-x64')
@@ -129,16 +134,16 @@ def RenderFile (filename, outfile):
 		lines =lines.replace ('{{WIN64}}', '')
 		lines =lines.replace ('{{64}}', '')
 		lines =lines.replace ('{{-64}}', '')
-	lines =lines.replace ('{{BUNDLE}}', cmdLineArgs ['bundle'])
-	lines =lines.replace ('{{VERSION}}', cmdLineArgs ['version'])
-	lines =lines.replace ('{{SOURCE}}', cmdLineArgs ['source'])
-	lines =lines.replace ('{{INSTALLER-OUTPUT}}', cmdLineArgs ['installer'])
+	lines =lines.replace ('{{BUNDLE}}', StringToXml (isWin, cmdLineArgs ['bundle']))
+	lines =lines.replace ('{{VERSION}}', StringToXml (isWin, cmdLineArgs ['version']))
+	lines =lines.replace ('{{SOURCE}}', StringToXml (isWin, cmdLineArgs ['source']))
+	lines =lines.replace ('{{INSTALLER-OUTPUT}}', StringToXml (isWin, cmdLineArgs ['installer']))
 	installerPkgTemp =os.path.basename (cmdLineArgs ['installer'])
-	lines =lines.replace ('{{INSTALLER-PKG}}', installerPkgTemp)
+	lines =lines.replace ('{{INSTALLER-PKG}}', StringToXml (isWin, installerPkgTemp))
 	lines =lines.replace ('{{modules}}', moduletags)
 	lines =lines.replace ('{{shelves}}', shelvestags)
 	lines =lines.replace ('{{data}}', filetags)
-	lines =lines.replace ('{{_Version_}}', versions)
+	lines =lines.replace ('{{_Version_}}', StringToXml (isWin, versions))
 	lines =lines.replace ('{{componentrefs}}', componentrefs)
 	lines =lines.replace ('{{AUTODESKGUID}}', GenerateGUID ())
 	lines =lines.replace ('{{APPLICATIONPLUGINSGUID}}', GenerateGUID ())
@@ -173,13 +178,13 @@ def createWindowsInstaller ():
 	moduleDir =('%s/%s' % (cmdLineArgs ['source'], 'Contents'))
 	if os.path.isfile (cmdLineArgs ['template'] + '/manifest.manifest') and not os.path.isfile (moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest'):
 		print "Note: Creating manifest file in your source folder\n"
-		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest')
+		RenderFile (cmdLineArgs ['template'] + '/manifest.manifest', moduleDir + '/' + cmdLineArgs ['bundleNoExt'] + '.manifest', False)
     
 	msms =os.getenv ('MergeMSM', '').split (';')
 	# Build Wix Data Structures
 	dirName =ValidateMsiLd (configXml ['AppName'])
 	configXml ['AppNameLd'] =dirName
-	filetags +=("<Directory Id='%s' Name='%s'>\n" % (dirName, cmdLineArgs ['bundle']))
+	filetags +=("<Directory Id='%s' Name='%s'>\n" % (dirName, escape (cmdLineArgs ['bundle'])))
 	for e in msms:
 		e =e.replace ('\\', '/')
 		if e == '': # or not os.path.isfile (e):
@@ -201,7 +206,7 @@ def createWindowsInstaller ():
 		configXml ['WIN64'] =" Win64='yes'"
 		configXml ['64'] ='64'
 		configXml ['-64'] ='-64'
-	configXml ['VERSION'] =cmdLineArgs ['version']
+	configXml ['VERSION'] =escape (cmdLineArgs ['version'])
 	configXml ['AUTODESKGUID'] =GenerateGUID ()
 	configXml ['APPLICATIONPLUGINSGUID'] =GenerateGUID ()
 	configXml ['MAYAUSERGUID'] =GenerateGUID ()
@@ -213,7 +218,7 @@ def createWindowsInstaller ():
 	dirlist =os.listdir (cmdLineArgs ['template'])
 	for e in dirlist:
 		if os.path.isfile (os.path.join (cmdLineArgs ['template'], e)):
-			RenderFile (cmdLineArgs ['template'] + e, tempdir + '/' + e)
+			RenderFile (cmdLineArgs ['template'] + e, tempdir + '/' + e, os.path.splitext (e) [1] [1:])
 	return (1)
 
 #------------------------------------------------------------------------------
