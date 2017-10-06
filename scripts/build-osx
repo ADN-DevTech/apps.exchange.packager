@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 source ./scripts/setup-osx
 
-[ -f ./output/$AppName.pkg ] || rm -Rf ./output/$AppName.pkg
-[ -f ./output/$AppName-macos.pkg ] || rm -Rf ./output/$AppName-macos.pkg
-if [ -f ./output/$AppName-macos.zip ];
+[ -f "./output/$AppName.pkg" ] || rm -Rf "./output/$AppName.pkg"
+[ -f "./output/$AppName-macos.pkg" ] || rm -Rf "./output/$AppName-macos.pkg"
+if [ -f "./output/$AppName-macos.zip" ];
 then
-  rm -f ./output/$AppName-macos.zip
+  rm -f "./output/$AppName-macos.zip"
 fi
-$PYTHON_EXE ./scripts/createPluginInstaller.py --debug --source $PackageSrc --installer ./output/$AppName.pkg --version $Version --platform macos --template profiles/$Template
+$PYTHON_EXE ./scripts/createPluginInstaller.py --debug --source "$PackageSrc" --installer "./output/$AppName.pkg" --version $Version --platform macos --template profiles/$Template
 
 if [ -f ./profiles/$Template/build-osx-sub ]; then
 	source ./profiles/$Template/build-osx-sub
@@ -16,15 +16,15 @@ else
 fi
 
 if [ -n "$szCertificate" ]; then
-  /usr/bin/productsign --sign "$szCertificate" ./output/$AppName.pkg ./output/$AppName-macos.pkg 
-  pkgutil --check-signature ./output/$AppName-macos.pkg
+  /usr/bin/productsign --sign "$szCertificate" "./output/$AppName.pkg" "./output/$AppName-macos.pkg"
+  pkgutil --check-signature "./output/$AppName-macos.pkg"
   #spctl --assess --type install ./output/$AppName-macos.pkg
-  [ -f ./output/$AppName.pkg ] || rm -Rf ./output/$AppName.pkg
+  [ -f "./output/$AppName.pkg" ] || rm -Rf "./output/$AppName.pkg"
 else
   echo "Warning: PKG not signed, Mountain Lion and beyond will complain during install."
-  mv ./output/$AppName.pkg ./output/$AppName-macos.pkg
+  mv "./output/$AppName.pkg" "./output/$AppName-macos.pkg"
 fi
 
 pushd ./output/
-zip -r -q $AppName-macos.zip $AppName-macos.pkg
+zip -r -q "$AppName-macos.zip" "$AppName-macos.pkg"
 popd

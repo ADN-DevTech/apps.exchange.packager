@@ -3,7 +3,7 @@ rem @echo off
 rem cd /d %~dp0..
 
 if exist m:\nul subst m: /d
-subst m: "C:\Program Files (x86)\WiX Toolset v3.9"
+subst m: "C:\Program Files (x86)\WiX Toolset v3.10"
 
 call .\DigitalSignature\AppStore.bat
 set DEVBIN=m:

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 chmod -R 777 ./temp
-grep -lUIr "\r" ./temp | while read line; do echo "DOS->UNIX - $line"; $FLIP -u $line; done
+grep -lUIr "\r" ./temp | while read line; do echo "DOS->UNIX - $line"; $FLIP -u "$line"; done
 
 pkgbuild \
-	--component ./temp/root/$AppName \
+	--component "./temp/root/$AppName" \
 	--install-location /Library/Application\ Support/Autodesk/ApplicationPlugins \
-	./temp/$AppName.pkg
+	"./temp/$AppName.pkg"
 
 if [ ! $? -eq 0 ]; then
 	echo "pkgbuild --component ... error"
@@ -15,7 +15,7 @@ else
 		--distribution ./temp/distribution.xml \
 		--resources ./temp/Resources/ \
 		--package-path ./temp \
-		./output/$AppName.pkg
+		"./output/$AppName.pkg"
 
 	if [ ! $? -eq 0 ]; then
 		echo "productbuild --distribution ... error"

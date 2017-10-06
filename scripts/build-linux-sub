@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-chmod u+x ./temp/$AppName-linux.sh
+chmod u+x "./temp/$AppName-linux.sh"
 chmod -R 777 ./temp/root
 $GREP ./temp | while read line; do echo "DOS->UNIX - $line"; $FLIP -u $line; done

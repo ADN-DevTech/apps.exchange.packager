@@ -1,19 +1,19 @@
 #!/bin/bash
 source ./scripts/setup-linux
 
-[ -f ./output/$AppName-linux.sh ] || rm -Rf ./output/$AppName-linux.sh
-$PYTHON_EXE ./scripts/createPluginInstaller.py --debug --source $PackageSrc --installer $AppName-linux.sh --version $Version --platform linux --template profiles/$Template
+[ -f "./output/$AppName-linux.sh" ] || rm -Rf "./output/$AppName-linux.sh"
+$PYTHON_EXE ./scripts/createPluginInstaller.py --debug --source "$PackageSrc" --installer "$AppName-linux.sh" --version $Version --platform linux --template profiles/$Template
 
 pushd temp/root
 $GREP . | while read line; do echo "DOS->UNIX - $line"; $FLIP -u $line; done
-tar -zcf ../$AppName-linux.tgz *
+tar -zcf "../$AppName-linux.tgz" *
 cd ..
-echo "PAYLOAD:" >> ./$AppName-linux.sh
-cat ./$AppName-linux.tgz >> ./$AppName-linux.sh
-chmod ago+x ./$AppName-linux.sh
-cp ./$AppName-linux.sh ../output/
+echo "PAYLOAD:" >> "./$AppName-linux.sh"
+cat "./$AppName-linux.tgz" >> "./$AppName-linux.sh"
+chmod ago+x "./$AppName-linux.sh"
+cp "./$AppName-linux.sh" ../output/
 popd
 
 pushd ./output/
-zip -r -q $AppName-linux.zip $AppName-linux.sh
+zip -r -q "$AppName-linux.zip" "$AppName-linux.sh"
 popd
