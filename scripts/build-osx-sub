@@ -5,7 +5,7 @@ grep -lUIr "\r" ./temp | while read line; do echo "DOS->UNIX - $line"; $FLIP -u 
 
 pkgbuild \
 	--component "./temp/root/$AppName" \
-	--install-location /Library/Application\ Support/Autodesk/ApplicationPlugins \
+	--install-location "/Library/Application\ Support/Autodesk/ApplicationPlugins" \
 	"./temp/$AppName.pkg"
 
 if [ ! $? -eq 0 ]; then
