@@ -254,6 +254,8 @@ def createMacInstaller ():
 	RenderRtfFile (cmdLineArgs ['template'] + '/Resources/License.rtf', resDir + '/License.rtf')
 	if os.path.isfile (cmdLineArgs ['template'] + '/Scripts/postinstall'):
 		RenderFile (cmdLineArgs ['template'] + '/Scripts/postinstall', scriptsDir + '/postinstall')
+	if os.path.isfile (cmdLineArgs ['template'] + '/Scripts/preinstall'):
+		RenderFile (cmdLineArgs ['template'] + '/Scripts/preinstall', scriptsDir + '/preinstall')
 	if os.path.isfile (cmdLineArgs ['template'] + '/distribution.xml') and not os.path.isfile (moduleDir + '/distribution.xml'):
 		RenderFile (cmdLineArgs ['template'] + '/distribution.xml', tempdir + '/distribution.xml')
 	if os.path.isfile (cmdLineArgs ['template'] + '/InstallerSections.plist') and not os.path.isfile (moduleDir + '/InstallerSections.plist'):
