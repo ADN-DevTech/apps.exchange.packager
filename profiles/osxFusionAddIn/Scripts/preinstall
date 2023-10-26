@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+echo Using osxFusionAppIn
+
+previous_bundle_dir="$HOME/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application Support/Autodesk/ApplicationPlugins"
+echo previous bundle dir = $previous_bundle_dir
+
+previous_bundle_path="$previous_bundle_dir/{{BUNDLE}}"
+echo previous bundle path = $previous_bundle_path
+
+if [ -d "$previous_bundle_path" ]; then
+  echo deleting directory "$previous_bundle_path"
+  rm -rf "$previous_bundle_path"
+else
+  echo "${previous_bundle_path} not found. Can not delete."
+fi
+
+previous_bundle_link_dir="$HOME/Library/Application Support/Autodesk/ApplicationPlugins"
+echo previous bundle link dir = $previous_bundle_link_dir
+
+previous_bundle_path_link="$previous_bundle_link_dir/{{BUNDLE}}"
+echo previous bundle path link = $previous_bundle_path_link
+
+if [ -d "$previous_bundle_path_link" ]; then
+  echo deleting directory "$previous_bundle_path_link"
+  rm -rf "$previous_bundle_path_link"
+else
+  echo "${previous_bundle_path_link} not found. Can not delete."
+fi
+
+
+
+
+echo Done
+exit 0

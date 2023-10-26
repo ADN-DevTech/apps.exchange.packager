@@ -1,0 +1,13 @@
+{
+	"autodeskProduct": "{{AutodeskProduct}}",
+	"type": "addin",
+	"id": "{{UpgradeCodeLessBackets}}",
+	"author": "{{AuthorPublisher}}",
+	"description": {
+		"":	"{{AppDescription}}"
+	},
+	"version": "{{AppVersion}}",
+	"runOnStartup": true,
+	"supportedOS": "{{manifestOS}}",
+	"autodeskLibraries": ["application", "dashboard", "geometry", "materials", "userInterface", "utilities", "bRep", "components", "construction", "features", "fusion", "meshBody", "meshData", "sketch", "tSpline"]
+}
