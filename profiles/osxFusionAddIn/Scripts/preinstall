@@ -5,6 +5,10 @@ echo Using osxFusionAppIn
 previous_bundle_dir="$HOME/Library/Containers/com.autodesk.mas.fusion360/Data/Library/Application Support/Autodesk/ApplicationPlugins"
 echo previous bundle dir = $previous_bundle_dir
 
+echo  changing permissions
+chmod -R 777 /Users/${USER}/Library/'Application Support'/Autodesk/ApplicationPlugins
+Chmod -R 777 /Users/${USER}/Library/Containers/com.autodesk.mas.fusion360/Data/Library/'Application Support'/Autodesk/ApplicationPlugins
+
 previous_bundle_path="$previous_bundle_dir/{{BUNDLE}}"
 echo previous bundle path = $previous_bundle_path
 
